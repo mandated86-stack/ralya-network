@@ -46,3 +46,65 @@ jobs:
           retention-days: 1
       - name: Wait for Devnet funding and deploy RLYA program
         run: bash scripts/devnet_smoke.sh deploy
+
+  devnet-protocol:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[devnet-protocol]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare temporary Solana JS test dependencies
+        run: npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
+      - name: Prepare disposable Devnet protocol payer
+        run: |
+          cat > /tmp/rlya_devnet_prepare.mjs <<'JS'
+          import fs from 'node:fs';
+          import {Keypair} from '@solana/web3.js';
+          const k=Keypair.generate();
+          fs.writeFileSync('/tmp/rlya-devnet-protocol-payer.json',JSON.stringify(Array.from(k.secretKey)));
+          fs.writeFileSync('/tmp/rlya-devnet-protocol-address.txt',k.publicKey.toBase58()+'\n');
+          console.log('RALYA_DEVNET_PROTOCOL_PAYER='+k.publicKey.toBase58());
+          JS
+          node /tmp/rlya_devnet_prepare.mjs
+      - name: Publish safe public protocol funding address
+        uses: actions/upload-artifact@v4
+        with:
+          name: rlya-devnet-protocol-address-${{ github.run_id }}
+          path: /tmp/rlya-devnet-protocol-address.txt
+          retention-days: 1
+      - name: Wait for Devnet funding and run full public protocol suite
+        run: |
+          cat > /tmp/rlya_devnet_wait.mjs <<'JS'
+          import fs from 'node:fs';
+          import {Connection,Keypair,LAMPORTS_PER_SOL} from '@solana/web3.js';
+          const rpc='https://api.devnet.solana.com';
+          const c=new Connection(rpc,'confirmed');
+          const k=Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync('/tmp/rlya-devnet-protocol-payer.json','utf8'))));
+          let ok=false;
+          for(let i=1;i<=120;i++){
+            const sol=(await c.getBalance(k.publicKey,'confirmed'))/LAMPORTS_PER_SOL;
+            console.log(`Devnet protocol funding check ${i}/120: ${sol} SOL`);
+            if(sol>=0.25){ok=true;break;}
+            await new Promise(r=>setTimeout(r,15000));
+          }
+          if(!ok) throw new Error('Devnet protocol payer was not funded to at least 0.25 SOL in time.');
+          JS
+          node /tmp/rlya_devnet_wait.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          src=Path('scripts/local_validator_smoke.sh').read_text()
+          marker="cat > /tmp/ralya_local_integration.mjs <<'JS'\n"
+          start=src.index(marker)+len(marker)
+          end=src.index("\nJS\n\nRALYA_PROGRAM_ID=",start)
+          js=src[start:end]
+          js=js.replace("const RPC='http://127.0.0.1:8899';","const RPC='https://api.devnet.solana.com';")
+          js=js.replace("if(!RPC.includes('127.0.0.1')) throw new Error('Integration harness refuses non-local RPC');","if(RPC!=='https://api.devnet.solana.com') throw new Error('Devnet harness refuses any non-Devnet RPC');")
+          js=js.replace("/tmp/ralya-local-payer.json","/tmp/rlya-devnet-protocol-payer.json")
+          js,n=re.subn(r"const fundTx=new Transaction\(\);.*?\nawait sendAndConfirmTransaction\(c,fundTx,\[admin\]\);\n","",js,count=1,flags=re.S)
+          if n!=1: raise SystemExit('Could not remove localhost-only wallet funding block')
+          js=js.replace('RALYA_LOCAL_PROTOCOL_INTEGRATION=PASS','RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS')
+          Path('/tmp/rlya_devnet_protocol_integration.mjs').write_text(js)
+          PY
+          RALYA_PROGRAM_ID='Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN' node /tmp/rlya_devnet_protocol_integration.mjs | tee /tmp/rlya-devnet-protocol.log
+          grep -F 'RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS' /tmp/rlya-devnet-protocol.log
