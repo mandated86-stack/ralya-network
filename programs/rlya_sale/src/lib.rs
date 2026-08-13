@@ -453,7 +453,7 @@ fn ceil_div(n: u128, d: u128) -> Result<u128> {
 }
 
 fn transfer_checked<'info>(
-    token_program: AccountInfo<'info>,
+    _token_program: AccountInfo<'info>,
     from: AccountInfo<'info>,
     mint: AccountInfo<'info>,
     to: AccountInfo<'info>,
@@ -463,7 +463,7 @@ fn transfer_checked<'info>(
     signer_seeds: Option<&[&[&[u8]]]>,
 ) -> Result<()> {
     let accounts = TransferChecked { from, mint, to, authority };
-    let cpi = CpiContext::new(token_program, accounts);
+    let cpi = CpiContext::new(Token::id(), accounts);
     match signer_seeds {
         Some(seeds) => token::transfer_checked(cpi.with_signer(seeds), amount, decimals),
         None => token::transfer_checked(cpi, amount, decimals),
