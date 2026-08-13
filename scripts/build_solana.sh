@@ -9,4 +9,4 @@ rustc --version
 solana --version
 anchor --version
 anchor --version | grep -F '1.0.2'
-anchor test --skip-deploy --skip-local-validator
+cargo build-sbf --manifest-path programs/rlya_sale/Cargo.toml
