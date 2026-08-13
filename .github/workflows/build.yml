@@ -4,6 +4,9 @@ on:
   push:
     paths:
       - 'scripts/build_solana.sh'
+      - 'programs/rlya_sale/**'
+      - 'Cargo.toml'
+      - 'Anchor.toml'
 permissions:
   contents: read
 jobs:
