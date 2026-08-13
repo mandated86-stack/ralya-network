@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>RALYA Owner Console</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body{background:#07141f;color:#e6eef4}.owner-shell{width:min(880px,calc(100% - 30px));margin:0 auto;padding:50px 0}.owner-top{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:30px}.owner-card{background:#0d2230;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;margin:16px 0}.owner-card h2{margin-top:0}.owner-card p,.owner-card small{color:#91a8b7}.owner-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.owner-grid div{background:#091b27;border:1px solid rgba(255,255,255,.08);padding:15px;border-radius:12px;display:flex;flex-direction:column}.owner-grid span{font-size:9px;color:#7e97a8;text-transform:uppercase}.owner-grid strong{font-size:18px}.owner-card input{width:100%;padding:13px;border-radius:10px;border:1px solid #314859;background:#07141f;color:white;margin:6px 0 14px}.owner-actions{display:flex;flex-wrap:wrap;gap:10px}.danger{background:#8d2934!important}.owner-note{border-left:3px solid #72e6d5;padding-left:15px}.owner-status{font-family:ui-monospace,monospace;font-size:12px;color:#8fc7bd;white-space:pre-wrap}@media(max-width:700px){.owner-grid{grid-template-columns:1fr 1fr}.owner-top{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <main class="owner-shell">
+    <div class="owner-top"><div><span class="eyebrow">RALYA OWNER CONSOLE</span><h1>On-chain sale control</h1></div><button class="btn btn-primary" id="connectOwner">Connect admin / founder wallet</button></div>
+    <div class="owner-card"><div class="owner-grid"><div><span>Wallet</span><strong id="ownerWallet">--</strong></div><div><span>Current price</span><strong id="ownerPrice">--</strong></div><div><span>Total distributed</span><strong id="ownerSold">--</strong></div><div><span>Manual/off-site</span><strong id="ownerManual">--</strong></div><div><span>Referral rewards</span><strong id="ownerReferral">--</strong></div></div><p id="founderLockStatus" class="owner-note">Founder lock status will load from Solana after mainnet configuration.</p></div>
+    <div class="owner-card"><h2>Referral economics</h2><p class="owner-note">Referral purchases use a fixed 1% USDC split in the sale program: 1% to the referred wallet and 99% to treasury. The buyer receives the same RLYA quote and pays no extra amount. The rate is not editable from this console.</p></div>
+    <div class="owner-card">
+      <h2>Record an off-site sale</h2>
+      <p class="owner-note">Use this after you have agreed payment outside the website. This action sends RLYA from the official presale vault to the buyer and advances the exact same public price curve. It does not let you type an arbitrary market price.</p>
+      <label>Buyer Solana wallet</label><input id="manualRecipient" placeholder="Buyer public wallet address" />
+      <label>RLYA sold</label><input id="manualAmount" type="number" min="0.000000001" step="1" placeholder="Example: 2000000" />
+      <button class="btn btn-primary" id="manualSale" disabled>Deliver RLYA + advance price</button>
+    </div>
+    <div class="owner-card"><h2>Sale state</h2><p>Pause stops website purchases. Manual/off-site delivery remains available while paused. Closing is final for the sale program; unsold RLYA can then be moved to the treasury.</p><div class="owner-actions"><button class="btn btn-secondary" id="pauseSale" disabled>Pause</button><button class="btn btn-secondary" id="resumeSale" disabled>Resume</button><button class="btn danger" id="closeSale" disabled>Close sale</button><button class="btn btn-secondary" id="withdrawUnsold" disabled>Withdraw unsold after close</button></div></div>
+    <div class="owner-card"><h2>Founder lock</h2><p>The founder allocation is controlled by the program until the published unlock timestamp. The button cannot bypass that timestamp.</p><div class="owner-actions"><button class="btn btn-secondary" id="releaseFounder" disabled>Release founder allocation when unlocked</button></div></div>
+    <div class="owner-card"><h2>Console</h2><div class="owner-status" id="ownerStatus">Waiting for launch configuration.</div></div>
+    <p><a href="../index.html">← Back to public site</a></p>
+  </main>
+  <script src="../site-config.js"></script><script type="module" src="admin.js"></script>
+</body>
+</html>

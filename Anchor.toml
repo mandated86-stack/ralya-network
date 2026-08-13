@@ -1,0 +1,20 @@
+[toolchain]
+anchor_version = "1.0.2"
+solana_version = "3.1.10"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+rlya_sale = "8rMEhAaQ9gU5y1ejwQtWKsV2kpET3DHjkh9aGxxjuFmn"
+
+[programs.devnet]
+rlya_sale = "8rMEhAaQ9gU5y1ejwQtWKsV2kpET3DHjkh9aGxxjuFmn"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "python3 -m unittest discover -s tests -v"

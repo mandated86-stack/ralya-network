@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "status": "LAUNCH_ALLOCATION",
+  "symbol": "RLYA",
+  "decimals": 9,
+  "hard_cap_tokens": 839000000,
+  "hard_cap_base_units": 839000000000000000,
+  "minting_after_launch": false,
+  "public_sale_curve": {
+    "payment_asset": "USDC on Solana",
+    "start_price_usdc": "0.003000",
+    "step_tokens": 1000000,
+    "step_increase_usdc": "0.000050",
+    "delivery": "atomic USDC-to-RLYA",
+    "refund_state": false,
+    "claim_state": false
+  },
+  "allocations": {
+    "provider_security_incentives": {
+      "bps": 2500,
+      "tokens": 209750000,
+      "base_units": 209750000000000000
+    },
+    "ecosystem_community": {
+      "bps": 2000,
+      "tokens": 167800000,
+      "base_units": 167800000000000000
+    },
+    "protocol_treasury": {
+      "bps": 1500,
+      "tokens": 125850000,
+      "base_units": 125850000000000000
+    },
+    "presale": {
+      "bps": 1200,
+      "tokens": 100680000,
+      "base_units": 100680000000000000
+    },
+    "founder": {
+      "bps": 1000,
+      "tokens": 83900000,
+      "base_units": 83900000000000000,
+      "initial_lock_days": 365
+    },
+    "future_chain_security": {
+      "bps": 1000,
+      "tokens": 83900000,
+      "base_units": 83900000000000000
+    },
+    "liquidity": {
+      "bps": 800,
+      "tokens": 67120000,
+      "base_units": 67120000000000000
+    }
+  }
+}

@@ -1,0 +1,21 @@
+[package]
+name = "rlya_sale"
+version = "0.5.0"
+description = "RALYA fixed-supply presale, dynamic pricing and founder lock"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "rlya_sale"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = "1.0.2"
+anchor-spl = { version = "1.0.2", features = ["token"] }

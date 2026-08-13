@@ -1,0 +1,15 @@
+RALYA COIN / RLYA - REFERRAL RELEASE CANDIDATE 0.5.0
+
+This is the coin/network project, not the Ralya Protest App.
+
+PUBLIC WEBSITE
+Open web/index.html only for layout inspection. The separate website-deploy ZIP is ready for hosting; real wallet/RPC features require HTTP/HTTPS.
+
+OWNER LAUNCH TOOL
+web/owner/ contains the owner-only signing console. It does not store or request a seed phrase. The public sale stays disabled until actual mainnet addresses are written into site-config.js from a signed launch record.
+
+WHITEPAPER
+web/RALYA_Whitepaper_v1.1.pdf
+
+TECHNICAL SOURCE
+See README.md and security/MAINNET_GATES.md.

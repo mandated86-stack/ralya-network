@@ -1,0 +1,31 @@
+{
+  "project": "RALYA Coin/Network",
+  "symbol": "RLYA",
+  "version": "0.5.0-referral-mainnet-release-candidate",
+  "date": "2026-08-13",
+  "hard_cap_rlya": 839000000,
+  "public_sale_rlya": 100680000,
+  "founder_allocation_rlya": 83900000,
+  "founder_initial_lock_days": 365,
+  "referral_bps": 100,
+  "first_referral_attribution_persistent": true,
+  "direct_two_wallet_loop_block": true,
+  "price_curve": {
+    "base_usdc_per_rlya": 0.003,
+    "step_rlya": 1000000,
+    "increment_usdc_per_rlya": 5e-05
+  },
+  "verification": {
+    "deterministic_tests": 56,
+    "stress_operations": 50000,
+    "stress_rejected": 0,
+    "stress_sold_rlya": 29332095.118,
+    "stress_referral_usdc": 1064.66,
+    "stress_ending_price_usdc": 0.00445,
+    "source_audit": "PASS",
+    "javascript_syntax": "PASS"
+  },
+  "mainnet_live": false,
+  "source_program_compiled": false,
+  "notes": "Release candidate only. Final Solana compile, deployment and owner-signed launch remain required."
+}

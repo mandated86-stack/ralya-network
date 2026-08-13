@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>RALYA_Whitepaper_v1.1</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<h1 id="ralya-whitepaper-v1.1">RALYA Whitepaper v1.1</h1>
+<p><strong>Economic trust for autonomous work</strong><br />
+<strong>Token:</strong> RLYA<br />
+<strong>Initial network:</strong> Solana<br />
+<strong>Maximum supply:</strong> 839,000,000 RLYA<br />
+<strong>Version:</strong> 1.1 - August 2026</p>
+<hr />
+<h2 id="executive-summary">1. Executive summary</h2>
+<p>RALYA is being built as an economic coordination protocol for work
+performed by autonomous software, AI agents, machines and human service
+providers. The core idea is simple: a participant that promises to
+perform work should be able to put economic value at risk, complete the
+work, produce evidence, and receive settlement under transparent
+rules.</p>
+<p>RLYA is the fixed-supply protocol asset intended to provide that
+economic security. It is not designed as a transfer-tax token, a meme
+asset, or a token whose only function is to be bought and resold. In the
+planned RALYA work protocol, RLYA is intended to be used for provider
+bonds, staking, dispute security and other forms of economic
+accountability. Practical settlement assets such as USDC can remain the
+payment rail for work itself.</p>
+<p>RALYA launches on Solana first. This avoids the cost and operational
+burden of running an independent validator network before the protocol
+has real usage. A sovereign RALYA chain is a future option only if
+usage, independent infrastructure and community participation justify
+it.</p>
+<p>The RLYA supply is capped at 839,000,000 tokens. The launch
+architecture requires the entire supply to exist before the public sale
+activates, and requires both mint authority and freeze authority to be
+removed. No application instruction can mint additional RLYA.</p>
+<h2 id="the-problem">2. The problem</h2>
+<p>Autonomous software can increasingly research, trade information,
+call tools, create software, operate machines and coordinate other
+software. Payment alone does not solve the trust problem. A buyer still
+needs answers to questions such as:</p>
+<ul>
+<li>Who accepted the work?</li>
+<li>What exactly was promised?</li>
+<li>Was value placed at risk before work began?</li>
+<li>What evidence proves the work was completed?</li>
+<li>What happens if the result is objectively wrong or disputed?</li>
+<li>Can the provider build a portable record of successful work?</li>
+</ul>
+<p>Traditional platforms solve these questions with a central company
+and a closed database. RALYA’s long-term objective is to make the
+economic portion of that coordination independently verifiable and
+composable.</p>
+<h2 id="the-ralya-model">3. The RALYA model</h2>
+<p>A future RALYA work transaction is designed around six concepts:</p>
+<ol type="1">
+<li><strong>Request</strong> - a machine, software agent, company or
+person publishes a clearly defined task.</li>
+<li><strong>Settlement</strong> - payment terms are specified in an
+accepted asset such as USDC.</li>
+<li><strong>Bond</strong> - the provider commits RLYA or another
+approved security position before performing the task.</li>
+<li><strong>Evidence</strong> - the result and task-specific proof are
+submitted.</li>
+<li><strong>Verification or dispute</strong> - deterministic tasks can
+be checked automatically; subjective tasks require a separate resolution
+path.</li>
+<li><strong>Settlement and reputation</strong> - accepted work releases
+payment and returns the bond; failure can expose the bond to
+protocol-defined consequences.</li>
+</ol>
+<p>The protocol is intentionally being separated from the token sale.
+RLYA can launch and establish transparent supply and distribution rules
+before every future work-market module is complete.</p>
+<h2 id="why-rlya-exists">4. Why RLYA exists</h2>
+<p>RLYA is designed to be the security asset underneath the protocol
+rather than the mandatory currency for every task.</p>
+<p>Planned protocol roles include:</p>
+<ul>
+<li>provider bonds for accepting work;</li>
+<li>staking for service-provider participation;</li>
+<li>economic security for dispute participants or verifiers;</li>
+<li>validator/security participation if a sovereign RALYA chain is
+justified later;</li>
+<li>protocol participation incentives and ecosystem security.</li>
+</ul>
+<p>This design avoids forcing a business that wants to pay 100 USDC for
+a service to first purchase a volatile token just to make the payment.
+The service can be priced in a practical settlement asset while the
+provider’s RLYA position supplies economic accountability.</p>
+<h2 id="solana-first-architecture">5. Solana-first architecture</h2>
+<p>RALYA begins as a Solana-based protocol and SPL token. Solana
+provides the ledger, transaction ordering and validator infrastructure
+during the early phase. RALYA does not need to operate its own always-on
+validator fleet in order to launch the token or its initial
+contracts.</p>
+<p>The release architecture contains a dedicated RLYA sale program with
+these responsibilities:</p>
+<ul>
+<li>require the initializer to control the RLYA mint authority,
+preventing another wallet from front-running the sale setup;</li>
+<li>verify the exact RLYA hard cap before sale activation;</li>
+<li>verify mint authority has been removed;</li>
+<li>verify freeze authority has been removed;</li>
+<li>control the public-sale RLYA vault;</li>
+<li>sell RLYA for USDC atomically;</li>
+<li>route a fixed 1% of referred purchase USDC to the referring wallet
+without changing the buyer quote;</li>
+<li>calculate the current price from on-chain distribution state;</li>
+<li>record owner-authorized off-site distributions through the same sale
+vault;</li>
+<li>pause, resume or close the sale;</li>
+<li>enforce the initial founder time lock.</li>
+</ul>
+<p>The website is a client of these rules. It does not define the
+public-sale price by itself.</p>
+<h2 id="fixed-supply">6. Fixed supply</h2>
+<p><strong>Maximum lifetime supply: 839,000,000 RLYA</strong></p>
+<p>RLYA uses 9 decimal places. At launch the complete supply is created
+once. The launch process then removes mint authority and freeze
+authority before the sale can be activated.</p>
+<p>The sale program’s activation gate requires:</p>
+<ul>
+<li>mint supply = exactly 839,000,000 RLYA;</li>
+<li>mint authority = none;</li>
+<li>freeze authority = none;</li>
+<li>public-sale vault = exactly 100,680,000 RLYA;</li>
+<li>founder-lock vault = exactly 83,900,000 RLYA.</li>
+</ul>
+<p>If any of those conditions are false, the sale cannot activate.</p>
+<h2 id="launch-allocation">7. Launch allocation</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Allocation</th>
+<th style="text-align: right;">Share</th>
+<th style="text-align: right;">RLYA</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Provider and security incentives</td>
+<td style="text-align: right;">25%</td>
+<td style="text-align: right;">209,750,000</td>
+</tr>
+<tr class="even">
+<td>Ecosystem and community</td>
+<td style="text-align: right;">20%</td>
+<td style="text-align: right;">167,800,000</td>
+</tr>
+<tr class="odd">
+<td>Protocol treasury</td>
+<td style="text-align: right;">15%</td>
+<td style="text-align: right;">125,850,000</td>
+</tr>
+<tr class="even">
+<td>Public sale</td>
+<td style="text-align: right;">12%</td>
+<td style="text-align: right;">100,680,000</td>
+</tr>
+<tr class="odd">
+<td>Founder allocation</td>
+<td style="text-align: right;">10%</td>
+<td style="text-align: right;">83,900,000</td>
+</tr>
+<tr class="even">
+<td>Future chain/security reserve</td>
+<td style="text-align: right;">10%</td>
+<td style="text-align: right;">83,900,000</td>
+</tr>
+<tr class="odd">
+<td>Liquidity</td>
+<td style="text-align: right;">8%</td>
+<td style="text-align: right;">67,120,000</td>
+</tr>
+<tr class="even">
+<td><strong>Total</strong></td>
+<td style="text-align: right;"><strong>100%</strong></td>
+<td style="text-align: right;"><strong>839,000,000</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The founder allocation is subject to an initial 365-day
+protocol-controlled lock beginning when the sale first activates. The
+founder allocation is part of the fixed 839M supply; it is not minted
+later.</p>
+<p>Treasury and ecosystem pools are accounting allocations within the
+fixed supply and are intended for protocol development, integrations,
+security, incentives and future infrastructure. Public addresses for
+live allocation accounts should be published with the mainnet launch
+record.</p>
+<h2 id="public-sale-design">8. Public-sale design</h2>
+<p>The first public payment rail is <strong>USDC on Solana</strong>. A
+purchase is designed to be atomic:</p>
+<ol type="1">
+<li>the buyer connects a Solana wallet;</li>
+<li>the website reads the current sale state from Solana;</li>
+<li>the buyer enters a USDC amount;</li>
+<li>the client calculates the expected RLYA allocation from the same
+stepped curve used by the program and submits that quote as the buyer’s
+minimum acceptable RLYA output;</li>
+<li>the buyer signs one transaction;</li>
+<li>the program recalculates the allocation from current on-chain state
+and rejects the transaction if it is below the buyer’s minimum;</li>
+<li>for a direct purchase, the program transfers the full USDC payment
+to the configured treasury token account; for a valid referred purchase,
+it transfers 1% of gross USDC to the referrer and 99% to treasury;</li>
+<li>the program transfers the quoted RLYA from the sale vault to the
+buyer;</li>
+<li>if the transaction fails, none of the transfer legs are
+completed.</li>
+</ol>
+<p>There is no separate presale claim balance and no presale refund
+state. A confirmed purchase delivers RLYA directly to the buyer’s
+wallet.</p>
+<h2 id="demand-based-launch-curve">9. Demand-based launch curve</h2>
+<p>The release curve begins at:</p>
+<p><strong>0.003000 USDC per RLYA</strong></p>
+<p>The price increases by:</p>
+<p><strong>0.000050 USDC per RLYA for every 1,000,000 RLYA distributed
+from the sale vault.</strong></p>
+<p>The price therefore follows distribution rather than an editable
+number stored only on the website. A large purchase can cross several
+price steps; each portion is priced at the step it consumes.</p>
+<p>Illustrative boundaries:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Total public-sale distribution</th>
+<th style="text-align: right;">Price per RLYA</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0 - 999,999 RLYA</td>
+<td style="text-align: right;">$0.003000</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1M - 1,999,999 RLYA</td>
+<td style="text-align: right;">$0.003050</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">10M - 10,999,999 RLYA</td>
+<td style="text-align: right;">$0.003500</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">50M - 50,999,999 RLYA</td>
+<td style="text-align: right;">$0.005500</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">100M+ RLYA</td>
+<td style="text-align: right;">$0.008000</td>
+</tr>
+</tbody>
+</table>
+<p>This is a launch distribution curve, not a promise of an
+exchange-market price. After external markets exist, market prices are
+determined by those markets.</p>
+<h2 id="off-site-sales-and-the-owner-control">10. Off-site sales and the
+owner control</h2>
+<p>RALYA includes an owner-authorized on-chain off-site sale action for
+legitimate distributions where payment occurs outside the public
+website.</p>
+<p>The control does <strong>not</strong> permit the website owner to
+type an arbitrary public price. Instead it requires the specified RLYA
+amount to leave the same on-chain public-sale vault and be delivered to
+the named recipient wallet. That amount increments the same public
+<code>total_sold</code> counter used by website purchases, so the public
+launch curve advances consistently.</p>
+<p>Example: if 2,000,000 RLYA are sold privately, recording the sale
+transfers 2,000,000 RLYA from the public-sale vault and advances the
+distribution curve by two one-million-token steps.</p>
+<p>The program separately records the quantity distributed through the
+owner-authorized path so observers can distinguish on-site USDC
+purchases from off-site token distributions.</p>
+<h2 id="referral-distribution">11. Referral distribution</h2>
+<p>RALYA includes a fixed on-chain referral path for public-sale
+purchases. A connected wallet can share a link containing its Solana
+public address. If another wallet uses that referral when purchasing
+RLYA, the buyer pays the same gross USDC amount and receives the same
+RLYA quote as a direct buyer.</p>
+<p>The sale program splits that gross USDC payment as follows:</p>
+<ul>
+<li><strong>1% to the referring Solana wallet in USDC;</strong></li>
+<li><strong>99% to the configured sale treasury;</strong></li>
+<li><strong>0 additional RLYA minted or awarded.</strong></li>
+</ul>
+<p>The referral rate is fixed at 100 basis points in the sale program
+and stored in the on-chain sale state. It is not an owner-editable
+website setting. The website bundles a buyer wallet’s first referral
+registration into its first referred purchase transaction, creating a
+deterministic on-chain referral-attribution record. That buyer cannot
+later switch to a different referrer or bypass the attribution using the
+direct-buy instruction. The program rejects same-wallet self-referrals
+and direct two-wallet referral loops at registration.</p>
+<p>Example: a referred purchase of 500 USDC gives the buyer the same
+RLYA allocation that 500 USDC would receive without a referral. Five
+USDC is routed to the referrer and 495 USDC to treasury. The buyer is
+not charged 505 USDC.</p>
+<p>If the referrer does not yet have a Solana USDC associated token
+account, the buyer client may include creation of that standard token
+account in the same transaction before the referred purchase
+instruction. The transaction fee/rent associated with creating that
+account is a Solana network cost, not an additional RALYA referral
+percentage.</p>
+<p>Referral totals are recorded in aggregate in the sale state, while
+individual referral transfers remain independently visible in Solana
+transaction history.</p>
+<h2 id="wallet-transparency">12. Wallet transparency</h2>
+<p>The public website is designed to read:</p>
+<ul>
+<li>the connected wallet’s real RLYA token balance;</li>
+<li>the connected wallet’s real USDC balance;</li>
+<li>the current on-chain sale state;</li>
+<li>total RLYA distributed from the public-sale vault;</li>
+<li>the current and next launch-curve price;</li>
+<li>transaction signatures after purchases.</li>
+</ul>
+<p>Once launch addresses are published, users can independently inspect
+the same mint, program and token-account data with standard Solana tools
+and explorers.</p>
+<h2 id="founder-lock-and-continuing-development">13. Founder lock and
+continuing development</h2>
+<p>The initial founder allocation is 10% of the hard cap and is locked
+for 365 days from first sale activation. The founder vault is
+program-controlled during this period.</p>
+<p>The long-term development model is intended to depend increasingly on
+real protocol activity rather than future token inflation. The future
+work protocol may direct a disclosed share of protocol fees toward
+ongoing core development. Any such live fee configuration should be
+published in protocol documentation and encoded transparently rather
+than hidden in the token transfer mechanism.</p>
+<h2 id="no-transfer-tax-and-no-hidden-mint">14. No transfer tax and no
+hidden mint</h2>
+<p>RLYA is intended to remain a normal transferable token rather than
+using buy taxes, sell taxes or reflection mechanics.</p>
+<p>The launch contract does not contain an RLYA mint instruction. The
+complete supply is created in the launch transaction sequence, after
+which mint and freeze authority are revoked before activation.</p>
+<p>The owner-authorized off-site distribution function can only
+distribute tokens already present in the fixed public-sale vault. It
+cannot create new RLYA.</p>
+<h2 id="verification-research-for-autonomous-work">15. Verification
+research for autonomous work</h2>
+<p>The hardest RALYA problem is not payment; it is proving that work was
+completed correctly without requiring one central company to judge every
+result.</p>
+<p>RALYA is therefore treating verification as a class of mechanisms
+rather than one universal oracle:</p>
+<ul>
+<li><strong>deterministic verification</strong> for tasks whose output
+can be recomputed or tested;</li>
+<li><strong>cryptographic or machine-verifiable evidence</strong> where
+task types support it;</li>
+<li><strong>competitive verification</strong> where independent
+providers can reproduce or challenge a result;</li>
+<li><strong>buyer acceptance windows</strong> for subjective
+deliverables;</li>
+<li><strong>dispute mechanisms</strong> for buyer/provider
+disagreement;</li>
+<li><strong>reputation tied to economic history</strong> as supporting
+evidence, not as a replacement for proof.</li>
+</ul>
+<p>The public token launch does not claim that this research problem is
+already solved. The website and repository distinguish working sale
+infrastructure from future protocol modules.</p>
+<h2 id="path-to-multichain">16. Path to multichain</h2>
+<p>RALYA is Solana-first, not Solana-only as a permanent architectural
+commitment. Multichain settlement can be added incrementally once the
+base protocol is stable.</p>
+<p>The expected progression is:</p>
+<ol type="1">
+<li>Solana token and sale;</li>
+<li>Solana protocol modules;</li>
+<li>selected cross-chain settlement integrations;</li>
+<li>broader interoperability;</li>
+<li>independent RALYA chain only if usage and decentralized
+infrastructure justify it.</li>
+</ol>
+<p>This approach avoids paying to operate an empty validator network
+simply to market the project as a new Layer 1.</p>
+<h2 id="open-source-development">17. Open-source development</h2>
+<p>The RALYA release repository is intended to publish:</p>
+<ul>
+<li>Solana program source;</li>
+<li>browser sale client;</li>
+<li>owner control client;</li>
+<li>executable Python economic reference model;</li>
+<li>automated invariant and stress tests;</li>
+<li>tokenomics files;</li>
+<li>threat model and launch gates;</li>
+<li>whitepaper source and PDF;</li>
+<li>release hashes and verification notes.</li>
+</ul>
+<p>Open source is not presented as proof of safety by itself. The
+project uses it so token rules, code changes and launch addresses can be
+inspected independently.</p>
+<h2 id="security-principles">18. Security principles</h2>
+<p>The launch architecture follows several deliberately narrow
+rules:</p>
+<ul>
+<li>fixed lifetime supply;</li>
+<li>no mint instruction in the application program;</li>
+<li>mint/freeze authority must be revoked before activation;</li>
+<li>public-sale inventory has a fixed cap;</li>
+<li>buyer USDC, optional referral USDC, treasury USDC and RLYA delivery
+are executed in one transaction;</li>
+<li>referred buyers receive the same RLYA quote and pay no referral
+surcharge;</li>
+<li>same-wallet self-referrals and direct two-wallet referral loops are
+rejected;</li>
+<li>a buyer wallet’s first referral attribution is persistent and cannot
+be bypassed through the direct-buy instruction;</li>
+<li>buyer transactions include minimum-output protection against a
+price-step change between quote and execution;</li>
+<li>sale initialization requires control of the RLYA mint authority to
+prevent account-squatting/front-run initialization;</li>
+<li>owner off-site distributions must use the same sale vault;</li>
+<li>pause can stop new website purchases without rewriting previous
+transfers;</li>
+<li>unsold public-sale inventory can only be withdrawn after the sale is
+closed;</li>
+<li>founder allocation cannot leave its vault before the lock
+expires;</li>
+<li>private keys are never embedded in the website or repository.</li>
+</ul>
+<p>Before mainnet activation, the compiled program, program ID, mint
+address, treasury address and launch transaction signatures should be
+published together. The initial program upgrade authority is also a
+security-sensitive role and should be publicly identified; after the
+early audited upgrade period, the project can move that authority to a
+stronger multisignature/governance arrangement or make the program
+immutable when further upgrades are no longer required.</p>
+<h2 id="development-state-at-whitepaper-v1.1">19. Development state at
+Whitepaper v1.1</h2>
+<p>At this release-candidate stage:</p>
+<ul>
+<li>the economic reference model and automated sale invariants are
+executable;</li>
+<li>the Solana Anchor sale program source exists;</li>
+<li>the public website uses real wallet/RPC code rather than simulated
+balances;</li>
+<li>the owner panel uses the same on-chain sale state;</li>
+<li>fixed 1% USDC referral economics, persistent first-referrer
+attribution, same-wallet/two-wallet loop protection and website referral
+links are implemented in source and tested;</li>
+<li>simulated purchase paths have been removed;</li>
+<li>whitepaper and public repository package are prepared;</li>
+<li>final Solana program compilation/deployment and RLYA mainnet mint
+require the project owner’s signing wallet and are not represented as
+completed until their real addresses are published.</li>
+</ul>
+<h2 id="roadmap">20. Roadmap</h2>
+<h3 id="launch-foundation">Launch foundation</h3>
+<ul>
+<li>compile and test the RLYA sale program with the pinned Solana/Anchor
+toolchain;</li>
+<li>deploy and verify program;</li>
+<li>create RLYA mint and metadata;</li>
+<li>create exactly 839M RLYA;</li>
+<li>fund published allocation accounts;</li>
+<li>revoke mint and freeze authority;</li>
+<li>activate public sale;</li>
+<li>publish addresses and transaction signatures.</li>
+</ul>
+<h3 id="protocol-alpha">Protocol alpha</h3>
+<ul>
+<li>provider identity and bond model;</li>
+<li>job request and settlement schema;</li>
+<li>deterministic task verification adapters;</li>
+<li>dispute and challenge prototype;</li>
+<li>public test environment.</li>
+</ul>
+<h3 id="interoperability">Interoperability</h3>
+<ul>
+<li>selected multichain settlement integrations;</li>
+<li>provider tooling and SDKs;</li>
+<li>external developer integrations.</li>
+</ul>
+<h3 id="sovereign-infrastructure-only-if-earned">Sovereign
+infrastructure, only if earned</h3>
+<ul>
+<li>independent testnet;</li>
+<li>independent validators;</li>
+<li>security and migration plan;</li>
+<li>native RALYA chain only if protocol usage justifies it.</li>
+</ul>
+<h2 id="closing-principle">21. Closing principle</h2>
+<p>RALYA should be judged by what can be inspected and used: a fixed
+supply, published on-chain rules, a functioning token-sale mechanism,
+visible development evidence, and eventually an economic protocol that
+gives autonomous work real accountability.</p>
+<p>The project is intentionally being built in that order.</p>
+</body>
+</html>

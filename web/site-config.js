@@ -1,0 +1,25 @@
+window.RALYA_CONFIG = Object.freeze({
+  project: 'RALYA',
+  symbol: 'RLYA',
+  build: '0.5.0-referral-release-candidate',
+  network: 'mainnet-beta',
+  rpcEndpoint: 'https://api.mainnet-beta.solana.com',
+  explorerBase: 'https://explorer.solana.com',
+  projectUrl: 'https://ralya-network.netlify.app',
+  metadataUri: 'https://ralya-network.netlify.app/token-metadata.json',
+  hardCap: 839000000,
+  decimals: 9,
+  presaleCap: 100680000,
+  basePriceMicroUsdc: 3000,
+  priceStepTokens: 1000000,
+  priceStepIncrementMicroUsdc: 50,
+  minimumPurchaseUsdc: 1,
+  referralBps: 100,
+  usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  // Populated from the signed RALYA_MAINNET_LAUNCH_RECORD after launch.
+  rlyaMint: '',
+  saleProgramId: '',
+  treasuryWallet: '',
+  githubUrl: '',
+  whitepaperPdf: 'RALYA_Whitepaper_v1.1.pdf'
+});

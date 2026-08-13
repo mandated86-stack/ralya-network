@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>RALYA Owner Launch Console</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body{background:#07141f;color:#eaf4f8}.owner-shell{width:min(980px,calc(100% - 30px));margin:0 auto;padding:42px 0 80px}.owner-top{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:34px}.owner-top h1{font-size:clamp(34px,6vw,58px);line-height:1;margin:8px 0}.owner-top p{color:#93a9b8;max-width:660px}.owner-card{background:#0c2230;border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:22px;margin:14px 0}.owner-card h2{margin:0 0 6px}.owner-card p,.owner-card small{color:#91a8b7}.owner-card label{display:block;font-size:11px;font-weight:800;color:#9bb1bf;margin:14px 0 6px}.owner-card input{width:100%;padding:12px;border:1px solid #345064;background:#071822;color:#eaf4f8;border-radius:10px}.owner-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.owner-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.launch-log{white-space:pre-wrap;background:#06111a;border:1px solid rgba(255,255,255,.08);padding:16px;border-radius:12px;min-height:180px;color:#acd7cf;font:12px/1.6 ui-monospace,monospace;overflow:auto}.launch-row{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:start;padding:13px 0;border-top:1px solid rgba(255,255,255,.08)}.launch-row:first-child{border-top:0}.launch-row b{color:#72e6d5}.state{font-size:9px;font-weight:900;border-radius:999px;padding:5px 8px;background:#162f3d;color:#91a8b7}.state.ok{background:#123b35;color:#72e6d5}.state.run{background:#4b3919;color:#ffd077}.danger{border:1px solid #75504f;background:#2a1718;padding:13px;border-radius:12px;color:#f4c2c0}.muted{color:#7f97a7}.btn[disabled]{opacity:.45;cursor:not-allowed}.record{font:11px ui-monospace,monospace;word-break:break-all;color:#b7cad6}@media(max-width:720px){.owner-grid{grid-template-columns:1fr}.owner-top{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="owner-shell">
+    <div class="owner-top">
+      <div><span class="eyebrow">PRIVATE OWNER TOOL</span><h1>RLYA Mainnet Launch Console</h1><p>This page prepares and signs the real RLYA token launch. It never asks for a seed phrase. Your wallet signs each irreversible on-chain step.</p></div>
+      <button class="btn btn-secondary" id="connectOwner">Connect owner wallet</button>
+    </div>
+
+    <div class="danger"><strong>Do not run this until the RLYA sale program is compiled, reviewed and deployed to mainnet.</strong> The launch deliberately pauses before irreversible authority removal if any required step fails.</div>
+
+    <section class="owner-card">
+      <h2>Launch inputs</h2>
+      <p>The stable RALYA site is used for token metadata. Generate the program-address keypair in your browser before the final compile; the secret file is downloaded locally and is never sent to RALYA.</p>
+      <div class="owner-grid">
+        <div><label>Sale program ID</label><input id="programId" placeholder="Final deployed program ID" /><button class="text-button" id="generateProgramKey" type="button">Generate final program keypair locally</button></div>
+        <div><label>Treasury wallet</label><input id="treasuryWallet" placeholder="Defaults to connected owner wallet" /></div>
+        <div><label>Founder wallet</label><input id="founderWallet" placeholder="Defaults to connected owner wallet" /></div>
+        <div><label>Metadata URI</label><input id="metadataUri" value="https://ralya-network.netlify.app/token-metadata.json" /></div>
+      </div>
+      <div class="owner-actions">
+        <button class="btn btn-primary" id="preflight" disabled>Run mainnet preflight</button>
+        <button class="btn btn-primary" id="launch" disabled>Launch RLYA</button>
+        <button class="btn btn-secondary" id="downloadRecord" disabled>Download launch record</button>
+        <button class="btn btn-secondary" id="downloadConfig" disabled>Download website config</button>
+      </div>
+    </section>
+
+    <section class="owner-card">
+      <h2>Irreversible sequence</h2>
+      <div class="launch-row"><b>1</b><div><strong>Create RLYA mint + metadata</strong><small>9 decimals, freeze authority disabled from creation.</small></div><span class="state" data-state="mint">WAIT</span></div>
+      <div class="launch-row"><b>2</b><div><strong>Create exactly 839,000,000 RLYA</strong><small>Entire lifetime supply minted once to the owner staging account.</small></div><span class="state" data-state="supply">WAIT</span></div>
+      <div class="launch-row"><b>3</b><div><strong>Initialize sale + founder lock</strong><small>Creates the on-chain public-sale and founder vaults.</small></div><span class="state" data-state="initialize">WAIT</span></div>
+      <div class="launch-row"><b>4</b><div><strong>Fund all seven allocations</strong><small>Presale and founder vaults plus five published reserve token accounts reconcile to 839M.</small></div><span class="state" data-state="allocate">WAIT</span></div>
+      <div class="launch-row"><b>5</b><div><strong>Revoke mint authority forever</strong><small>After this transaction confirms, no additional RLYA can be created.</small></div><span class="state" data-state="revoke">WAIT</span></div>
+      <div class="launch-row"><b>6</b><div><strong>Activate public sale</strong><small>The program re-checks the hard cap, revoked authorities and exact vault funding.</small></div><span class="state" data-state="activate">WAIT</span></div>
+      <div class="launch-row"><b>7</b><div><strong>Export launch record</strong><small>Publishes addresses and transaction signatures for the website/GitHub record.</small></div><span class="state" data-state="record">WAIT</span></div>
+    </section>
+
+    <section class="owner-card"><h2>Console</h2><pre class="launch-log" id="log">Connect the final project wallet to begin.</pre><p class="record" id="recordSummary"></p></section>
+  </div>
+  <script src="../site-config.js"></script>
+  <script type="module" src="launch.js"></script>
+</body>
+</html>

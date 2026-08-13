@@ -1,0 +1,17 @@
+# Secrets and keys
+.env
+*.json.key
+id.json
+wallet*.json
+
+# Build outputs
+target/
+node_modules/
+dist/
+.next/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

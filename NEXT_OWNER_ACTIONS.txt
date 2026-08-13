@@ -1,0 +1,17 @@
+RALYA / RLYA - NEXT OWNER ACTIONS
+
+Do only these two things for now:
+
+1) GitHub
+   Create a new blank PUBLIC repository under your GitHub account:
+   ralya-network
+   Do not reuse the private Ralya protest-app repository.
+
+2) Website
+   In Netlify, open the separate project named:
+   ralya-network
+   Deploy the website package RALYA_Website_Deploy_0.5.0.zip.
+
+Then return to ChatGPT and say: DONE.
+
+Do not create the final RLYA mint manually, do not paste any seed phrase/private key anywhere, and do not send real USDC to the sale until ChatGPT has populated the public repository, verified the Solana build, and completed the launch-address configuration.
