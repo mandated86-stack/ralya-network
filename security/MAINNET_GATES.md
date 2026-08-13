@@ -19,6 +19,7 @@ The public sale must not be called live until every production gate below is com
 ## Production gates
 
 - [ ] Owner-controlled production Program ID generated and backed up securely.
+- [ ] Production upgrade-authority policy is published; founder-lock trust must not depend on one ordinary hot wallet. Use a reviewed multisig/timelock arrangement or deliberately make the program immutable when the project is ready.
 - [ ] Program deployed to Solana mainnet.
 - [ ] Program ID published in the canonical launch record.
 - [ ] RLYA metadata created with name `RALYA`, symbol `RLYA`, decimals `9`.
@@ -31,6 +32,9 @@ The public sale must not be called live until every production gate below is com
 - [ ] Sale activation transaction succeeds.
 - [ ] Mainnet RLYA mint, sale PDA, program ID and treasury address inserted into `web/site-config.js` from the signed launch record.
 - [ ] Explicit public-sale enable switch reviewed and enabled only after all production addresses are verified.
+- [ ] Production purchase-path JavaScript dependencies are bundled/self-hosted or otherwise integrity-controlled; the money-moving path must not depend on mutable third-party runtime CDN code.
+- [ ] Public sale UI shows owner-recorded off-site/manual distribution separately from ordinary website-sale activity while still showing the combined curve counter.
+- [ ] Referral token-account UX is reviewed so the user is not surprised by additional account-creation rent/network costs.
 - [ ] Website reads real sale state and wallet balances from mainnet.
 - [ ] One small owner-controlled end-to-end USDC purchase verified before wider publication.
 - [ ] Public repository and Whitepaper v1.1 available from website.
