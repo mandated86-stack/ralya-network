@@ -22,6 +22,7 @@ jobs:
           test -f "$archive"
           temp_dir="$(mktemp -d)"
           unzip -q "$archive" -d "$temp_dir"
+          rm -f "$temp_dir/.github/workflows/ci.yml"
           rsync -a --exclude='.git/' "$temp_dir"/ ./
           rm -f "$archive"
       - name: Commit expanded source
