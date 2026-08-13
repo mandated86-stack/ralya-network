@@ -14,24 +14,36 @@ solana config set --url "$DEVNET_URL"
 solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/ralya-devnet-payer.json
 solana config set --keypair /tmp/ralya-devnet-payer.json
 PAYER=$(solana address)
-echo "Disposable Devnet payer: $PAYER"
+echo "RALYA_DEVNET_FAUCET_ADDRESS=$PAYER"
 
 for attempt in 1 2 3 4; do
   solana airdrop 2 "$PAYER" --url "$DEVNET_URL" && break || true
-  sleep 10
+  sleep 8
 done
-BALANCE=$(solana balance "$PAYER" --url "$DEVNET_URL" | awk '{print $1}')
-echo "Disposable Devnet balance: $BALANCE SOL"
 
-# Shared CI IPs are frequently faucet-rate-limited. If there is not enough
-# fake Devnet SOL to pay program rent, prove deployment on a fresh local
-# validator instead. This never falls back to mainnet or real funds.
+# GitHub-hosted runners share public IPs and can hit the faucet rate limit.
+# Keep this disposable job alive for up to 12 minutes so the public address can
+# be funded from the official web faucet without exposing any private key.
+for check in $(seq 1 24); do
+  BALANCE=$(solana balance "$PAYER" --url "$DEVNET_URL" | awk '{print $1}')
+  echo "Devnet funding check $check/24: $BALANCE SOL"
+  if python3 - "$BALANCE" <<'PY'
+import sys
+raise SystemExit(0 if float(sys.argv[1]) >= 3.0 else 1)
+PY
+  then
+    break
+  fi
+  if [[ "$check" -lt 24 ]]; then sleep 30; fi
+done
+
+BALANCE=$(solana balance "$PAYER" --url "$DEVNET_URL" | awk '{print $1}')
 if ! python3 - "$BALANCE" <<'PY'
 import sys
-raise SystemExit(0 if float(sys.argv[1]) >= 2.7 else 1)
+raise SystemExit(0 if float(sys.argv[1]) >= 3.0 else 1)
 PY
 then
-  echo '[INFO] Devnet faucet is rate-limited. Falling back to local Solana validator smoke deployment.'
+  echo '[INFO] No external Devnet funding arrived in the wait window. Falling back to a fresh local validator.'
   exec bash scripts/local_validator_smoke.sh
 fi
 
@@ -65,8 +77,8 @@ PROGRAM_SO="target/deploy/rlya_sale.so"
 test -f "$PROGRAM_SO"
 echo "Program bytes: $(wc -c < "$PROGRAM_SO")"
 
-# Raw Solana deploy output can include a recovery phrase for an intermediate
-# buffer if deployment fails. Keep raw output private in the ephemeral runner.
+# Failed deploys can print an intermediate recovery phrase. Keep raw deploy
+# output private in the ephemeral runner and publish only sanitized status.
 set +e
 solana program deploy "$PROGRAM_SO" \
   --program-id /tmp/rlya-devnet-program.json \
@@ -75,11 +87,12 @@ solana program deploy "$PROGRAM_SO" \
 deploy_status=$?
 set -e
 if [[ $deploy_status -ne 0 ]]; then
-  echo '[ERROR] Devnet deployment failed. Raw deploy output withheld to avoid exposing ephemeral recovery material.' >&2
+  echo '[ERROR] Devnet deployment failed. Raw deploy output withheld.' >&2
   grep -E '^Error:|insufficient funds|rate limit|RPC' /tmp/ralya-devnet-deploy.log || true
   exit "$deploy_status"
 fi
 
 solana program show "$PROGRAM_ID" --url "$DEVNET_URL"
+echo "RALYA_DEVNET_DEPLOYMENT=PASS"
 echo "RLYA_DEVNET_PROGRAM_ID=$PROGRAM_ID"
 echo "RLYA_DEVNET_EXPLORER=https://explorer.solana.com/address/$PROGRAM_ID?cluster=devnet"
