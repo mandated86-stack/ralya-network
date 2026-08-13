@@ -35,6 +35,10 @@ fi
 solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/ralya-local-payer.json
 PAYER=$(solana-keygen pubkey /tmp/ralya-local-payer.json)
 solana airdrop 100 "$PAYER" --url "$LOCAL_URL" >/dev/null
+# Solana 3.1.10's program deploy path also consults the configured default signer
+# for its temporary deployment buffer authority. Keep it explicitly pointed at
+# this disposable localhost-only payer so no user/production key is involved.
+solana config set --url "$LOCAL_URL" --keypair /tmp/ralya-local-payer.json >/dev/null
 BALANCE=$(solana balance "$PAYER" --url "$LOCAL_URL")
 echo "Local payer: $PAYER"
 echo "Local balance: $BALANCE"
