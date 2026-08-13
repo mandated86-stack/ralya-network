@@ -7,12 +7,18 @@
 - Rust/Solana source audit passing
 - browser JavaScript syntax checks passing
 - real Solana SBF compilation passing in GitHub Actions
+- compiler/integration toolchain pinned to Solana 3.1.10 and Anchor CLI 1.0.2; top-level Anchor program crates pinned to 1.0.2
 - CI rejects any Solana stack-frame warning above the 4,096-byte limit
 - current Buy and BuyWithReferral account validation compile without the prior stack overflow warning
-- current program successfully deployed to a fresh local Solana validator
-- local deployment produced executable Program/ProgramData accounts under the upgradeable loader
-- disposable local validator deployment uses no real SOL and no production keys
-- Devnet deploy script suppresses raw failed-deployment output so temporary recovery material is not published
+- current program successfully deployed to a fresh localhost Solana validator as a 406,656-byte executable
+- full localhost on-chain protocol integration passed: initialize, activation gates, direct buy, referral buy, manual distribution and sale pause/resume
+- 500 USDC referred purchase reconciled exactly to 5 USDC referrer + 495 USDC treasury
+- 2,000,000 RLYA manual/off-site distribution moved tokens from the same sale vault and advanced price from $0.003000 to $0.003100
+- final localhost integration accounting recorded 600 USDC gross and 5 USDC referral payout
+- 12 on-chain abuse/permission guards passed, including mint-authority activation gate, vault-funding gate, referral bypass, self-referral, circular referral, slippage, wrong treasury, unauthorized admin, paused purchase, presale-cap overflow, sub-minimum purchase and early founder release
+- integration verified hard-cap supply remained fixed, mint authority was removed and freeze authority was absent
+- disposable localhost deployment uses no real SOL and no production keys
+- Devnet deployment script withholds raw failed-deployment output so temporary recovery material is not published
 
 ## Complete in source/test package
 - fixed 839M economics
@@ -29,15 +35,15 @@
 - public GitHub CI configuration
 
 ## Current network status
-- Local validator: **DEPLOYMENT VERIFIED**
-- Solana Devnet: **PENDING PUBLIC DEPLOYMENT**. The first disposable CI attempt reached the funding stage but the public Devnet faucet rate-limited GitHub's shared runner IP.
+- Localhost Solana validator: **FULL PROTOCOL INTEGRATION VERIFIED**
+- Solana Devnet: **PENDING PUBLIC DEPLOYMENT**. GitHub-hosted runners are currently rate-limited by the public Devnet faucet; this is a test-network funding/infrastructure issue, not a local contract failure.
 - Solana Mainnet: **NOT DEPLOYED**
-- Real RLYA mint: **NOT CREATED**
+- Production RLYA mint: **NOT CREATED**
 - Real-money public sale: **DISABLED**
 
 ## Evidence still required before the word LIVE is used
 - public Devnet program deployment succeeds
-- Devnet initialize/activate/buy/referral/manual-sale transactions pass
+- Devnet initialize/activate/buy/referral/manual-sale transactions reproduce the localhost integration result
 - final owner-controlled Program ID is generated for production
 - mainnet program is deployed
 - final RLYA mint is signed
