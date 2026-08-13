@@ -594,8 +594,8 @@ pub struct Buy<'info> {
     /// CHECK: the buyer's deterministic referral PDA; if program-owned, direct buying is blocked.
     #[account(seeds = [REFERRAL_SEED, buyer.key().as_ref()], bump)]
     pub referral_attribution: UncheckedAccount<'info>,
-    pub rlya_mint: Account<'info, Mint>,
-    pub usdc_mint: Account<'info, Mint>,
+    pub rlya_mint: Box<Account<'info, Mint>>,
+    pub usdc_mint: Box<Account<'info, Mint>>,
     #[account(
         mut,
         seeds = [SALE_SEED, rlya_mint.key().as_ref()],
@@ -604,15 +604,15 @@ pub struct Buy<'info> {
         has_one = usdc_mint,
         has_one = treasury
     )]
-    pub sale: Account<'info, Sale>,
+    pub sale: Box<Account<'info, Sale>>,
     /// CHECK: constrained by sale.has_one and treasury token account owner.
     pub treasury: UncheckedAccount<'info>,
     #[account(mut, constraint = buyer_usdc_account.mint == usdc_mint.key(), constraint = buyer_usdc_account.owner == buyer.key())]
-    pub buyer_usdc_account: Account<'info, TokenAccount>,
+    pub buyer_usdc_account: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = treasury_usdc_account.mint == usdc_mint.key(), constraint = treasury_usdc_account.owner == treasury.key())]
-    pub treasury_usdc_account: Account<'info, TokenAccount>,
+    pub treasury_usdc_account: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = buyer_rlya_account.mint == rlya_mint.key(), constraint = buyer_rlya_account.owner == buyer.key())]
-    pub buyer_rlya_account: Account<'info, TokenAccount>,
+    pub buyer_rlya_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         token::mint = rlya_mint,
@@ -620,7 +620,7 @@ pub struct Buy<'info> {
         seeds = [SALE_VAULT_SEED, rlya_mint.key().as_ref()],
         bump
     )]
-    pub sale_vault: Account<'info, TokenAccount>,
+    pub sale_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -636,9 +636,9 @@ pub struct BuyWithReferral<'info> {
         has_one = buyer,
         has_one = referrer
     )]
-    pub referral_attribution: Account<'info, ReferralAttribution>,
-    pub rlya_mint: Account<'info, Mint>,
-    pub usdc_mint: Account<'info, Mint>,
+    pub referral_attribution: Box<Account<'info, ReferralAttribution>>,
+    pub rlya_mint: Box<Account<'info, Mint>>,
+    pub usdc_mint: Box<Account<'info, Mint>>,
     #[account(
         mut,
         seeds = [SALE_SEED, rlya_mint.key().as_ref()],
@@ -647,17 +647,17 @@ pub struct BuyWithReferral<'info> {
         has_one = usdc_mint,
         has_one = treasury
     )]
-    pub sale: Account<'info, Sale>,
+    pub sale: Box<Account<'info, Sale>>,
     /// CHECK: constrained by sale.has_one and treasury token account owner.
     pub treasury: UncheckedAccount<'info>,
     #[account(mut, constraint = buyer_usdc_account.mint == usdc_mint.key(), constraint = buyer_usdc_account.owner == buyer.key())]
-    pub buyer_usdc_account: Account<'info, TokenAccount>,
+    pub buyer_usdc_account: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = treasury_usdc_account.mint == usdc_mint.key(), constraint = treasury_usdc_account.owner == treasury.key())]
-    pub treasury_usdc_account: Account<'info, TokenAccount>,
+    pub treasury_usdc_account: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = referrer_usdc_account.mint == usdc_mint.key(), constraint = referrer_usdc_account.owner == referrer.key())]
-    pub referrer_usdc_account: Account<'info, TokenAccount>,
+    pub referrer_usdc_account: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = buyer_rlya_account.mint == rlya_mint.key(), constraint = buyer_rlya_account.owner == buyer.key())]
-    pub buyer_rlya_account: Account<'info, TokenAccount>,
+    pub buyer_rlya_account: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         token::mint = rlya_mint,
@@ -665,7 +665,7 @@ pub struct BuyWithReferral<'info> {
         seeds = [SALE_VAULT_SEED, rlya_mint.key().as_ref()],
         bump
     )]
-    pub sale_vault: Account<'info, TokenAccount>,
+    pub sale_vault: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
 
