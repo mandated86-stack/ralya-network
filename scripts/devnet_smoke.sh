@@ -1,51 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# RALYA disposable Devnet deployment smoke test.
-# This script never targets mainnet and never uses production keys or funds.
+# RALYA disposable public Devnet deployment smoke test.
+# SAFETY: Devnet only; disposable keys; no production keys or real SOL.
 DEVNET_URL="https://api.devnet.solana.com"
 
 curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$PATH"
 avm install 1.0.2
 avm use 1.0.2
+sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.10/install)"
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$PATH"
+solana --version | grep -F '3.1.10'
+anchor --version | grep -F '1.0.2'
 
-solana config set --url "$DEVNET_URL"
 solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/ralya-devnet-payer.json
-solana config set --keypair /tmp/ralya-devnet-payer.json
+solana config set --url "$DEVNET_URL" --keypair /tmp/ralya-devnet-payer.json >/dev/null
 PAYER=$(solana address)
-echo "RALYA_DEVNET_FAUCET_ADDRESS=$PAYER"
+echo "RALYA_DEVNET_TEST_PAYER=$PAYER"
 
-for attempt in 1 2 3 4; do
+for attempt in 1 2; do
   solana airdrop 2 "$PAYER" --url "$DEVNET_URL" && break || true
-  sleep 8
+  sleep 5
 done
-
-# GitHub-hosted runners share public IPs and can hit the faucet rate limit.
-# Keep this disposable job alive for up to 12 minutes so the public address can
-# be funded from the official web faucet without exposing any private key.
-for check in $(seq 1 24); do
-  BALANCE=$(solana balance "$PAYER" --url "$DEVNET_URL" | awk '{print $1}')
-  echo "Devnet funding check $check/24: $BALANCE SOL"
-  if python3 - "$BALANCE" <<'PY'
-import sys
-raise SystemExit(0 if float(sys.argv[1]) >= 3.0 else 1)
-PY
-  then
-    break
-  fi
-  if [[ "$check" -lt 24 ]]; then sleep 30; fi
-done
-
 BALANCE=$(solana balance "$PAYER" --url "$DEVNET_URL" | awk '{print $1}')
+echo "Devnet balance after standard airdrop: $BALANCE SOL"
+
+# The Solana Foundation faucet explicitly recommends devnet-pow for automated
+# agents when normal airdrops are rate-limited on shared infrastructure.
 if ! python3 - "$BALANCE" <<'PY'
 import sys
-raise SystemExit(0 if float(sys.argv[1]) >= 3.0 else 1)
+raise SystemExit(0 if float(sys.argv[1]) >= 3.5 else 1)
 PY
 then
-  echo '[INFO] No external Devnet funding arrived in the wait window. Falling back to a fresh local validator.'
-  exec bash scripts/local_validator_smoke.sh
+  echo '[INFO] Standard Devnet faucet is rate-limited. Trying proof-of-work Devnet funding.'
+  cargo install devnet-pow --version 0.1.4 --locked || cargo install devnet-pow --version 0.1.4
+  devnet-pow mine -d 3 --reward 0.02 --no-infer -t 5000000000
 fi
+
+BALANCE=$(solana balance "$PAYER" --url "$DEVNET_URL" | awk '{print $1}')
+echo "Devnet funded balance: $BALANCE SOL"
+python3 - "$BALANCE" <<'PY'
+import sys
+if float(sys.argv[1]) < 3.5:
+    raise SystemExit('Public Devnet funding remained below 3.5 SOL; deployment not attempted.')
+PY
 
 solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/rlya-devnet-program.json
 PROGRAM_ID=$(solana-keygen pubkey /tmp/rlya-devnet-program.json)
@@ -56,8 +55,7 @@ from pathlib import Path
 import re, sys
 p = Path('programs/rlya_sale/src/lib.rs')
 s = p.read_text()
-program_id = sys.argv[1]
-s, n = re.subn(r'declare_id!\("[^"]+"\);', f'declare_id!("{program_id}");', s, count=1)
+s, n = re.subn(r'declare_id!\("[^"]+"\);', f'declare_id!("{sys.argv[1]}");', s, count=1)
 if n != 1:
     raise SystemExit('Could not replace declare_id for disposable Devnet build')
 p.write_text(s)
@@ -77,8 +75,6 @@ PROGRAM_SO="target/deploy/rlya_sale.so"
 test -f "$PROGRAM_SO"
 echo "Program bytes: $(wc -c < "$PROGRAM_SO")"
 
-# Failed deploys can print an intermediate recovery phrase. Keep raw deploy
-# output private in the ephemeral runner and publish only sanitized status.
 set +e
 solana program deploy "$PROGRAM_SO" \
   --program-id /tmp/rlya-devnet-program.json \
