@@ -1,11 +1,26 @@
 # RLYA Mainnet Gates
 
-The public sale must not be called live until all launch-address fields are published.
+The public sale must not be called live until every production gate below is complete and the launch-address record is published.
 
-- [ ] Anchor program compiles with pinned toolchain.
-- [ ] Program tests pass against a Solana validator/Devnet.
+## Verified pre-mainnet engineering gates
+
+- [x] Anchor/Rust program compiles with the pinned project toolchain.
+- [x] Solana SBF build rejects stack frames above 4,096 bytes.
+- [x] Fresh localhost Solana validator accepts the deployed executable.
+- [x] Full localhost initialize → activate → direct-buy → referral-buy → manual-distribution → pause/resume integration passes.
+- [x] 1%/99% referred USDC settlement reconciles on-chain.
+- [x] Manual/off-site distribution advances the same `total_sold` price curve.
+- [x] 12 abuse/permission guards pass, including self/circular referral, referral bypass, slippage, wrong treasury, unauthorized admin, paused purchase, cap overflow and early founder release.
+- [x] Integration verifies fixed supply remains unchanged, mint authority is removed and freeze authority is absent before active sale operation.
+- [ ] Public Solana Devnet deployment succeeds.
+- [ ] Public Devnet reproduces required initialize/activate/buy/referral/manual-sale behavior.
+- [ ] Website transaction construction, including any required token-account creation, is exercised against the public Devnet configuration.
+
+## Production gates
+
+- [ ] Owner-controlled production Program ID generated and backed up securely.
 - [ ] Program deployed to Solana mainnet.
-- [ ] Program ID published.
+- [ ] Program ID published in the canonical launch record.
 - [ ] RLYA metadata created with name `RALYA`, symbol `RLYA`, decimals `9`.
 - [ ] Exactly 839,000,000 RLYA created.
 - [ ] Public-sale vault funded with exactly 100,680,000 RLYA.
@@ -14,9 +29,9 @@ The public sale must not be called live until all launch-address fields are publ
 - [ ] Mint authority revoked.
 - [ ] Freeze authority absent/revoked.
 - [ ] Sale activation transaction succeeds.
-- [ ] Mainnet RLYA mint, sale PDA, program ID and treasury address inserted into `web/site-config.js`.
+- [ ] Mainnet RLYA mint, sale PDA, program ID and treasury address inserted into `web/site-config.js` from the signed launch record.
+- [ ] Explicit public-sale enable switch reviewed and enabled only after all production addresses are verified.
 - [ ] Website reads real sale state and wallet balances from mainnet.
 - [ ] One small owner-controlled end-to-end USDC purchase verified before wider publication.
 - [ ] Public repository and Whitepaper v1.1 available from website.
-
-- [ ] Integration-test direct vs referred purchase outputs, 1%/99% USDC split, referrer ATA creation, and self-referral rejection on local validator/Devnet.
+- [ ] Mainnet program/mint/authority-removal/activation/purchase transaction signatures published.
