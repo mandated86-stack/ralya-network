@@ -33,10 +33,10 @@ jobs:
   devnet-smoke:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[devnet-smoke]')
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare temporary Solana JS test dependencies
-        run: npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
-      - name: Deploy disposable RLYA program to Devnet
-        run: bash scripts/devnet_smoke.sh
+      - name: Prepare disposable Devnet funding address
+        run: bash scripts/devnet_smoke.sh prepare
+      - name: Wait for Devnet funding and deploy RLYA program
+        run: bash scripts/devnet_smoke.sh deploy
