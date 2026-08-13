@@ -1,0 +1,14 @@
+name: Build
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/build_solana.sh'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/build_solana.sh
