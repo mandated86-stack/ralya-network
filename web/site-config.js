@@ -20,6 +20,6 @@ window.RALYA_CONFIG = Object.freeze({
   rlyaMint: '',
   saleProgramId: '',
   treasuryWallet: '',
-  githubUrl: '',
+  githubUrl: 'https://github.com/mandated86-stack/ralya-network',
   whitepaperPdf: 'RALYA_Whitepaper_v1.1.pdf'
 });
