@@ -3,6 +3,7 @@ set -euo pipefail
 
 # RALYA disposable Devnet deployment smoke test.
 # This script never targets mainnet and never uses production keys or funds.
+# Triggered after the clean stack-safe SBF build milestone.
 DEVNET_URL="https://api.devnet.solana.com"
 
 # Install the same public toolchain used by the compiler gate.
