@@ -9,4 +9,4 @@ rustc --version
 solana --version
 anchor --version
 anchor --version | grep -F '1.0.2'
-anchor build
+anchor test --skip-deploy --skip-local-validator
