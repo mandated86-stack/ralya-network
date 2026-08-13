@@ -10,4 +10,14 @@ rustc --version
 solana --version
 anchor --version
 anchor --version | grep -F '1.0.2'
-cargo build-sbf --manifest-path programs/rlya_sale/Cargo.toml
+set +e
+cargo build-sbf --manifest-path programs/rlya_sale/Cargo.toml 2>&1 | tee /tmp/ralya-sbf-build.log
+build_status=${PIPESTATUS[0]}
+set -e
+if [[ $build_status -ne 0 ]]; then
+  exit "$build_status"
+fi
+if grep -Eq 'Stack offset of [0-9]+ exceeded max offset of 4096' /tmp/ralya-sbf-build.log; then
+  echo '[ERROR] Solana stack-frame limit exceeded. Refusing a green build.' >&2
+  exit 1
+fi
