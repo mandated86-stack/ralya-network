@@ -25,5 +25,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare temporary Solana JS test dependencies
+        run: npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
       - name: Deploy disposable RLYA program to Devnet
         run: bash scripts/devnet_smoke.sh
