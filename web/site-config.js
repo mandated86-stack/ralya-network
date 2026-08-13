@@ -2,6 +2,8 @@ window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
   build: '0.5.0-referral-release-candidate',
+  launchPhase: 'protocol-testing',
+  presaleEnabled: false,
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
@@ -16,7 +18,8 @@ window.RALYA_CONFIG = Object.freeze({
   minimumPurchaseUsdc: 1,
   referralBps: 100,
   usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  // Populated from the signed RALYA_MAINNET_LAUNCH_RECORD after launch.
+  // These remain blank until the signed mainnet launch record exists.
+  // presaleEnabled must also be changed to true in the same reviewed launch commit.
   rlyaMint: '',
   saleProgramId: '',
   treasuryWallet: '',
