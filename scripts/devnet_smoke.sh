@@ -30,6 +30,7 @@ if [[ "$MODE" == "prepare" ]]; then
   solana-keygen new --no-bip39-passphrase --silent --force -o /tmp/ralya-devnet-payer.json
   solana config set --url "$DEVNET_URL" --keypair /tmp/ralya-devnet-payer.json >/dev/null
   PAYER=$(solana address)
+  printf '%s\n' "$PAYER" > /tmp/ralya-devnet-address.txt
   echo "RALYA_DEVNET_TEST_PAYER=$PAYER"
   echo "::notice title=RALYA Devnet test funding address::$PAYER"
   if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
@@ -47,9 +48,6 @@ solana config set --url "$DEVNET_URL" --keypair /tmp/ralya-devnet-payer.json >/d
 PAYER=$(solana address)
 echo "Waiting Devnet payer: $PAYER"
 
-# Shared GitHub runner IPs are often rate-limited. Try normally first; if that
-# fails, keep this same runner/key alive so the public address can be funded
-# externally through the official Solana Devnet faucet.
 for attempt in 1 2; do
   solana airdrop 2 "$PAYER" --url "$DEVNET_URL" && break || true
   sleep 5
