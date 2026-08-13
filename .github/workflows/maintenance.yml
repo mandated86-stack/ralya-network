@@ -1,0 +1,30 @@
+name: Maintenance
+on:
+  push:
+    paths:
+      - '.github/workflows/maintenance.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply reviewed toolchain fix
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('scripts/build_solana.sh')
+          s = p.read_text()
+          s = s.replace('rustc --version', 'avm install 1.0.2\navm use 1.0.2\nrustc --version')
+          s = s.replace("solana --version | grep -F '3.1.10'\n", '')
+          s = s.replace('cargo build-sbf --manifest-path programs/rlya_sale/Cargo.toml', 'anchor build')
+          p.write_text(s)
+      - name: Commit reviewed change
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/build_solana.sh
+          git commit -m 'Fix exact Anchor toolchain build' || exit 0
+          git push
