@@ -3,8 +3,10 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - '.github/workflows/build.yml'
       - 'scripts/build_solana.sh'
       - 'scripts/devnet_smoke.sh'
+      - 'scripts/local_validator_smoke.sh'
       - 'programs/rlya_sale/**'
       - 'Cargo.toml'
       - 'Anchor.toml'
