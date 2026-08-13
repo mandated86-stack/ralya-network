@@ -38,5 +38,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare disposable Devnet funding address
         run: bash scripts/devnet_smoke.sh prepare
+      - name: Publish safe public funding address
+        uses: actions/upload-artifact@v4
+        with:
+          name: rlya-devnet-funding-address-${{ github.run_id }}
+          path: /tmp/ralya-devnet-address.txt
+          retention-days: 1
       - name: Wait for Devnet funding and deploy RLYA program
         run: bash scripts/devnet_smoke.sh deploy
