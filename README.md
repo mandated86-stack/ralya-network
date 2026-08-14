@@ -27,14 +27,15 @@ RALYA is a Solana-first protocol project. RLYA is its fixed-supply economic secu
 - source audit and browser JavaScript checks pass
 - Solana SBF compilation passes with a 4,096-byte stack-frame CI gate
 - full localhost Solana protocol integration passes under the pinned Solana 3.1.10 / Anchor 1.0.2 project toolchain
-- fresh deployed program completed initialize, activation gates, direct buy, 1% referral settlement, manual distribution and pause/resume transactions
-- 500 USDC referred purchase reconciled to 5 USDC referrer + 495 USDC treasury
-- tested 2,000,000 RLYA manual distribution advanced the curve from $0.003000 to $0.003100
-- 12 on-chain abuse/permission guards passed
+- 12 localhost on-chain abuse/permission guards pass
+- public Solana Devnet program deployment passes
+- public Devnet core protocol integration passes: initialize, activation gates, direct purchase, referral attribution/bypass protection, referred purchase and manual distribution
+- public Devnet 500 USDC referred purchase reconciled exactly to 5 USDC referrer + 495 USDC treasury
+- public Devnet 2,000,000 RLYA manual distribution advanced the tested curve from $0.003000 to $0.003100
+- public Devnet final invariants verified the 839M hard-cap supply, absent mint authority and absent freeze authority
 - production mainnet addresses and production RLYA mint do not yet exist; real-money sale remains disabled
-- public Solana Devnet deployment/integration is the current network checkpoint
 
-See `docs/BUILD_STATUS.md` for the evidence gates and current network status.
+See `docs/BUILD_STATUS.md` for the current launch gates and `docs/DEVNET_PROTOCOL_EVIDENCE.md` for the public Devnet addresses, accounting and transaction signatures.
 
 ## Repository layout
 
@@ -51,7 +52,7 @@ See `docs/BUILD_STATUS.md` for the evidence gates and current network status.
 
 ## Status
 
-RALYA remains a release candidate. Mainnet is not deployed and the production token is not created. The project will not use the word `LIVE` for the sale until the owner-signed mainnet program, mint, authority-removal evidence and end-to-end purchase verification are published.
+RALYA remains a release candidate. The public Devnet core transaction checkpoint is verified. Mainnet is not deployed and the production token is not created. The project will not use the word `LIVE` for the sale until the owner-signed mainnet program, mint, authority-removal evidence and end-to-end purchase verification are published.
 
 ## Open source
 
