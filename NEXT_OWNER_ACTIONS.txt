@@ -13,23 +13,30 @@ ONE OWNER CHECKPOINT COMES NEXT:
    macOS/Linux: scripts/mainnet_program_deploy.sh
 
    The script itself will:
-   - refuse CI/cloud key generation;
-   - run the RALYA source/security audit before production key generation;
-   - create the permanent Program ID and separate upgrade-authority keys locally;
-   - keep those private keys outside the downloaded project folder/repository;
-   - ask for an offline backup before continuing;
-   - build with the tested Solana 3.1.10 toolchain;
-   - show the CURRENT Mainnet rent estimate and the public deployer wallet balance;
-   - deploy only after the owner explicitly confirms;
+   - refuse CI/cloud production-key generation;
+   - run the RALYA source/security audit first;
+   - create THREE separate local identities:
+       1. permanent RLYA Program ID keypair,
+       2. dedicated upgrade-authority keypair,
+       3. dedicated Mainnet deployment/fee-payer keypair;
+   - keep all three private files outside the downloaded project/repository;
+   - NEVER require importing a Phantom/Solflare seed into the Solana CLI;
+   - ask for an offline backup of all three local JSON key files;
+   - build with the tested Solana 3.1.10 / Anchor 1.0.2 toolchain;
+   - configure only the dedicated payer as the CLI fee wallet for Mainnet deployment;
+   - show the dedicated payer PUBLIC address, CURRENT Mainnet rent estimate and current balance;
+   - stop safely if the payer needs funding, while preserving the same three local identities for retry;
+   - deploy only after the owner explicitly types DEPLOY-RLYA-MAINNET;
    - download the deployed program again and require an exact SHA-256/byte match;
-   - move upgrade authority away from the fee-paying deployer;
+   - move upgrade authority away from the fee payer to the separate upgrade authority;
    - produce RALYA_MAINNET_PROGRAM_PUBLIC.txt containing PUBLIC evidence only.
 
-   If the wallet does not have enough SOL, DO NOT confirm deployment. The script restores
-   the patched source files automatically and keeps the same permanent local keys for the retry.
+   If the dedicated payer does not have enough real SOL, DO NOT confirm deployment.
+   Fund only the PUBLIC payer address printed by the script, then rerun the SAME script.
+   Never send the payer/program/upgrade JSON files to anyone.
 
-2) Return ONLY RALYA_MAINNET_PROGRAM_PUBLIC.txt (or its public Program ID/hash) to ChatGPT.
-   NEVER send either JSON key file, a seed phrase, private key or wallet recovery phrase.
+2) After successful deployment, return ONLY RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT.
+   NEVER send any JSON key file, seed phrase, private key or wallet recovery phrase.
 
 AFTER THAT PUBLIC RECORD IS VERIFIED:
 - ChatGPT updates the public Program ID/site evidence while the presale master switch stays OFF.
