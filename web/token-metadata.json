@@ -2,8 +2,8 @@
   "name": "RALYA",
   "symbol": "RLYA",
   "description": "RLYA is the fixed-supply economic security asset for the RALYA autonomous-work protocol.",
-  "image": "https://ralya-network.netlify.app/rlya-token.png",
-  "external_url": "https://ralya-network.netlify.app",
+  "image": "https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/rlya-token.png",
+  "external_url": "https://github.com/mandated86-stack/ralya-network",
   "attributes": [
     {
       "trait_type": "Maximum Supply",
