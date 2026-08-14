@@ -24,7 +24,7 @@ fi
 # additionally require a clean tree and record its exact commit.
 if command -v git >/dev/null 2>&1 && [[ -d .git ]]; then
   if ! git diff --quiet || ! git diff --cached --quiet; then
-    echo "REFUSING: start from a clean git working tree before generating the production Program ID." >&2
+    echo "REFUSING: start from a clean git working tree before generating production identities." >&2
     exit 1
   fi
   BASE_COMMIT="$(git rev-parse HEAD)"
@@ -62,6 +62,7 @@ umask 077
 SECRETS_DIR="${RALYA_MAINNET_SECRETS_DIR:-$HOME/.config/solana/ralya-mainnet}"
 PROGRAM_KEYPAIR="$SECRETS_DIR/rlya-program-keypair.json"
 UPGRADE_KEYPAIR="$SECRETS_DIR/rlya-upgrade-authority.json"
+PAYER_KEYPAIR="$SECRETS_DIR/rlya-mainnet-payer.json"
 mkdir -p "$SECRETS_DIR"
 chmod 700 "$SECRETS_DIR"
 
@@ -73,21 +74,29 @@ if [[ ! -f "$UPGRADE_KEYPAIR" ]]; then
   echo "Generating dedicated RALYA upgrade authority locally."
   solana-keygen new --no-bip39-passphrase --force -o "$UPGRADE_KEYPAIR" >/dev/null
 fi
-chmod 600 "$PROGRAM_KEYPAIR" "$UPGRADE_KEYPAIR"
+if [[ ! -f "$PAYER_KEYPAIR" ]]; then
+  echo "Generating dedicated RALYA Mainnet deployment payer locally."
+  solana-keygen new --no-bip39-passphrase --force -o "$PAYER_KEYPAIR" >/dev/null
+fi
+chmod 600 "$PROGRAM_KEYPAIR" "$UPGRADE_KEYPAIR" "$PAYER_KEYPAIR"
 
 PROGRAM_ID="$(solana-keygen pubkey "$PROGRAM_KEYPAIR")"
 UPGRADE_AUTHORITY="$(solana-keygen pubkey "$UPGRADE_KEYPAIR")"
-DEPLOYER="$(solana address)"
+PAYER="$(solana-keygen pubkey "$PAYER_KEYPAIR")"
 
 echo
 echo "RALYA MAINNET OWNER CHECKPOINT"
-echo "Deployer wallet:        $DEPLOYER"
+echo "Dedicated fee payer:    $PAYER"
 echo "Permanent Program ID:   $PROGRAM_ID"
 echo "Upgrade authority:      $UPGRADE_AUTHORITY"
 echo "Private key directory:  $SECRETS_DIR"
 echo
 
-echo "IMPORTANT: back up both JSON key files offline. Never upload them to GitHub, cloud storage, chat, or email."
+echo "IMPORTANT: back up ALL THREE JSON key files offline:"
+echo "  - rlya-program-keypair.json"
+echo "  - rlya-upgrade-authority.json"
+echo "  - rlya-mainnet-payer.json"
+echo "Never upload them to GitHub, cloud storage, chat, or email."
 read -r -p "After making an offline backup, type BACKUP-CONFIRMED: " backup
 [[ "$backup" == "BACKUP-CONFIRMED" ]] || { echo "Stopped before Mainnet deployment."; exit 1; }
 
@@ -109,23 +118,40 @@ SO_FILE="$ROOT/target/deploy/rlya_sale.so"
 BYTES="$(wc -c < "$SO_FILE" | tr -d ' ')"
 LOCAL_SHA256="$(sha256sum "$SO_FILE" | awk '{print $1}')"
 
-solana config set --url mainnet-beta >/dev/null
-RPC="$(solana config get | awk -F': ' '/RPC URL/{print $2}')"
+# The dedicated deployment payer becomes the CLI wallet for this launch. This
+# avoids ever importing a personal Phantom/Solflare seed into the Solana CLI.
+solana config set --url mainnet-beta --keypair "$PAYER_KEYPAIR" >/dev/null
+CONFIG="$(solana config get)"
+RPC="$(printf '%s\n' "$CONFIG" | awk -F': ' '/RPC URL/{print $2}')"
+CLI_KEYPAIR="$(printf '%s\n' "$CONFIG" | awk -F': ' '/Keypair Path/{print $2}')"
 [[ "$RPC" == *"mainnet"* ]] || { echo "REFUSING: Solana CLI is not pointed at Mainnet ($RPC)." >&2; exit 1; }
+[[ "$CLI_KEYPAIR" == "$PAYER_KEYPAIR" ]] || { echo "REFUSING: Solana CLI is not using the dedicated RALYA payer." >&2; exit 1; }
 
-BALANCE="$(solana balance --lamports | awk '{print $1}')"
+BALANCE_LAMPORTS="$(solana balance --lamports | awk '{print $1}')"
 RENT_TEXT="$(solana rent "$BYTES")"
 
 echo
 echo "Compiled program bytes: $BYTES"
 echo "Compiled SHA-256: $LOCAL_SHA256"
 echo "Mainnet program rent estimate: $RENT_TEXT"
-echo "Deployer balance (lamports): $BALANCE"
-echo "Program ID to be deployed: $PROGRAM_ID"
-echo "If the wallet is not sufficiently funded, answer anything except DEPLOY-RLYA-MAINNET. The source files will restore automatically and the same permanent local keys can be reused after funding."
+echo "Dedicated payer address: $PAYER"
+echo "Dedicated payer balance (lamports): $BALANCE_LAMPORTS"
+echo "Permanent Program ID: $PROGRAM_ID"
 echo
-read -r -p "Type DEPLOY-RLYA-MAINNET to broadcast the real Mainnet deployment: " confirm
-[[ "$confirm" == "DEPLOY-RLYA-MAINNET" ]] || { echo "Stopped before broadcasting."; exit 1; }
+echo "FUNDING CHECKPOINT"
+echo "Send ONLY real Mainnet SOL to this dedicated public payer address if the balance is insufficient:"
+echo "$PAYER"
+echo "Use the rent estimate shown above PLUS a reasonable transaction-fee buffer."
+echo "Do not send any seed phrase/private key anywhere."
+echo "If you need to fund it, stop now. The same three local key files will be reused on the next run."
+echo
+read -r -p "When the payer is sufficiently funded, type DEPLOY-RLYA-MAINNET to broadcast; anything else stops safely: " confirm
+[[ "$confirm" == "DEPLOY-RLYA-MAINNET" ]] || { echo "Stopped before broadcasting. Fund $PAYER and rerun this same script."; exit 1; }
+
+# Re-read balance immediately before broadcasting so a stale pre-funding read
+# cannot accidentally proceed.
+BALANCE_LAMPORTS="$(solana balance --lamports | awk '{print $1}')"
+echo "Final payer balance (lamports): $BALANCE_LAMPORTS"
 
 DEPLOY_OUTPUT="$(solana program deploy "$SO_FILE" --program-id "$PROGRAM_KEYPAIR" 2>&1 | tee /dev/stderr)"
 echo "$DEPLOY_OUTPUT" | grep -F "$PROGRAM_ID" >/dev/null || {
@@ -136,6 +162,7 @@ echo "$DEPLOY_OUTPUT" | grep -F "$PROGRAM_ID" >/dev/null || {
 INFO="$(solana program show "$PROGRAM_ID")"
 echo "$INFO"
 echo "$INFO" | grep -F "Program Id: $PROGRAM_ID" >/dev/null || { echo "Program verification failed." >&2; exit 1; }
+echo "$INFO" | grep -F "Authority: $PAYER" >/dev/null || { echo "Initial program authority is not the dedicated RALYA payer as expected." >&2; exit 1; }
 
 DUMP_FILE="$(mktemp)"
 DUMP_OK=0
@@ -159,6 +186,9 @@ fi
 [[ "$LOCAL_SHA256" == "$ONCHAIN_SHA256" ]] || { echo "CRITICAL: executable SHA-256 mismatch." >&2; exit 1; }
 echo "MAINNET_EXECUTABLE_BYTE_MATCH=PASS $LOCAL_SHA256"
 
+# Transfer upgrade authority only after exact executable verification. The
+# configured fee payer/current authority signs; the new authority private key
+# never needs to be exposed to the CLI as the payer.
 solana program set-upgrade-authority "$PROGRAM_ID" --new-upgrade-authority "$UPGRADE_KEYPAIR"
 INFO="$(solana program show "$PROGRAM_ID")"
 echo "$INFO"
@@ -166,11 +196,13 @@ echo "$INFO" | grep -F "Authority: $UPGRADE_AUTHORITY" >/dev/null || { echo "Upg
 
 KEEP_PATCH=1
 
+FINAL_PAYER_BALANCE="$(solana balance --lamports | awk '{print $1}')"
 cat > "$ROOT/RALYA_MAINNET_PROGRAM_PUBLIC.txt" <<EOF
 RALYA MAINNET PROGRAM DEPLOYMENT
 Program ID: $PROGRAM_ID
 Upgrade authority: $UPGRADE_AUTHORITY
-Deployer public wallet: $DEPLOYER
+Dedicated deployment payer: $PAYER
+Dedicated payer remaining balance (lamports): $FINAL_PAYER_BALANCE
 Source baseline: $BASE_COMMIT
 Program bytes: $BYTES
 Executable SHA-256: $LOCAL_SHA256
@@ -184,5 +216,6 @@ echo
 echo "RALYA_MAINNET_PROGRAM_DEPLOYMENT=PASS"
 echo "PUBLIC Program ID: $PROGRAM_ID"
 echo "PUBLIC executable SHA-256: $LOCAL_SHA256"
+echo "PUBLIC dedicated payer: $PAYER"
 echo "Return only RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT."
-echo "Never send $PROGRAM_KEYPAIR or $UPGRADE_KEYPAIR."
+echo "Never send $PROGRAM_KEYPAIR, $UPGRADE_KEYPAIR, or $PAYER_KEYPAIR."
