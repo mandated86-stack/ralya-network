@@ -27,7 +27,8 @@
 - production browser presale master switch is enforced independently of address configuration and defaults OFF
 - public manual/off-site RLYA distribution is exposed separately from total distribution
 - production browser Solana/Metaplex dependencies are pinned and self-hosted in generated bundles instead of runtime `esm.sh` imports
-- owner-controlled Mainnet deploy scripts keep permanent Program ID and upgrade-authority private keys outside GitHub/CI
+- owner-controlled Mainnet deployment uses three isolated local identities: permanent Program ID, separate upgrade authority and separate deployment/fee payer
+- no personal Phantom/Solflare seed is required by the Solana CLI; the dedicated deployment payer is configured locally and funded only through its public address
 - Mainnet owner deployment supports either a clean git checkout or a normal GitHub Download ZIP; temporary public Program-ID source patches restore automatically on stop/failure
 - Mainnet deployment runs the source/security audit before production-key generation
 - Mainnet deployment tooling requires exact downloaded on-chain executable SHA-256/byte equality with the locally built SBF binary before completing authority transfer
@@ -36,8 +37,8 @@
 - Mainnet founder-lock activation and pause are atomic in one Solana transaction, so the committed state finishes PAUSED without an inter-transaction public ACTIVE window
 - owner-funded 1 USDC Mainnet referral smoke flow is designed as atomic `resume -> register referral -> buy -> pause`, with idempotent recovery and transparent owner-funded accounting
 - public-only Mainnet verifier checks program, mint authorities, deterministic PDAs, allocation reconciliation, founder lock and pre/post-smoke accounting without private keys
-- final authoritative production release-gate GitHub Actions run `31816280219` (Build 51, source commit `f525f652ccb9757ac0430cc2d71c740ad7e3487f`) passed SBF build/audit, pinned browser dependency installation and self-hosted production browser bundle build
-- matching Repository checks run `31816280215` passed repository verification plus shell/PowerShell/Node Mainnet owner-tool syntax checks
+- final authoritative production release-gate GitHub Actions run `31817417473` (Build 55, source commit `747e7091bfebb281ea30ec2c8c7103f801b6fc7c`) passed SBF build/audit, exact Solana/Anchor toolchain checks, dedicated-payer CLI option verification, pinned browser dependency installation and self-hosted production browser bundle build
+- matching Repository checks run `31817417468` passed repository verification plus shell/PowerShell/Node Mainnet owner-tool syntax checks
 - production bundle marker: `RALYA_PRODUCTION_WEB_BUNDLE=PASS`
 
 ## Public Devnet evidence
@@ -63,7 +64,7 @@
 - atomic activate/pause Mainnet module
 - atomic owner-funded 1 USDC Mainnet referral smoke module
 - public-only Mainnet verification script
-- owner-controlled Windows/macOS/Linux Mainnet program deployment scripts
+- isolated-payer owner-controlled Windows/macOS/Linux Mainnet program deployment scripts
 - protected public presale enable gate
 - pinned/self-hosted production browser dependency build
 - repository-hosted initial token metadata and image
@@ -78,10 +79,10 @@
 - Real-money public sale: **DISABLED**
 
 ## Owner-signed evidence still required before the word LIVE is used
-- permanent owner-controlled production Program ID is generated locally and backed up safely
-- owner fee-paying wallet has enough real Mainnet SOL for the current program-rent estimate plus transaction fees
+- permanent owner-controlled production Program ID, separate upgrade authority and dedicated deployment payer are generated locally and backed up safely
+- dedicated Mainnet deployment payer has enough real SOL for the current program-rent estimate plus transaction fees
 - Mainnet program deploys and downloaded executable exactly matches the built SBF binary
-- production upgrade authority is secured; a hardware/multisig/governance arrangement is preferred before substantial public funds are exposed
+- production upgrade authority is transferred away from the deployment payer; a hardware/multisig/governance arrangement is preferred before substantial public funds are exposed
 - owner creates the production RLYA mint and exactly 839,000,000 RLYA
 - all seven launch allocation accounts reconcile to the fixed 839M supply
 - mint authority is permanently revoked and freeze authority is absent
