@@ -1,0 +1,49 @@
+name: Mainnet Cost Preflight
+on:
+  push:
+    paths:
+      - '.github/workflows/mainnet-cost-preflight.yml'
+      - 'programs/rlya_sale/**'
+      - 'scripts/build_solana.sh'
+      - 'Cargo.toml'
+      - 'Anchor.toml'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact verified RLYA SBF binary
+        run: bash scripts/build_solana.sh
+      - name: Calculate Mainnet program rent and safe funding target
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$PATH"
+          SO=target/deploy/rlya_sale.so
+          test -s "$SO"
+          BYTES=$(wc -c < "$SO" | tr -d ' ')
+          SHA=$(sha256sum "$SO" | awk '{print $1}')
+          solana config set --url mainnet-beta >/dev/null
+          RENT_TEXT=$(solana rent "$BYTES")
+          RENT_SOL=$(printf '%s\n' "$RENT_TEXT" | awk '/SOL/{for(i=1;i<=NF;i++) if($i=="SOL") print $(i-1)}' | tail -1)
+          python3 - "$BYTES" "$SHA" "$RENT_SOL" <<'PY'
+          import json,sys
+          b=int(sys.argv[1]); sha=sys.argv[2]; rent=float(sys.argv[3])
+          # 0.10 SOL buffer covers deployment/signature fees and retries without pretending it is rent.
+          target=rent+0.10
+          data={"program_bytes":b,"sbf_sha256":sha,"program_rent_sol":rent,"recommended_payer_sol":round(target,9),"fee_buffer_sol":0.10}
+          print(json.dumps(data,indent=2))
+          open('/tmp/rlya-mainnet-cost.json','w').write(json.dumps(data,indent=2)+'\n')
+          print(f"RALYA_MAINNET_PROGRAM_BYTES={b}")
+          print(f"RALYA_MAINNET_PROGRAM_RENT_SOL={rent:.9f}")
+          print(f"RALYA_MAINNET_RECOMMENDED_PAYER_SOL={target:.9f}")
+          print(f"RALYA_MAINNET_SBF_SHA256={sha}")
+          PY
+      - name: Publish safe cost artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rlya-mainnet-cost-preflight-${{ github.run_id }}
+          path: /tmp/rlya-mainnet-cost.json
+          retention-days: 7
