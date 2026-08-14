@@ -16,21 +16,17 @@ if ($SolanaVersionText -notmatch '3\.1\.10') {
   throw "RALYA production build expects Solana CLI 3.1.10. Found: $SolanaVersionText"
 }
 
-# A normal GitHub Download ZIP is supported. If this is a real git checkout we
-# additionally require a clean tree and record its exact commit.
 $GitAvailable = [bool](Get-Command git -ErrorAction SilentlyContinue)
 $IsGitCheckout = $GitAvailable -and (Test-Path (Join-Path $Root '.git'))
 if ($IsGitCheckout) {
   $Dirty = (& git status --porcelain | Out-String).Trim()
-  if ($Dirty) { throw 'Start from a clean git working tree before generating the production Program ID.' }
+  if ($Dirty) { throw 'Start from a clean git working tree before generating production identities.' }
   $BaseCommit = (& git rev-parse HEAD | Out-String).Trim()
 } else {
   $BaseCommit = 'github-download-zip-main'
   Write-Host 'No .git directory detected. Running in GitHub Download ZIP mode.'
 }
 
-# Run the same repository invariant/source audit before any production key is
-# generated or any Mainnet transaction is considered.
 & python scripts/audit_source.py
 if ($LASTEXITCODE -ne 0) { throw 'RALYA source/security audit failed. Refusing Mainnet deployment.' }
 
@@ -47,6 +43,7 @@ Copy-Item -Force $AnchorPath $AnchorBackup
 $SecretsDir = if ($env:RALYA_MAINNET_SECRETS_DIR) { $env:RALYA_MAINNET_SECRETS_DIR } else { Join-Path $env:USERPROFILE '.config\solana\ralya-mainnet' }
 $ProgramKeypair = Join-Path $SecretsDir 'rlya-program-keypair.json'
 $UpgradeKeypair = Join-Path $SecretsDir 'rlya-upgrade-authority.json'
+$PayerKeypair = Join-Path $SecretsDir 'rlya-mainnet-payer.json'
 New-Item -ItemType Directory -Force -Path $SecretsDir | Out-Null
 
 try {
@@ -60,19 +57,28 @@ try {
     & solana-keygen new --no-bip39-passphrase --force -o $UpgradeKeypair | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Upgrade-authority generation failed.' }
   }
+  if (-not (Test-Path $PayerKeypair)) {
+    Write-Host 'Generating dedicated RALYA Mainnet deployment payer locally.'
+    & solana-keygen new --no-bip39-passphrase --force -o $PayerKeypair | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Mainnet payer generation failed.' }
+  }
 
   $ProgramId = (& solana-keygen pubkey $ProgramKeypair | Out-String).Trim()
   $UpgradeAuthority = (& solana-keygen pubkey $UpgradeKeypair | Out-String).Trim()
-  $Deployer = (& solana address | Out-String).Trim()
+  $Payer = (& solana-keygen pubkey $PayerKeypair | Out-String).Trim()
 
   Write-Host ''
   Write-Host 'RALYA MAINNET OWNER CHECKPOINT'
-  Write-Host "Deployer wallet:       $Deployer"
+  Write-Host "Dedicated fee payer:   $Payer"
   Write-Host "Permanent Program ID:  $ProgramId"
   Write-Host "Upgrade authority:     $UpgradeAuthority"
   Write-Host "Private key directory: $SecretsDir"
   Write-Host ''
-  Write-Host 'Back up both JSON key files offline. Never upload them to GitHub, cloud storage, chat, or email.'
+  Write-Host 'Back up ALL THREE JSON key files offline:'
+  Write-Host '  - rlya-program-keypair.json'
+  Write-Host '  - rlya-upgrade-authority.json'
+  Write-Host '  - rlya-mainnet-payer.json'
+  Write-Host 'Never upload them to GitHub, cloud storage, chat, or email.'
   $Backup = Read-Host 'After making an offline backup, type BACKUP-CONFIRMED'
   if ($Backup -ne 'BACKUP-CONFIRMED') { Write-Host 'Stopped before Mainnet deployment.'; return }
 
@@ -94,22 +100,35 @@ try {
   $Bytes = (Get-Item $SoFile).Length
   $LocalSha256 = (Get-FileHash -Algorithm SHA256 -Path $SoFile).Hash.ToLowerInvariant()
 
-  & solana config set --url mainnet-beta | Out-Null
+  # Use the dedicated deployment payer as the CLI wallet for this launch. The
+  # owner never needs to import a Phantom/Solflare seed into the Solana CLI.
+  & solana config set --url mainnet-beta --keypair $PayerKeypair | Out-Null
   $ConfigText = (& solana config get | Out-String)
   if ($ConfigText -notmatch 'mainnet') { throw 'Solana CLI is not pointed at Mainnet.' }
+  if ($ConfigText -notmatch [regex]::Escape($PayerKeypair)) { throw 'Solana CLI is not using the dedicated RALYA payer.' }
   $RentText = (& solana rent $Bytes | Out-String).Trim()
-  $BalanceText = (& solana balance | Out-String).Trim()
+  $BalanceLamports = (& solana balance --lamports | Out-String).Trim().Split(' ')[0]
 
   Write-Host ''
   Write-Host "Compiled program bytes: $Bytes"
   Write-Host "Compiled SHA-256: $LocalSha256"
   Write-Host "Mainnet program rent estimate: $RentText"
-  Write-Host "Deployer balance: $BalanceText"
-  Write-Host "Program ID to be deployed: $ProgramId"
-  Write-Host 'If the wallet is not sufficiently funded, do not confirm. The source files will restore automatically and these same permanent local keys will be reused after funding.'
+  Write-Host "Dedicated payer address: $Payer"
+  Write-Host "Dedicated payer balance (lamports): $BalanceLamports"
+  Write-Host "Permanent Program ID: $ProgramId"
   Write-Host ''
-  $Confirm = Read-Host 'Type DEPLOY-RLYA-MAINNET to broadcast the real Mainnet deployment'
-  if ($Confirm -ne 'DEPLOY-RLYA-MAINNET') { Write-Host 'Stopped before broadcasting.'; return }
+  Write-Host 'FUNDING CHECKPOINT'
+  Write-Host 'Send ONLY real Mainnet SOL to this dedicated public payer address if the balance is insufficient:'
+  Write-Host $Payer
+  Write-Host 'Use the rent estimate shown above PLUS a reasonable transaction-fee buffer.'
+  Write-Host 'Do not send any seed phrase/private key anywhere.'
+  Write-Host 'If you need to fund it, stop now. The same three local key files will be reused on the next run.'
+  Write-Host ''
+  $Confirm = Read-Host 'When the payer is sufficiently funded, type DEPLOY-RLYA-MAINNET to broadcast; anything else stops safely'
+  if ($Confirm -ne 'DEPLOY-RLYA-MAINNET') { Write-Host "Stopped before broadcasting. Fund $Payer and rerun this same script."; return }
+
+  $BalanceLamports = (& solana balance --lamports | Out-String).Trim().Split(' ')[0]
+  Write-Host "Final payer balance (lamports): $BalanceLamports"
 
   $DeployOutput = & solana program deploy $SoFile --program-id $ProgramKeypair 2>&1
   $DeployExit = $LASTEXITCODE
@@ -122,6 +141,7 @@ try {
   $Info = (& solana program show $ProgramId | Out-String)
   Write-Host $Info
   if ($Info -notmatch [regex]::Escape("Program Id: $ProgramId")) { throw 'Program verification failed.' }
+  if ($Info -notmatch [regex]::Escape("Authority: $Payer")) { throw 'Initial program authority is not the dedicated RALYA payer as expected.' }
 
   $DumpFile = Join-Path $env:TEMP ("ralya-mainnet-dump-" + [guid]::NewGuid().ToString('N') + '.so')
   $DumpOk = $false
@@ -145,11 +165,13 @@ try {
   if ($Info -notmatch [regex]::Escape("Authority: $UpgradeAuthority")) { throw 'Upgrade-authority verification failed.' }
 
   $KeepPatch = $true
+  $FinalPayerBalance = (& solana balance --lamports | Out-String).Trim().Split(' ')[0]
   $PublicRecord = @"
 RALYA MAINNET PROGRAM DEPLOYMENT
 Program ID: $ProgramId
 Upgrade authority: $UpgradeAuthority
-Deployer public wallet: $Deployer
+Dedicated deployment payer: $Payer
+Dedicated payer remaining balance (lamports): $FinalPayerBalance
 Source baseline: $BaseCommit
 Program bytes: $Bytes
 Executable SHA-256: $LocalSha256
@@ -163,7 +185,9 @@ Cluster: mainnet-beta
   Write-Host 'RALYA_MAINNET_PROGRAM_DEPLOYMENT=PASS'
   Write-Host "PUBLIC Program ID: $ProgramId"
   Write-Host "PUBLIC executable SHA-256: $LocalSha256"
-  Write-Host 'Return only RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT. Never send either JSON key file.'
+  Write-Host "PUBLIC dedicated payer: $Payer"
+  Write-Host 'Return only RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT.'
+  Write-Host 'Never send rlya-program-keypair.json, rlya-upgrade-authority.json, or rlya-mainnet-payer.json.'
 } finally {
   if ($DumpFile) { Remove-Item -Force -ErrorAction SilentlyContinue $DumpFile }
   if ($PatchApplied -and -not $KeepPatch) {
