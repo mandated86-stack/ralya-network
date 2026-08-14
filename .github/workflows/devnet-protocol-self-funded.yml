@@ -31,20 +31,24 @@ jobs:
               const text=await r.text();
               console.log(`BOOTSTRAP_HTTP_${i+1}=${r.status} ${text.slice(0,180)}`);
             }catch(e){console.log(`BOOTSTRAP_HTTP_${i+1}_ERROR=${e.message}`)}
+            let seen=0;
             for(let p=0;p<45;p++){
-              const b=await c.getBalance(k.publicKey,'confirmed');
-              if(b>=5000){console.log(`BOOTSTRAP_BALANCE_${i+1}=${b}`);break}
+              seen=await c.getBalance(k.publicKey,'confirmed');
+              if(seen>=5000){console.log(`BOOTSTRAP_BALANCE_${i+1}=${seen}`);break}
               await new Promise(r=>setTimeout(r,1000));
             }
+            if(seen<5000) console.log(`BOOTSTRAP_WALLET_${i+1}_UNFUNDED`);
           }
           const admin=wallets[0];
+          const adminStart=await c.getBalance(admin.publicKey,'confirmed');
+          if(adminStart<5000) throw new Error('Primary bootstrap wallet not funded');
           for(let i=1;i<wallets.length;i++){
             const donor=wallets[i];
             const bal=await c.getBalance(donor.publicKey,'confirmed');
-            if(bal>20000){
-              const amount=bal-15000;
-              const tx=new Transaction().add(SystemProgram.transfer({fromPubkey:donor.publicKey,toPubkey:admin.publicKey,lamports:amount}));
-              const sig=await sendAndConfirmTransaction(c,tx,[donor],{commitment:'confirmed'});
+            if(bal>0){
+              const tx=new Transaction().add(SystemProgram.transfer({fromPubkey:donor.publicKey,toPubkey:admin.publicKey,lamports:bal}));
+              tx.feePayer=admin.publicKey;
+              const sig=await sendAndConfirmTransaction(c,tx,[admin,donor],{commitment:'confirmed'});
               console.log(`BOOTSTRAP_CONSOLIDATE_TX=${sig}`);
             }
           }
@@ -75,7 +79,6 @@ jobs:
           js=js.replace("const RPC='http://127.0.0.1:8899';",f"const RPC='{rpc}';")
           js=js.replace("if(!RPC.includes('127.0.0.1')) throw new Error('Integration harness refuses non-local RPC');",f"if(RPC!=='{rpc}') throw new Error('Devnet harness refuses unexpected RPC');")
           js=js.replace("/tmp/ralya-local-payer.json","/tmp/rlya-self-funded-payer.json")
-          # Keep actor funding, but only buyer2 needs rent to create the referral PDA on public Devnet.
           js,n=re.subn(r"const fundTx=new Transaction\(\);for\(const k of \[treasury,founder,buyer,buyer2,referrer,manual,attacker,impostor\]\)fundTx\.add\(SystemProgram\.transfer\(\{fromPubkey:admin\.publicKey,toPubkey:k\.publicKey,lamports:3\*LAMPORTS_PER_SOL\}\)\);\nawait sendAndConfirmTransaction\(c,fundTx,\[admin\]\);",
               "const fundTx=new Transaction().add(SystemProgram.transfer({fromPubkey:admin.publicKey,toPubkey:buyer2.publicKey,lamports:3_000_000}));\nawait sendAndConfirmTransaction(c,fundTx,[admin],{commitment:'confirmed'});\nconsole.log('REFERRAL_RENT_WALLET_FUNDED=PASS');",js,count=1)
           if n!=1: raise SystemExit('Could not replace actor funding block')
@@ -89,7 +92,6 @@ jobs:
           if old_send in js:
               js=js.replace(old_send,new_send,1)
           else:
-              # commitment may have been changed above
               old_send2="async function send(i,extra=[]){return sendAndConfirmTransaction(c,new Transaction().add(i),[admin,...extra.filter(x=>!x.publicKey.equals(admin.publicKey))],{commitment:'finalized'})}"
               if old_send2 not in js: raise SystemExit('Could not install transaction signature logging')
               js=js.replace(old_send2,new_send,1)
