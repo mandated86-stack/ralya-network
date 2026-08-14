@@ -28,12 +28,16 @@
 - public manual/off-site RLYA distribution is exposed separately from total distribution
 - production browser Solana/Metaplex dependencies are pinned and self-hosted in generated bundles instead of runtime `esm.sh` imports
 - owner-controlled Mainnet deploy scripts keep permanent Program ID and upgrade-authority private keys outside GitHub/CI
+- Mainnet owner deployment supports either a clean git checkout or a normal GitHub Download ZIP; temporary public Program-ID source patches restore automatically on stop/failure
+- Mainnet deployment runs the source/security audit before production-key generation
 - Mainnet deployment tooling requires exact downloaded on-chain executable SHA-256/byte equality with the locally built SBF binary before completing authority transfer
+- initial production token metadata is publicly reachable from the RALYA GitHub repository and is no longer blocked on pre-launch Netlify availability
 - Mainnet token-preparation console stages exact 839M creation, all published allocations and permanent mint-authority revocation before activation
 - Mainnet founder-lock activation and pause are atomic in one Solana transaction, so the committed state finishes PAUSED without an inter-transaction public ACTIVE window
 - owner-funded 1 USDC Mainnet referral smoke flow is designed as atomic `resume -> register referral -> buy -> pause`, with idempotent recovery and transparent owner-funded accounting
 - public-only Mainnet verifier checks program, mint authorities, deterministic PDAs, allocation reconciliation, founder lock and pre/post-smoke accounting without private keys
-- authoritative production release-gate GitHub Actions run `31815232692` passed SBF build/audit, pinned browser dependency installation and self-hosted production browser bundle build
+- final authoritative production release-gate GitHub Actions run `31816280219` (Build 51, source commit `f525f652ccb9757ac0430cc2d71c740ad7e3487f`) passed SBF build/audit, pinned browser dependency installation and self-hosted production browser bundle build
+- matching Repository checks run `31816280215` passed repository verification plus shell/PowerShell/Node Mainnet owner-tool syntax checks
 - production bundle marker: `RALYA_PRODUCTION_WEB_BUNDLE=PASS`
 
 ## Public Devnet evidence
@@ -62,6 +66,7 @@
 - owner-controlled Windows/macOS/Linux Mainnet program deployment scripts
 - protected public presale enable gate
 - pinned/self-hosted production browser dependency build
+- repository-hosted initial token metadata and image
 - Whitepaper v1.1
 - public GitHub CI configuration
 
