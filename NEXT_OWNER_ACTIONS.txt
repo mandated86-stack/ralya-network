@@ -1,17 +1,42 @@
-RALYA / RLYA - NEXT OWNER ACTIONS
+RALYA / RLYA - NEXT OWNER ACTION
 
-Do only these two things for now:
+The repository, Devnet protocol proof and Mainnet launch tooling are already prepared.
+Do NOT create a token manually and do NOT use the old Devnet addresses for production.
 
-1) GitHub
-   Create a new blank PUBLIC repository under your GitHub account:
-   ralya-network
-   Do not reuse the private Ralya protest-app repository.
+ONE OWNER CHECKPOINT COMES NEXT:
 
-2) Website
-   In Netlify, open the separate project named:
-   ralya-network
-   Deploy the website package RALYA_Website_Deploy_0.5.0.zip.
+1) On the owner's own computer, use the current ralya-network main branch and run ONE of:
+   Windows:     scripts/mainnet_program_deploy.ps1
+   macOS/Linux: scripts/mainnet_program_deploy.sh
 
-Then return to ChatGPT and say: DONE.
+   The script itself will:
+   - refuse CI/cloud key generation;
+   - create the permanent Program ID and separate upgrade-authority keys locally;
+   - keep those private keys outside the repository;
+   - ask for an offline backup before continuing;
+   - build with the tested Solana 3.1.10 toolchain;
+   - show the CURRENT Mainnet rent estimate and the public deployer wallet balance;
+   - deploy only after the owner explicitly confirms;
+   - download the deployed program again and require an exact SHA-256/byte match;
+   - move upgrade authority away from the fee-paying deployer;
+   - produce RALYA_MAINNET_PROGRAM_PUBLIC.txt containing PUBLIC evidence only.
 
-Do not create the final RLYA mint manually, do not paste any seed phrase/private key anywhere, and do not send real USDC to the sale until ChatGPT has populated the public repository, verified the Solana build, and completed the launch-address configuration.
+   If the wallet does not have enough SOL, DO NOT confirm deployment. The script restores
+   the repository to a clean state and keeps the same permanent local keys for the retry.
+
+2) Return ONLY RALYA_MAINNET_PROGRAM_PUBLIC.txt (or its public Program ID/hash) to ChatGPT.
+   NEVER send either JSON key file, a seed phrase, private key or wallet recovery phrase.
+
+AFTER THAT PUBLIC RECORD IS VERIFIED:
+- ChatGPT updates the public Program ID/site evidence while the presale master switch stays OFF.
+- The owner launch console creates exactly 839,000,000 RLYA, funds every published allocation,
+  permanently removes mint authority, confirms freeze authority is absent, and atomically starts
+  the 365-day founder lock while finishing with the sale PAUSED.
+- The owner-funded 1 USDC Mainnet smoke check atomically performs resume + referral + purchase +
+  pause, verifies the exact 1% referral accounting, and finishes PAUSED.
+- Only after public verification is green is the website presale switch enabled and the sale resumed.
+
+Until those owner-signed Mainnet transactions happen:
+Mainnet program = NOT DEPLOYED
+Production RLYA mint = NOT CREATED
+Real-money public presale = DISABLED
