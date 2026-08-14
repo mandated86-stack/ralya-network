@@ -15,10 +15,24 @@
 - 500 USDC referred purchase reconciled exactly to 5 USDC referrer + 495 USDC treasury
 - 2,000,000 RLYA manual/off-site distribution moved tokens from the same sale vault and advanced price from $0.003000 to $0.003100
 - final localhost integration accounting recorded 600 USDC gross and 5 USDC referral payout
-- 12 on-chain abuse/permission guards passed, including mint-authority activation gate, vault-funding gate, referral bypass, self-referral, circular referral, slippage, wrong treasury, unauthorized admin, paused purchase, presale-cap overflow, sub-minimum purchase and early founder release
+- 12 localhost on-chain abuse/permission guards passed, including mint-authority activation gate, vault-funding gate, referral bypass, self-referral, circular referral, slippage, wrong treasury, unauthorized admin, paused purchase, presale-cap overflow, sub-minimum purchase and early founder release
 - integration verified hard-cap supply remained fixed, mint authority was removed and freeze authority was absent
-- disposable localhost deployment uses no real SOL and no production keys
-- Devnet deployment script withholds raw failed-deployment output so temporary recovery material is not published
+- public Solana Devnet program deployment passed
+- public Devnet core protocol integration passed against the deployed program: initialize, activation gates, direct buy, referral attribution/bypass guard, referred purchase and manual distribution
+- public Devnet referred purchase reconciled exactly to 5 USDC referrer + 495 USDC treasury from a 500 USDC test purchase
+- public Devnet manual distribution of 2,000,000 RLYA advanced the price from $0.003000 to $0.003100
+- public Devnet final state recorded 600 USDC gross, 5 USDC referral payout and approximately 2.2M RLYA distributed/sold
+- public Devnet final invariants verified hard-cap supply remained 839,000,000 RLYA, mint authority was absent and freeze authority was absent
+- disposable Devnet test identities use no production keys and no real-money sale is enabled
+
+## Public Devnet evidence
+- Devnet program: `Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN`
+- Devnet RLYA test mint: `3K3AWEJaJ7sqYB926CitbRaBnPn6cyiC8WPsEe1N6Uii`
+- Devnet USDC test mint: `BHAVfo4QzXKoRhNrinficvotonPyhuWQNYhwFn5XNdvW`
+- Devnet sale PDA: `ASgQBY5NPHHcuXNDWaDSD4wX8MiZ57JdUjzFvzxtejDg`
+- GitHub Actions evidence run: `31778172257`
+- final marker: `RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS`
+- transaction signatures and full reconciliation: `docs/DEVNET_PROTOCOL_EVIDENCE.md`
 
 ## Complete in source/test package
 - fixed 839M economics
@@ -36,21 +50,22 @@
 
 ## Current network status
 - Localhost Solana validator: **FULL PROTOCOL INTEGRATION VERIFIED**
-- Solana Devnet: **PENDING PUBLIC DEPLOYMENT**. GitHub-hosted runners are currently rate-limited by the public Devnet faucet; this is a test-network funding/infrastructure issue, not a local contract failure.
+- Solana Devnet: **PUBLIC DEPLOYMENT + CORE PROTOCOL INTEGRATION VERIFIED**
 - Solana Mainnet: **NOT DEPLOYED**
 - Production RLYA mint: **NOT CREATED**
 - Real-money public sale: **DISABLED**
 
 ## Evidence still required before the word LIVE is used
-- public Devnet program deployment succeeds
-- Devnet initialize/activate/buy/referral/manual-sale transactions reproduce the localhost integration result
 - final owner-controlled Program ID is generated for production
+- production upgrade-authority policy is secured and externally reviewed
 - mainnet program is deployed
 - final RLYA mint is signed
-- 839M allocation accounts are funded
+- 839M allocation accounts are funded according to the final launch allocation
 - mint authority is revoked and freeze authority is absent
-- sale activates and a small end-to-end mainnet purchase succeeds
+- founder allocation is placed under the production 365-day lock
+- sale activates and a small end-to-end mainnet purchase/referral verification succeeds
 - launch addresses/signatures are published in site configuration
+- final production website hardening and explicit sale-enable gate are verified
 
 ## Referral system
 - Fixed on-chain rate: 1% of referred gross USDC purchase (100 basis points).
