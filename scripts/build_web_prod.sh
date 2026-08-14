@@ -27,7 +27,7 @@ replacements = {
     "https://esm.sh/bs58?bundle": "bs58",
 }
 
-for rel in ("web/app.js", "web/admin/admin.js", "web/owner/launch.js"):
+for rel in ("web/app.js", "web/admin/admin.js", "web/owner/launch.js", "web/owner/smoke.js"):
     src = root / rel
     text = src.read_text(encoding="utf-8")
     for old, new in replacements.items():
@@ -51,13 +51,18 @@ PY
   --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false \
   --outfile="$TMP/launch.bundle.js"
 
+./node_modules/.bin/esbuild "$TMP/web/owner/smoke.js" \
+  --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false \
+  --outfile="$TMP/smoke.bundle.js"
+
 # Production publish tree keeps the existing HTML paths, but the deployed files
 # are self-contained bundles. The readable source in git remains unchanged.
 cp "$TMP/app.bundle.js" web/app.js
 cp "$TMP/admin.bundle.js" web/admin/admin.js
 cp "$TMP/launch.bundle.js" web/owner/launch.js
+cp "$TMP/smoke.bundle.js" web/owner/smoke.js
 
-if grep -R -n "https://esm.sh" web/app.js web/admin/admin.js web/owner/launch.js; then
+if grep -R -n "https://esm.sh" web/app.js web/admin/admin.js web/owner/launch.js web/owner/smoke.js; then
   echo "Production bundle still references esm.sh" >&2
   exit 1
 fi
@@ -65,5 +70,6 @@ fi
 node --check web/app.js
 node --check web/admin/admin.js
 node --check web/owner/launch.js
+node --check web/owner/smoke.js
 
 echo "RALYA_PRODUCTION_WEB_BUNDLE=PASS"
