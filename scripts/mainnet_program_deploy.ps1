@@ -7,7 +7,7 @@ if ($env:GITHUB_ACTIONS -or $env:CI) {
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Set-Location $Root
 
-foreach ($cmd in @('solana','solana-keygen','cargo','python','git')) {
+foreach ($cmd in @('solana','solana-keygen','cargo','python')) {
   if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) { throw "Missing required command: $cmd" }
 }
 
@@ -16,12 +16,33 @@ if ($SolanaVersionText -notmatch '3\.1\.10') {
   throw "RALYA production build expects Solana CLI 3.1.10. Found: $SolanaVersionText"
 }
 
-$Dirty = (& git status --porcelain | Out-String).Trim()
-if ($Dirty) { throw 'Start from a clean git working tree before generating the production Program ID.' }
-$BaseCommit = (& git rev-parse HEAD | Out-String).Trim()
+# A normal GitHub Download ZIP is supported. If this is a real git checkout we
+# additionally require a clean tree and record its exact commit.
+$GitAvailable = [bool](Get-Command git -ErrorAction SilentlyContinue)
+$IsGitCheckout = $GitAvailable -and (Test-Path (Join-Path $Root '.git'))
+if ($IsGitCheckout) {
+  $Dirty = (& git status --porcelain | Out-String).Trim()
+  if ($Dirty) { throw 'Start from a clean git working tree before generating the production Program ID.' }
+  $BaseCommit = (& git rev-parse HEAD | Out-String).Trim()
+} else {
+  $BaseCommit = 'github-download-zip-main'
+  Write-Host 'No .git directory detected. Running in GitHub Download ZIP mode.'
+}
+
+# Run the same repository invariant/source audit before any production key is
+# generated or any Mainnet transaction is considered.
+& python scripts/audit_source.py
+if ($LASTEXITCODE -ne 0) { throw 'RALYA source/security audit failed. Refusing Mainnet deployment.' }
+
 $PatchApplied = $false
 $KeepPatch = $false
 $DumpFile = $null
+$LibPath = Join-Path $Root 'programs\rlya_sale\src\lib.rs'
+$AnchorPath = Join-Path $Root 'Anchor.toml'
+$LibBackup = Join-Path $env:TEMP ("ralya-lib-backup-" + [guid]::NewGuid().ToString('N') + '.rs')
+$AnchorBackup = Join-Path $env:TEMP ("ralya-anchor-backup-" + [guid]::NewGuid().ToString('N') + '.toml')
+Copy-Item -Force $LibPath $LibBackup
+Copy-Item -Force $AnchorPath $AnchorBackup
 
 $SecretsDir = if ($env:RALYA_MAINNET_SECRETS_DIR) { $env:RALYA_MAINNET_SECRETS_DIR } else { Join-Path $env:USERPROFILE '.config\solana\ralya-mainnet' }
 $ProgramKeypair = Join-Path $SecretsDir 'rlya-program-keypair.json'
@@ -85,7 +106,7 @@ try {
   Write-Host "Mainnet program rent estimate: $RentText"
   Write-Host "Deployer balance: $BalanceText"
   Write-Host "Program ID to be deployed: $ProgramId"
-  Write-Host 'If the wallet is not sufficiently funded, do not confirm. The repository will clean itself and these same permanent local keys will be reused after funding.'
+  Write-Host 'If the wallet is not sufficiently funded, do not confirm. The source files will restore automatically and these same permanent local keys will be reused after funding.'
   Write-Host ''
   $Confirm = Read-Host 'Type DEPLOY-RLYA-MAINNET to broadcast the real Mainnet deployment'
   if ($Confirm -ne 'DEPLOY-RLYA-MAINNET') { Write-Host 'Stopped before broadcasting.'; return }
@@ -117,8 +138,6 @@ try {
   if ($LocalSha256 -ne $OnchainSha256) { throw "CRITICAL: executable SHA-256 mismatch. Local=$LocalSha256, onchain=$OnchainSha256" }
   Write-Host "MAINNET_EXECUTABLE_BYTE_MATCH=PASS $LocalSha256"
 
-  # Transfer upgrade authority only after the downloaded Mainnet executable is
-  # proven identical to the locally built production-ID binary.
   & solana program set-upgrade-authority $ProgramId --new-upgrade-authority $UpgradeKeypair
   if ($LASTEXITCODE -ne 0) { throw 'Upgrade-authority transfer failed.' }
   $Info = (& solana program show $ProgramId | Out-String)
@@ -131,7 +150,7 @@ RALYA MAINNET PROGRAM DEPLOYMENT
 Program ID: $ProgramId
 Upgrade authority: $UpgradeAuthority
 Deployer public wallet: $Deployer
-Base source commit before public Program ID patch: $BaseCommit
+Source baseline: $BaseCommit
 Program bytes: $Bytes
 Executable SHA-256: $LocalSha256
 On-chain executable SHA-256: $OnchainSha256
@@ -148,7 +167,9 @@ Cluster: mainnet-beta
 } finally {
   if ($DumpFile) { Remove-Item -Force -ErrorAction SilentlyContinue $DumpFile }
   if ($PatchApplied -and -not $KeepPatch) {
-    & git checkout -- programs/rlya_sale/src/lib.rs Anchor.toml 2>$null
-    Write-Host 'Restored the repository to its clean pre-deployment Program ID state. Production keys remain safely local for a retry.'
+    Copy-Item -Force $LibBackup $LibPath
+    Copy-Item -Force $AnchorBackup $AnchorPath
+    Write-Host 'Restored the source files to their clean pre-deployment Program ID state. Production keys remain safely local for a retry.'
   }
+  Remove-Item -Force -ErrorAction SilentlyContinue $LibBackup,$AnchorBackup
 }
