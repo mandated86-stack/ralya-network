@@ -11,13 +11,19 @@ Run:
 - Windows: `scripts/mainnet_program_deploy.ps1`
 - macOS/Linux: `scripts/mainnet_program_deploy.sh`
 
-The script refuses CI, requires the tested Solana CLI 3.1.10 toolchain, and runs the RALYA source/security audit before production-key generation. It then generates the permanent Program ID and a separate upgrade-authority key locally and keeps both private key files outside the project folder/repository. It asks the owner to make an offline backup before any Mainnet broadcast.
+The script refuses CI, requires the tested Solana CLI 3.1.10 toolchain, and runs the RALYA source/security audit before production-key generation. It generates **three separate local identities**:
 
-The script patches the **public** Program ID into temporary source files, compiles the exact SBF executable, shows the live Mainnet deployment-rent estimate and current fee-payer balance, and requires the explicit phrase `DEPLOY-RLYA-MAINNET` before broadcasting. If the owner stops or deployment fails, the temporary Program-ID source changes are restored from local backups so the same permanent local keys can be reused safely after funding.
+1. the permanent RLYA Program ID keypair;
+2. a dedicated upgrade-authority keypair;
+3. a dedicated Mainnet deployment/fee-payer keypair.
 
-After deployment, the script downloads the executable back from Mainnet and requires exact byte length and SHA-256 equality with the locally built `.so`. Only after that match does it transfer upgrade authority away from the transaction-paying deployer. A successful run creates `RALYA_MAINNET_PROGRAM_PUBLIC.txt`, which contains only public evidence.
+All three private files stay outside the project/repository. The deployment payer is deliberately separate from the owner's Phantom/Solflare wallet, so there is no reason to import a personal wallet seed into the Solana CLI. The script asks for an offline backup of all three local key files before any Mainnet broadcast.
 
-Return only that public record / Program ID to ChatGPT. Never return either JSON key file.
+The script patches the **public** Program ID into temporary source files, compiles the exact SBF executable, configures the dedicated payer as the Solana CLI fee wallet for `mainnet-beta`, and shows the payer's public address, live Mainnet deployment-rent estimate and current balance. If more SOL is needed, stop there, send real SOL only to the printed public payer address, then rerun the same script. The same three local identities are reused and the temporary source changes restore automatically on stop/failure.
+
+Only the explicit phrase `DEPLOY-RLYA-MAINNET` broadcasts. After deployment, the script downloads the executable back from Mainnet and requires exact byte length and SHA-256 equality with the locally built `.so`. It verifies the dedicated payer is the initial program authority, then transfers upgrade authority away from that fee payer to the separate upgrade-authority identity. A successful run creates `RALYA_MAINNET_PROGRAM_PUBLIC.txt`, which contains public evidence only.
+
+Return only that public record / Program ID to ChatGPT. Never return `rlya-program-keypair.json`, `rlya-upgrade-authority.json`, `rlya-mainnet-payer.json`, or any seed/private key.
 
 ## Checkpoint B — prepare the fixed RLYA supply
 
