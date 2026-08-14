@@ -12,3 +12,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify repository
         run: make verify
+      - name: Verify Mainnet owner tooling syntax
+        run: |
+          bash -n scripts/mainnet_program_deploy.sh
+          node --check scripts/verify_mainnet_public.mjs
+          node --check web/site-config.js
+          node --check web/owner/launch.js
+          node --check web/owner/smoke.js
+          pwsh -NoProfile -Command "[scriptblock]::Create((Get-Content -Raw 'scripts/mainnet_program_deploy.ps1')) | Out-Null"
