@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.5.0-referral-release-candidate',
+  build: '0.6.0-mainnet-prep',
   launchPhase: 'protocol-testing',
   presaleEnabled: false,
   network: 'mainnet-beta',
@@ -35,13 +35,14 @@ window.RALYA_CONFIG = Object.freeze({
 (() => {
   const cfg = window.RALYA_CONFIG;
   if (!cfg.presaleEnabled) {
+    const lockedMessage = 'Presale is not enabled yet. Mainnet verification must complete before purchases open.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
-      button.disabled = true;
-      button.setAttribute('aria-disabled', 'true');
+      if (!button.disabled) button.disabled = true;
+      if (button.getAttribute('aria-disabled') !== 'true') button.setAttribute('aria-disabled', 'true');
       const message = document.getElementById('buyMessage');
-      if (message) message.textContent = 'Presale is not enabled yet. Mainnet verification must complete before purchases open.';
+      if (message && message.textContent !== lockedMessage) message.textContent = lockedMessage;
     };
 
     document.addEventListener('click', (event) => {
@@ -56,7 +57,10 @@ window.RALYA_CONFIG = Object.freeze({
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enforce, { once: true });
     else enforce();
 
-    const observer = new MutationObserver(enforce);
+    const observer = new MutationObserver(() => {
+      const button = document.getElementById('buyRlya');
+      if (button && !button.disabled) enforce();
+    });
     observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
