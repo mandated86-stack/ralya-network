@@ -1,27 +1,89 @@
-# Owner guide - minimal actions
+# Owner guide — final Mainnet path
 
-Most technical work is prepared inside this repository. The owner should only perform actions that require ownership of an external account or possession of the real signing wallet.
+Most technical work is already prepared in this repository. The owner should perform only actions that genuinely require possession of the real signing wallet or local production keys. Never send a seed phrase, private key, wallet JSON or production keypair to ChatGPT, GitHub, email or cloud storage.
 
-## Before program compilation
-1. Create a separate **public** GitHub repository named `ralya-network` under the connected GitHub account. Do not reuse the private Ralya Protest App repository.
-2. Publish this source tree there. CI then runs the reference-model/security checks and compiles the active Solana program.
+## Checkpoint A — permanent Mainnet program
 
-## Before mainnet program deployment
-1. Generate the final program keypair and keep `rlya_sale-keypair.json` private. Only its public Program ID is published.
-2. Patch the public Program ID with `python scripts/set_program_id.py <PUBLIC_PROGRAM_ID>` and rebuild the final `.so`.
-3. Deploy the final compiled `.so` to Solana using that program keypair. The deployment authority must remain under project control during the early audited upgrade period.
+Run the owner-controlled deployment script on the owner's own computer from a clean, current `main` branch:
 
-## One-time token launch
-After the website metadata URL is live and the deployed program ID is confirmed, open `/owner/` and connect the real owner wallet. The launch console preflight verifies the executable program and metadata before enabling the irreversible launch sequence.
+- Windows: `scripts/mainnet_program_deploy.ps1`
+- macOS/Linux: `scripts/mainnet_program_deploy.sh`
 
-The launch sequence creates the token mint, metadata and complete 839M fixed supply, initializes/funds the sale and founder vaults plus reserve accounts, revokes mint authority, verifies freeze authority is absent, activates the sale, and exports the signed launch record plus final website configuration.
+The script refuses CI, requires the tested Solana CLI 3.1.10 toolchain, generates the permanent Program ID and a separate upgrade-authority key locally, and keeps both private key files outside the repository. It asks the owner to make an offline backup before any Mainnet broadcast.
 
-## Ongoing controls
-`/admin/` provides only on-chain-authorized controls:
+The script patches the **public** Program ID into the build, compiles the exact SBF executable, shows the live Mainnet deployment-rent estimate and the current fee-payer balance, and requires the explicit phrase `DEPLOY-RLYA-MAINNET` before broadcasting. If the owner stops or deployment fails, the repository's temporary Program-ID patch is automatically reverted so the same local permanent keys can be reused safely after funding.
+
+After deployment, the script downloads the executable back from Mainnet and requires exact byte length and SHA-256 equality with the locally built `.so`. Only after that match does it transfer upgrade authority away from the transaction-paying deployer. A successful run creates `RALYA_MAINNET_PROGRAM_PUBLIC.txt`, which contains only public evidence.
+
+Return only that public record / Program ID to ChatGPT. Never return either JSON key file.
+
+## Checkpoint B — prepare the fixed RLYA supply
+
+After the public Program ID is verified and the pre-launch website metadata is reachable, open `/owner/` and connect the actual owner wallet. The launch preflight requires:
+
+- Solana Mainnet;
+- the expected executable Program ID;
+- a reachable RALYA/RLYA metadata URI;
+- the public presale master switch still **OFF**;
+- enough SOL in the owner wallet for token/account rent and transaction fees.
+
+`Prepare RLYA Mainnet` then performs the irreversible token preparation in stages:
+
+1. Create the RLYA mint with 9 decimals and no freeze authority.
+2. Mint exactly **839,000,000 RLYA** once.
+3. Initialize the sale and founder-lock accounts while the sale remains `DRAFT`.
+4. Fund all seven published allocation buckets so they reconcile to the full 839M supply.
+5. Permanently revoke RLYA mint authority and re-check that freeze authority is absent.
+
+At this point the production token exists but public buying is still not open.
+
+## Checkpoint C — start founder lock without opening a public window
+
+The `Atomic activate + pause` action puts `activate` and `pause` into the **same Solana transaction**. Solana transaction atomicity means either both instructions commit or neither does. The 365-day founder lock therefore starts while the transaction's final committed sale state is `PAUSED`; there is no separate transaction window in which the sale is left publicly active.
+
+The console stores and downloads a public launch record containing the mint, Program ID, sale PDA, founder-lock/vault addresses, allocation accounts and transaction signatures.
+
+## Checkpoint D — owner-funded 1 USDC Mainnet smoke verification
+
+With the sale still `PAUSED`, the owner console performs one transparent **owner-funded protocol smoke purchase**. It uses disposable local test identities and exactly 1 USDC supplied by the owner wallet.
+
+The critical smoke actions are atomic in one transaction:
+
+`resume → register referral → buy 1 USDC → pause`
+
+The transaction either commits the complete purchase and finishes `PAUSED`, or Solana rolls the entire sequence back. The verifier then requires:
+
+- exactly 1.00 USDC gross sale accounting;
+- exactly 0.01 USDC referral accounting (1%);
+- exactly 0.99 USDC direct treasury proceeds before the referral test funds are swept;
+- the exact quoted amount of RLYA delivered;
+- zero manual/off-site distribution;
+- final sale state `PAUSED`.
+
+The disposable test assets are then swept to treasury and the updated public evidence record is downloaded. This 1 USDC transaction is protocol verification, not external buyer demand, and must remain disclosed as owner-funded smoke activity.
+
+## Independent public verification
+
+`scripts/verify_mainnet_public.mjs <launch-record.json>` uses only public RPC data and the public launch record. It verifies the executable program, exact 839M supply, null mint/freeze authorities, deterministic PDAs, treasury/founder identities, price/referral constants, founder lock, allocation balances and either the clean pre-smoke state or the exact owner-funded post-smoke accounting.
+
+The required success marker is:
+
+`RALYA_MAINNET_PUBLIC_VERIFICATION=PASS`
+
+## Opening the public presale
+
+The website's production `presaleEnabled` master switch remains `false` throughout program deployment, token creation, allocation, activation and Mainnet smoke verification. The browser purchase button is independently forced disabled while this switch is false.
+
+Only after public verification passes should the signed Mainnet Program ID, mint, sale PDA and treasury values be merged into the protected site configuration. The hardened site is deployed while the chain sale remains `PAUSED`. Then, and only then, the public presale switch is enabled and the authorized owner resumes the on-chain sale.
+
+## Ongoing owner controls
+
+`/admin/` provides on-chain-authorized operations only:
+
 - record/deliver a legitimate off-site sale from the same public-sale vault;
-- pause or resume new website purchases;
+- pause or resume new purchases;
 - close the sale;
-- move unsold public-sale inventory to the published treasury after closing;
+- move unsold public-sale inventory to treasury after closing;
 - release the founder allocation only after its on-chain lock expires.
 
-The website never asks for or stores a seed phrase. Do not send private keys, seed phrases, or the private program keypair to ChatGPT or commit them to GitHub.
+Manual/off-site distributions are accounted separately in sale state and displayed separately on the public website while still advancing the same public distribution/price curve.
