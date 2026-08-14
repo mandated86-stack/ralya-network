@@ -25,6 +25,7 @@ const POOLS = [
   ['liquidity', 67_120_000n * RLYA_UNIT],
 ];
 const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+const PROGRESS_KEY = 'RALYA_MAINNET_PUBLIC_PROGRESS_V1';
 
 let provider, wallet, programId, mintKeypair, mint, ownerRlyaAta, salePda, saleVaultPda, founderLockPda, founderVaultPda;
 let launchPrepared = false;
@@ -41,6 +42,21 @@ function getProvider(){ if(window.phantom?.solana?.isPhantom)return window.phant
 function pk(value,label){ try{return new PublicKey(String(value).trim())}catch{throw new Error(`${label} is not a valid Solana address.`)} }
 function u64le(n){ const b=new Uint8Array(8); new DataView(b.buffer).setBigUint64(0,BigInt(n),true); return b; }
 async function discriminator(name){ const h=await crypto.subtle.digest('SHA-256',enc.encode(`global:${name}`)); return new Uint8Array(h).slice(0,8); }
+function savePublicProgress(){ try{ localStorage.setItem(PROGRESS_KEY,JSON.stringify(launchRecord)); }catch{} }
+
+async function waitForSignature(signature,label){
+  for(let i=0;i<90;i++){
+    try{
+      const status=(await connection.getSignatureStatuses([signature],{searchTransactionHistory:true})).value[0];
+      if(status?.err) throw new Error(`${label} failed: ${JSON.stringify(status.err)}`);
+      if(status && (status.confirmationStatus==='confirmed' || status.confirmationStatus==='finalized')) return;
+    }catch(err){
+      if(String(err?.message||err).includes(`${label} failed:`)) throw err;
+    }
+    await new Promise(r=>setTimeout(r,1500));
+  }
+  throw new Error(`${label} was broadcast but confirmation timed out. STOP here and verify signature ${signature} before retrying anything.`);
+}
 
 async function sendTx(tx, extraSigners=[], label='transaction'){
   const latest=await connection.getLatestBlockhash('confirmed');
@@ -53,8 +69,9 @@ async function sendTx(tx, extraSigners=[], label='transaction'){
   }else if(provider.signAndSendTransaction){
     const res=await provider.signAndSendTransaction(tx); sig=res.signature || res;
   }else throw new Error('Connected wallet cannot sign Solana transactions.');
-  const conf=await connection.confirmTransaction({signature:sig,...latest},'confirmed');
-  if(conf.value.err) throw new Error(`${label} failed: ${JSON.stringify(conf.value.err)}`);
+  if(!sig) throw new Error(`${label} did not return a transaction signature.`);
+  log(`${label} broadcast: ${sig}`);
+  await waitForSignature(sig,label);
   log(`${label} confirmed: ${sig}`);
   return sig;
 }
@@ -81,7 +98,7 @@ async function preflight(){
   const metaResp=await fetch(meta,{cache:'no-store'}); if(!metaResp.ok) throw new Error(`Metadata URI is not publicly reachable (${metaResp.status}).`);
   const metadata=await metaResp.json(); if(metadata.name!=='RALYA' || metadata.symbol!=='RLYA') throw new Error('Metadata JSON must identify RALYA / RLYA.');
   const balance=await connection.getBalance(wallet,'confirmed');
-  if(balance < 50_000_000) throw new Error('Owner wallet needs at least 0.05 SOL available for account creation and transaction fees.');
+  if(balance < 50_000_000) throw new Error('Owner wallet needs at least 0.05 SOL available for token-account creation and transaction fees.');
   log(`Preflight OK. Executable Mainnet program found. Treasury ${treasury.toBase58()}; founder ${founder.toBase58()}. Presale switch is OFF.`);
   $('#launch').disabled=false;
 }
@@ -97,6 +114,9 @@ async function createMintAndMetadata(){
     createAssociatedTokenAccountInstruction(wallet,ownerRlyaAta,wallet,mint,TOKEN_PROGRAM_ID),
   );
   launchRecord.transactions.createMint=await sendTx(tx,[mintKeypair],'Create RLYA mint');
+  launchRecord.rlyaMint=mint.toBase58();
+  launchRecord.ownerStagingTokenAccount=ownerRlyaAta.toBase58();
+  savePublicProgress();
 
   const [{createUmi},{walletAdapterIdentity},{mplTokenMetadata,createV1,TokenStandard},{publicKey,percentAmount},bs58mod] = await Promise.all([
     import('https://esm.sh/@metaplex-foundation/umi-bundle-defaults?bundle'),
@@ -110,7 +130,7 @@ async function createMintAndMetadata(){
   const md=await createV1(umi,{mint:publicKey(mint.toBase58()),authority:umi.identity,payer:umi.identity,updateAuthority:umi.identity,name:'RALYA',symbol:'RLYA',uri:$('#metadataUri').value.trim(),sellerFeeBasisPoints:percentAmount(0),tokenStandard:TokenStandard.Fungible}).sendAndConfirm(umi);
   const bs58=bs58mod.default || bs58mod;
   launchRecord.transactions.createMetadata=bs58.encode(md.signature);
-  launchRecord.rlyaMint=mint.toBase58();
+  savePublicProgress();
   setState('mint','DONE','ok'); log(`RLYA mint created: ${mint.toBase58()}`);
 }
 
@@ -119,7 +139,7 @@ async function mintSupply(){
   launchRecord.transactions.mintHardCap=await sendTx(new Transaction().add(createMintToCheckedInstruction(mint,ownerRlyaAta,wallet,HARD_CAP,9,[],TOKEN_PROGRAM_ID)),[],'Mint fixed 839M supply');
   const info=await connection.getTokenSupply(mint,'confirmed');
   if(BigInt(info.value.amount)!==HARD_CAP) throw new Error('Post-mint supply does not equal 839M.');
-  setState('supply','DONE','ok');
+  savePublicProgress(); setState('supply','DONE','ok');
 }
 
 async function initializeProgram(){
@@ -137,7 +157,7 @@ async function initializeProgram(){
   ],data:await discriminator('initialize')});
   launchRecord.transactions.initialize=await sendTx(new Transaction().add(ix),[],'Initialize RALYA sale');
   launchRecord.salePda=salePda.toBase58(); launchRecord.saleVault=saleVaultPda.toBase58(); launchRecord.founderLock=founderLockPda.toBase58(); launchRecord.founderVault=founderVaultPda.toBase58();
-  setState('initialize','DONE','ok');
+  savePublicProgress(); setState('initialize','DONE','ok');
 }
 
 async function createReserveAccount(name,amount,treasury){
@@ -149,6 +169,7 @@ async function createReserveAccount(name,amount,treasury){
   );
   const sig=await sendTx(tx,[kp],`Fund ${name}`);
   launchRecord.allocations[name]={tokenAccount:kp.publicKey.toBase58(),amountBaseUnits:amount.toString(),transaction:sig};
+  savePublicProgress();
 }
 
 async function allocateAll(){
@@ -159,6 +180,7 @@ async function allocateAll(){
   ),[],'Fund public-sale and founder vaults');
   launchRecord.allocations.presale={tokenAccount:saleVaultPda.toBase58(),amountBaseUnits:SALE_POOL.toString()};
   launchRecord.allocations.founder={tokenAccount:founderVaultPda.toBase58(),amountBaseUnits:FOUNDER_POOL.toString()};
+  savePublicProgress();
   for(const [name,amount] of POOLS) await createReserveAccount(name,amount,treasury);
   const ownerBalance=await connection.getTokenAccountBalance(ownerRlyaAta,'confirmed');
   if(BigInt(ownerBalance.value.amount)!==0n) throw new Error(`Owner staging account should be empty after allocation, but holds ${ownerBalance.value.amount} base units.`);
@@ -172,14 +194,16 @@ async function revokeMint(){
   const parsed=mintInfo.value?.data?.parsed?.info;
   if(parsed?.mintAuthority!==null) throw new Error('Mint authority is still present after revoke transaction.');
   if(parsed?.freezeAuthority!==null) throw new Error('Freeze authority is not null.');
-  setState('revoke','DONE','ok');
+  savePublicProgress(); setState('revoke','DONE','ok');
 }
 
 function fillPublicRecord(){
+  launchRecord.adminWallet=wallet.toBase58();
   launchRecord.saleProgramId=programId.toBase58();
   launchRecord.treasuryWallet=$('#treasuryWallet').value.trim();
   launchRecord.founderWallet=$('#founderWallet').value.trim();
   launchRecord.hardCap='839000000'; launchRecord.decimals=9; launchRecord.usdcMint=USDC_MINT.toBase58();
+  savePublicProgress();
   $('#recordSummary').textContent=`Mint ${launchRecord.rlyaMint} | Program ${launchRecord.saleProgramId} | Sale ${launchRecord.salePda}`;
   $('#downloadRecord').disabled=false; $('#downloadConfig').disabled=false;
 }
@@ -205,6 +229,7 @@ async function activateAndPause(){
     {pubkey:saleVaultPda,isSigner:false,isWritable:false},{pubkey:founderLockPda,isSigner:false,isWritable:true},{pubkey:founderVaultPda,isSigner:false,isWritable:false},
   ],data:await discriminator('activate')});
   launchRecord.transactions.activate=await sendTx(new Transaction().add(activateIx),[],'Activate RLYA sale');
+  savePublicProgress();
 
   const pauseIx=new TransactionInstruction({programId,keys:[
     {pubkey:wallet,isSigner:true,isWritable:false},{pubkey:mint,isSigner:false,isWritable:false},{pubkey:salePda,isSigner:false,isWritable:true},
@@ -217,8 +242,9 @@ async function activateAndPause(){
 
 function downloadRecord(){ downloadFile('RALYA_MAINNET_LAUNCH_RECORD.json',JSON.stringify(launchRecord,null,2)); }
 function downloadConfig(){
-  const out={...cfg,launchPhase:launchRecord.phase,presaleEnabled:false,rlyaMint:launchRecord.rlyaMint||'',saleProgramId:launchRecord.saleProgramId||'',salePda:launchRecord.salePda||'',treasuryWallet:launchRecord.treasuryWallet||'',projectUrl:'https://ralya-network.netlify.app',metadataUri:'https://ralya-network.netlify.app/token-metadata.json'};
-  downloadFile('site-config.js',`window.RALYA_CONFIG = ${JSON.stringify(out,null,2)};\n`,'text/javascript');
+  const values={project:'RALYA',network:'mainnet-beta',launchPhase:launchRecord.phase,presaleEnabled:false,rlyaMint:launchRecord.rlyaMint||'',saleProgramId:launchRecord.saleProgramId||'',salePda:launchRecord.salePda||'',treasuryWallet:launchRecord.treasuryWallet||'',usdcMint:USDC_MINT.toBase58()};
+  downloadFile('RALYA_MAINNET_SITE_VALUES.json',JSON.stringify(values,null,2));
+  log('Downloaded public website values only. The protected site-config.js master switch was NOT replaced.');
 }
 
 $('#connectOwner').addEventListener('click',()=>connect().catch(e=>alert(e.message)));
