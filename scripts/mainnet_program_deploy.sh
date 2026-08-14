@@ -25,6 +25,17 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 BASE_COMMIT="$(git rev-parse HEAD)"
+PATCH_APPLIED=0
+KEEP_PATCH=0
+DUMP_FILE=""
+cleanup() {
+  if [[ -n "$DUMP_FILE" ]]; then rm -f "$DUMP_FILE" 2>/dev/null || true; fi
+  if [[ "$PATCH_APPLIED" -eq 1 && "$KEEP_PATCH" -eq 0 ]]; then
+    git checkout -- programs/rlya_sale/src/lib.rs Anchor.toml 2>/dev/null || true
+    echo "Restored the repository to its clean pre-deployment Program ID state. Production keys remain safely local for a retry."
+  fi
+}
+trap cleanup EXIT
 
 umask 077
 SECRETS_DIR="${RALYA_MAINNET_SECRETS_DIR:-$HOME/.config/solana/ralya-mainnet}"
@@ -60,6 +71,7 @@ read -r -p "After making an offline backup, type BACKUP-CONFIRMED: " backup
 [[ "$backup" == "BACKUP-CONFIRMED" ]] || { echo "Stopped before Mainnet deployment."; exit 1; }
 
 python3 scripts/set_program_id.py "$PROGRAM_ID"
+PATCH_APPLIED=1
 
 # Build the exact production-ID source with the pinned Solana toolchain.
 set +e
@@ -90,6 +102,7 @@ echo "Compiled SHA-256: $LOCAL_SHA256"
 echo "Mainnet program rent estimate: $RENT_TEXT"
 echo "Deployer balance (lamports): $BALANCE"
 echo "Program ID to be deployed: $PROGRAM_ID"
+echo "If the wallet is not sufficiently funded, answer anything except DEPLOY-RLYA-MAINNET. The repository will clean itself and the same permanent keys can be reused after funding."
 echo
 read -r -p "Type DEPLOY-RLYA-MAINNET to broadcast the real Mainnet deployment: " confirm
 [[ "$confirm" == "DEPLOY-RLYA-MAINNET" ]] || { echo "Stopped before broadcasting."; exit 1; }
@@ -100,18 +113,14 @@ echo "$DEPLOY_OUTPUT" | grep -F "$PROGRAM_ID" >/dev/null || {
   exit 1
 }
 
-# Move upgrade power away from the transaction-paying deployer immediately.
-solana program set-upgrade-authority "$PROGRAM_ID" --new-upgrade-authority "$UPGRADE_KEYPAIR"
-
+# Verify the program exists before trusting it.
 INFO="$(solana program show "$PROGRAM_ID")"
 echo "$INFO"
 echo "$INFO" | grep -F "Program Id: $PROGRAM_ID" >/dev/null || { echo "Program verification failed." >&2; exit 1; }
-echo "$INFO" | grep -F "Authority: $UPGRADE_AUTHORITY" >/dev/null || { echo "Upgrade-authority verification failed." >&2; exit 1; }
 
 # Independently download the actual executable from Mainnet and require exact
 # byte-for-byte equality with the .so that was just built locally.
 DUMP_FILE="$(mktemp)"
-trap 'rm -f "$DUMP_FILE"' EXIT
 DUMP_OK=0
 for attempt in 1 2 3 4 5; do
   if solana program dump "$PROGRAM_ID" "$DUMP_FILE" >/dev/null 2>&1 && [[ -s "$DUMP_FILE" ]]; then
@@ -133,6 +142,17 @@ fi
 [[ "$LOCAL_SHA256" == "$ONCHAIN_SHA256" ]] || { echo "CRITICAL: executable SHA-256 mismatch." >&2; exit 1; }
 echo "MAINNET_EXECUTABLE_BYTE_MATCH=PASS $LOCAL_SHA256"
 
+# Only after exact executable verification, move upgrade power away from the
+# transaction-paying deployer to the separate owner-controlled authority.
+solana program set-upgrade-authority "$PROGRAM_ID" --new-upgrade-authority "$UPGRADE_KEYPAIR"
+INFO="$(solana program show "$PROGRAM_ID")"
+echo "$INFO"
+echo "$INFO" | grep -F "Authority: $UPGRADE_AUTHORITY" >/dev/null || { echo "Upgrade-authority verification failed." >&2; exit 1; }
+
+# From this point the public Program ID patch is the production truth and must
+# remain in the working tree for the owner/public record commit.
+KEEP_PATCH=1
+
 cat > "$ROOT/RALYA_MAINNET_PROGRAM_PUBLIC.txt" <<EOF
 RALYA MAINNET PROGRAM DEPLOYMENT
 Program ID: $PROGRAM_ID
@@ -145,12 +165,11 @@ On-chain executable SHA-256: $ONCHAIN_SHA256
 Exact downloaded byte match: PASS
 Cluster: mainnet-beta
 EOF
-
 chmod 644 "$ROOT/RALYA_MAINNET_PROGRAM_PUBLIC.txt"
 
 echo
 echo "RALYA_MAINNET_PROGRAM_DEPLOYMENT=PASS"
 echo "PUBLIC Program ID: $PROGRAM_ID"
 echo "PUBLIC executable SHA-256: $LOCAL_SHA256"
-echo "Next: commit only the patched PUBLIC Program ID/source plus RALYA_MAINNET_PROGRAM_PUBLIC.txt."
-echo "Never commit $PROGRAM_KEYPAIR or $UPGRADE_KEYPAIR."
+echo "Return only RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT."
+echo "Never commit or send $PROGRAM_KEYPAIR or $UPGRADE_KEYPAIR."
