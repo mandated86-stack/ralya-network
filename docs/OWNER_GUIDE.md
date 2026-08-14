@@ -4,14 +4,16 @@ Most technical work is already prepared in this repository. The owner should per
 
 ## Checkpoint A — permanent Mainnet program
 
-Run the owner-controlled deployment script on the owner's own computer from a clean, current `main` branch:
+Download the current `mandated86-stack/ralya-network` main branch to the owner's own computer. A normal GitHub **Code → Download ZIP** extraction is supported; a git clone is optional.
+
+Run:
 
 - Windows: `scripts/mainnet_program_deploy.ps1`
 - macOS/Linux: `scripts/mainnet_program_deploy.sh`
 
-The script refuses CI, requires the tested Solana CLI 3.1.10 toolchain, generates the permanent Program ID and a separate upgrade-authority key locally, and keeps both private key files outside the repository. It asks the owner to make an offline backup before any Mainnet broadcast.
+The script refuses CI, requires the tested Solana CLI 3.1.10 toolchain, and runs the RALYA source/security audit before production-key generation. It then generates the permanent Program ID and a separate upgrade-authority key locally and keeps both private key files outside the project folder/repository. It asks the owner to make an offline backup before any Mainnet broadcast.
 
-The script patches the **public** Program ID into the build, compiles the exact SBF executable, shows the live Mainnet deployment-rent estimate and the current fee-payer balance, and requires the explicit phrase `DEPLOY-RLYA-MAINNET` before broadcasting. If the owner stops or deployment fails, the repository's temporary Program-ID patch is automatically reverted so the same local permanent keys can be reused safely after funding.
+The script patches the **public** Program ID into temporary source files, compiles the exact SBF executable, shows the live Mainnet deployment-rent estimate and current fee-payer balance, and requires the explicit phrase `DEPLOY-RLYA-MAINNET` before broadcasting. If the owner stops or deployment fails, the temporary Program-ID source changes are restored from local backups so the same permanent local keys can be reused safely after funding.
 
 After deployment, the script downloads the executable back from Mainnet and requires exact byte length and SHA-256 equality with the locally built `.so`. Only after that match does it transfer upgrade authority away from the transaction-paying deployer. A successful run creates `RALYA_MAINNET_PROGRAM_PUBLIC.txt`, which contains only public evidence.
 
@@ -19,11 +21,13 @@ Return only that public record / Program ID to ChatGPT. Never return either JSON
 
 ## Checkpoint B — prepare the fixed RLYA supply
 
-After the public Program ID is verified and the pre-launch website metadata is reachable, open `/owner/` and connect the actual owner wallet. The launch preflight requires:
+Initial RLYA metadata is already publicly reachable from the public RALYA GitHub repository, so token creation does not depend on Netlify or a custom domain being live first.
+
+After the public Program ID is verified, open `/owner/` and connect the actual owner wallet. The launch preflight requires:
 
 - Solana Mainnet;
 - the expected executable Program ID;
-- a reachable RALYA/RLYA metadata URI;
+- the reachable public RALYA/RLYA metadata URI;
 - the public presale master switch still **OFF**;
 - enough SOL in the owner wallet for token/account rent and transaction fees.
 
