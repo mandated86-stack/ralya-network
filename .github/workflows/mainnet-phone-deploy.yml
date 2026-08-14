@@ -1,0 +1,32 @@
+name: Mainnet Phone Deploy
+on:
+  push:
+    paths:
+      - 'mainnet/OWNER_WALLET.txt'
+      - '.github/workflows/mainnet-phone-deploy.yml'
+      - 'scripts/mainnet_phone_ci_deploy.sh'
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[mainnet-phone]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated Mainnet deployment identities and exact binary
+        run: bash scripts/mainnet_phone_ci_deploy.sh prepare
+      - name: Publish only safe Mainnet funding details
+        uses: actions/upload-artifact@v4
+        with:
+          name: rlya-mainnet-funding-${{ github.run_id }}
+          path: /tmp/rlya-mainnet-funding.txt
+          retention-days: 1
+      - name: Wait for real SOL, deploy, verify, transfer authority and sweep remainder
+        run: bash scripts/mainnet_phone_ci_deploy.sh wait-deploy
+      - name: Publish signed-public deployment evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: rlya-mainnet-program-public-${{ github.run_id }}
+          path: /tmp/RALYA_MAINNET_PROGRAM_PUBLIC.txt
+          retention-days: 30
