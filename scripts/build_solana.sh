@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Dedicated public compiler gate for RALYA 0.5.0.
-# Triggered on contract changes as well as this script.
+# Dedicated public compiler gate for RALYA 0.6.0 Mainnet preparation.
+# Anchor 1.0.x recommends Solana 3.1.10. The quick installer supplies the
+# supporting toolchain, then the exact Agave/Solana release is pinned below.
 curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$PATH"
+sh -c "$(curl -sSfL https://release.anza.xyz/v3.1.10/install)"
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$PATH"
 avm install 1.0.2
 avm use 1.0.2
 rustc --version
 solana --version
 anchor --version
+solana --version | grep -F '3.1.10'
 anchor --version | grep -F '1.0.2'
+# The owner deployment scripts rely on the documented CLI config keypair path;
+# fail CI if the pinned CLI ever stops accepting this option.
+solana config set --help | grep -F -- '--keypair'
 set +e
 cargo build-sbf --manifest-path programs/rlya_sale/Cargo.toml 2>&1 | tee /tmp/ralya-sbf-build.log
 build_status=${PIPESTATUS[0]}
