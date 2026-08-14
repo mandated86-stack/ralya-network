@@ -50,7 +50,7 @@ jobs:
   devnet-protocol:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[devnet-protocol]')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Prepare temporary Solana JS test dependencies
@@ -81,9 +81,9 @@ jobs:
           const c=new Connection(rpc,'confirmed');
           const k=Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync('/tmp/rlya-devnet-protocol-payer.json','utf8'))));
           let ok=false;
-          for(let i=1;i<=120;i++){
+          for(let i=1;i<=160;i++){
             const sol=(await c.getBalance(k.publicKey,'confirmed'))/LAMPORTS_PER_SOL;
-            console.log(`Devnet protocol funding check ${i}/120: ${sol} SOL`);
+            console.log(`Devnet protocol funding check ${i}/160: ${sol} SOL`);
             if(sol>=0.25){ok=true;break;}
             await new Promise(r=>setTimeout(r,15000));
           }
@@ -110,17 +110,17 @@ jobs:
           let rpcTail=Promise.resolve();
           c._rpcRequest=(method,args)=>{
             const task=rpcTail.then(async()=>{
-              await sleep(1600);
+              await sleep(2400);
               let last;
-              for(let attempt=1;attempt<=8;attempt++){
+              for(let attempt=1;attempt<=12;attempt++){
                 try{
                   const res=await rawRpc(method,args);
                   if(res?.error?.code===429) throw new Error('RPC 429');
                   return res;
                 }catch(e){
                   last=e;
-                  if(attempt===8) throw e;
-                  await sleep(2000*attempt);
+                  if(attempt===12) throw e;
+                  await sleep(2500*attempt);
                 }
               }
               throw last;
@@ -130,14 +130,14 @@ jobs:
           };
           c.confirmTransaction=async(sigOrStrategy)=>{
             const sig=typeof sigOrStrategy==='string'?sigOrStrategy:sigOrStrategy.signature;
-            for(let i=0;i<80;i++){
+            for(let i=0;i<100;i++){
               const st=await c.getSignatureStatuses([sig],{searchTransactionHistory:true});
               const v=st.value[0];
               if(v){
                 if(v.err) throw new Error('Transaction failed: '+JSON.stringify(v.err));
                 if(v.confirmationStatus==='confirmed'||v.confirmationStatus==='finalized') return {context:st.context,value:{err:null}};
               }
-              await sleep(1800);
+              await sleep(2200);
             }
             throw new Error('Timed out waiting for Devnet transaction confirmation');
           };
@@ -155,5 +155,23 @@ jobs:
           js=js[:pos]+tail
           Path('/tmp/rlya_devnet_protocol_integration.mjs').write_text(js)
           PY
-          RALYA_PROGRAM_ID='Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN' node /tmp/rlya_devnet_protocol_integration.mjs | tee /tmp/rlya-devnet-protocol.log
+          passed=0
+          for attempt in 1 2 3; do
+            echo "Public Devnet protocol attempt ${attempt}/3"
+            set +e
+            RALYA_PROGRAM_ID='Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN' node /tmp/rlya_devnet_protocol_integration.mjs 2>&1 | tee "/tmp/rlya-devnet-protocol-${attempt}.log"
+            rc=${PIPESTATUS[0]}
+            set -e
+            if [[ $rc -eq 0 ]] && grep -Fq 'RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS' "/tmp/rlya-devnet-protocol-${attempt}.log"; then
+              passed=1
+              cp "/tmp/rlya-devnet-protocol-${attempt}.log" /tmp/rlya-devnet-protocol.log
+              break
+            fi
+            echo "Attempt ${attempt} did not complete; keeping the same funded payer and cooling down before retry."
+            sleep 45
+          done
+          if [[ $passed -ne 1 ]]; then
+            echo '[ERROR] Public Devnet protocol smoke did not complete after 3 paced attempts.' >&2
+            exit 1
+          fi
           grep -F 'RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS' /tmp/rlya-devnet-protocol.log
