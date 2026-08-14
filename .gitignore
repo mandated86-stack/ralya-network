@@ -3,6 +3,9 @@
 *.json.key
 id.json
 wallet*.json
+*keypair*.json
+*upgrade-authority*.json
+ralya-mainnet/
 
 # Build outputs
 target/
