@@ -22,18 +22,18 @@
 
     <section class="owner-card">
       <h2>Before this page</h2>
-      <p>The permanent Program ID must come from the owner-controlled deployment script, not from a browser or GitHub runner. The private program and upgrade-authority key files stay on your computer and offline backup only.</p>
+      <p>The permanent Program ID must come from the owner-controlled deployment script, not from a browser or GitHub runner. The private program and upgrade-authority key files stay on your computer and offline backup only. Initial token metadata is served from the public RALYA GitHub repository, so this checkpoint does not depend on the pre-launch website already being deployed.</p>
       <div class="code-note">Windows: scripts/mainnet_program_deploy.ps1<br/>macOS/Linux: scripts/mainnet_program_deploy.sh</div>
     </section>
 
     <section class="owner-card">
       <h2>Launch inputs</h2>
-      <p>Paste only public Solana addresses here. The metadata URI must already be publicly reachable before token creation.</p>
+      <p>Paste only public Solana addresses here. The default metadata URI points to the public RALYA repository and is checked before token creation.</p>
       <div class="owner-grid">
         <div><label>Permanent Mainnet sale Program ID</label><input id="programId" placeholder="Public Program ID from the deployment script" /></div>
         <div><label>Treasury wallet</label><input id="treasuryWallet" placeholder="Defaults to connected owner wallet" /></div>
         <div><label>Founder wallet</label><input id="founderWallet" placeholder="Defaults to connected owner wallet" /></div>
-        <div><label>Metadata URI</label><input id="metadataUri" value="https://ralya-network.netlify.app/token-metadata.json" /></div>
+        <div><label>Metadata URI</label><input id="metadataUri" value="https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json" /></div>
       </div>
       <div class="owner-actions">
         <button class="btn btn-primary" id="preflight" disabled>Run Mainnet preflight</button>
