@@ -5,14 +5,18 @@ Do NOT create a token manually and do NOT use the old Devnet addresses for produ
 
 ONE OWNER CHECKPOINT COMES NEXT:
 
-1) On the owner's own computer, use the current ralya-network main branch and run ONE of:
+1) On the owner's own computer, download the current `mandated86-stack/ralya-network` main branch.
+   A normal GitHub `Code -> Download ZIP` extraction is supported; a git clone is NOT required.
+
+   Run ONE of:
    Windows:     scripts/mainnet_program_deploy.ps1
    macOS/Linux: scripts/mainnet_program_deploy.sh
 
    The script itself will:
    - refuse CI/cloud key generation;
+   - run the RALYA source/security audit before production key generation;
    - create the permanent Program ID and separate upgrade-authority keys locally;
-   - keep those private keys outside the repository;
+   - keep those private keys outside the downloaded project folder/repository;
    - ask for an offline backup before continuing;
    - build with the tested Solana 3.1.10 toolchain;
    - show the CURRENT Mainnet rent estimate and the public deployer wallet balance;
@@ -22,13 +26,14 @@ ONE OWNER CHECKPOINT COMES NEXT:
    - produce RALYA_MAINNET_PROGRAM_PUBLIC.txt containing PUBLIC evidence only.
 
    If the wallet does not have enough SOL, DO NOT confirm deployment. The script restores
-   the repository to a clean state and keeps the same permanent local keys for the retry.
+   the patched source files automatically and keeps the same permanent local keys for the retry.
 
 2) Return ONLY RALYA_MAINNET_PROGRAM_PUBLIC.txt (or its public Program ID/hash) to ChatGPT.
    NEVER send either JSON key file, a seed phrase, private key or wallet recovery phrase.
 
 AFTER THAT PUBLIC RECORD IS VERIFIED:
 - ChatGPT updates the public Program ID/site evidence while the presale master switch stays OFF.
+- Initial token metadata is already independent of Netlify and is served from the public RALYA GitHub repository.
 - The owner launch console creates exactly 839,000,000 RLYA, funds every published allocation,
   permanently removes mint authority, confirms freeze authority is absent, and atomically starts
   the 365-day founder lock while finishing with the sale PAUSED.
