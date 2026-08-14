@@ -18,7 +18,7 @@
     </div>
 
     <div class="danger"><strong>Keep the public presale switch OFF during this entire sequence.</strong> First deploy the permanent program with the owner-controlled local deployment script. Then use this console to prepare RLYA. Public buying is opened only after the finished Mainnet state is independently verified.</div>
-    <div class="safe"><strong>Safer staged launch:</strong> preparation creates exactly 839,000,000 RLYA, funds every allocation and permanently removes mint authority while the sale remains DRAFT. Activation is a separate action and immediately pauses the sale again.</div>
+    <div class="safe"><strong>Safer staged launch:</strong> preparation creates exactly 839,000,000 RLYA, funds every allocation and permanently removes mint authority while the sale remains DRAFT. Activation and pause are then executed atomically in one Solana transaction, so there is no public ACTIVE window between transactions.</div>
 
     <section class="owner-card">
       <h2>Before this page</h2>
@@ -38,7 +38,7 @@
       <div class="owner-actions">
         <button class="btn btn-primary" id="preflight" disabled>Run Mainnet preflight</button>
         <button class="btn btn-primary" id="launch" disabled>Prepare RLYA Mainnet</button>
-        <button class="btn btn-secondary" id="activate" disabled>Activate + immediately pause</button>
+        <button class="btn btn-secondary" id="activate" disabled>Atomic activate + pause</button>
         <button class="btn btn-secondary" id="downloadRecord" disabled>Download launch record</button>
         <button class="btn btn-secondary" id="downloadConfig" disabled>Download website values</button>
       </div>
@@ -51,13 +51,13 @@
       <div class="launch-row"><b>3</b><div><strong>Initialize sale + founder lock accounts</strong><small>Creates the on-chain public-sale and founder vaults while sale status remains DRAFT.</small></div><span class="state" data-state="initialize">WAIT</span></div>
       <div class="launch-row"><b>4</b><div><strong>Fund all seven allocations</strong><small>Presale and founder vaults plus five published reserve accounts reconcile to the full 839M supply.</small></div><span class="state" data-state="allocate">WAIT</span></div>
       <div class="launch-row"><b>5</b><div><strong>Revoke mint authority forever</strong><small>After confirmation, no additional RLYA can be created. Freeze authority must also remain absent.</small></div><span class="state" data-state="revoke">WAIT</span></div>
-      <div class="launch-row"><b>6</b><div><strong>Activate + immediately pause</strong><small>This starts the 365-day founder lock, then immediately pauses new purchases. Public presale remains closed.</small></div><span class="state" data-state="activate">WAIT</span></div>
+      <div class="launch-row"><b>6</b><div><strong>Atomic activate + pause</strong><small>The same transaction starts the 365-day founder lock and commits the final sale state as PAUSED. Public presale remains closed.</small></div><span class="state" data-state="activate">WAIT</span></div>
       <div class="launch-row"><b>7</b><div><strong>Export public launch evidence</strong><small>Records the mint, Program ID, sale PDA, allocation accounts and transaction signatures for independent verification and website configuration.</small></div><span class="state" data-state="record">WAIT</span></div>
     </section>
 
     <section class="owner-card">
       <h2>Mainnet smoke verification</h2>
-      <p>After step 6 is PAUSED, this performs one owner-funded 1 USDC referred purchase with disposable in-memory test wallets. It verifies exact RLYA delivery and the 1% referral split, pauses the sale again, sweeps the disposable assets to treasury, and downloads an updated public evidence record. Your public presale switch remains OFF.</p>
+      <p>After step 6 is PAUSED, this performs one owner-funded 1 USDC referred purchase with disposable local test wallets. Resume, referral registration, purchase and pause are one atomic Solana transaction: it either finishes PAUSED with the exact purchase or rolls back completely. The result is verified, test assets are swept to treasury, and an updated public evidence record is downloaded. Your public presale switch remains OFF.</p>
       <div class="owner-actions"><button class="btn btn-primary" id="runSmoke" disabled>Run 1 USDC Mainnet smoke test</button></div>
       <pre class="launch-log" id="smokeStatus">Waiting for an activated-and-paused launch record.</pre>
     </section>
@@ -66,6 +66,7 @@
   </div>
   <script src="../site-config.js"></script>
   <script type="module" src="launch.js"></script>
+  <script type="module" src="atomic-launch.js"></script>
   <script type="module" src="smoke.js"></script>
 </body>
 </html>
