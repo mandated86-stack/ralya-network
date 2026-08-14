@@ -1,0 +1,50 @@
+name: Devnet PoW Bootstrap Probe
+on:
+  push:
+    paths:
+      - '.github/workflows/devnet-pow-bootstrap-probe.yml'
+permissions:
+  contents: read
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install web3
+        run: npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4
+      - name: Create disposable payer and obtain gas bootstrap
+        run: |
+          cat > /tmp/bootstrap.mjs <<'JS'
+          import fs from 'node:fs';
+          import {Keypair,Connection} from '@solana/web3.js';
+          const k=Keypair.generate();
+          fs.writeFileSync('/tmp/payer.json',JSON.stringify(Array.from(k.secretKey)));
+          const address=k.publicKey.toBase58();
+          console.log('POW_PAYER='+address);
+          const r=await fetch('https://faucet.zarply.co.za/api/faucet',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({pubkey:address})});
+          console.log('BOOTSTRAP_HTTP='+r.status+' '+(await r.text()).slice(0,300));
+          const c=new Connection('https://docs-demo.solana-devnet.quiknode.pro/','confirmed');
+          for(let i=0;i<75;i++){
+            const b=await c.getBalance(k.publicKey,'confirmed');
+            if(b>=5000){console.log('BOOTSTRAP_GAS='+b);process.exit(0)}
+            await new Promise(r=>setTimeout(r,1000));
+          }
+          throw new Error('No gas bootstrap received');
+          JS
+          node /tmp/bootstrap.mjs
+      - name: Install Devnet proof-of-work faucet CLI
+        run: cargo install devnet-pow --locked
+      - name: Mine Devnet SOL for protocol test
+        run: |
+          devnet-pow --keypair-path /tmp/payer.json --url https://docs-demo.solana-devnet.quiknode.pro/ --commitment confirmed mine --difficulty 3 --reward 0.02 --no-infer --target-lamports 80000000 | tee /tmp/pow.log
+          cat > /tmp/balance.mjs <<'JS'
+          import fs from 'node:fs';
+          import {Connection,Keypair} from '@solana/web3.js';
+          const k=Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync('/tmp/payer.json','utf8'))));
+          const c=new Connection('https://docs-demo.solana-devnet.quiknode.pro/','confirmed');
+          const b=await c.getBalance(k.publicKey,'confirmed');
+          console.log('POW_FINAL_BALANCE='+b);
+          if(b<50_000_000) throw new Error('PoW bootstrap below 0.05 SOL');
+          console.log('RALYA_POW_BOOTSTRAP=PASS');
+          JS
+          node /tmp/balance.mjs
