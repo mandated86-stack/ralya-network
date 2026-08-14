@@ -8,7 +8,7 @@ window.RALYA_CONFIG = Object.freeze({
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
   projectUrl: 'https://ralya-network.netlify.app',
-  metadataUri: 'https://ralya-network.netlify.app/token-metadata.json',
+  metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
   hardCap: 839000000,
   decimals: 9,
   presaleCap: 100680000,
