@@ -1,0 +1,46 @@
+name: Devnet RPC Probe
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/rpc-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Probe candidate Devnet RPCs
+        shell: bash
+        run: |
+          set -u
+          PROGRAM='Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN'
+          test_rpc() {
+            local name="$1" url="$2"
+            local pass=0 fail=0
+            echo "=== $name ==="
+            for i in $(seq 1 12); do
+              BODY=$(curl -L -sS --max-time 15 -H 'content-type: application/json' \
+                --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getAccountInfo\",\"params\":[\"$PROGRAM\",{\"encoding\":\"base64\",\"commitment\":\"finalized\"}]}" \
+                "$url" 2>/dev/null || true)
+              if echo "$BODY" | grep -q '"executable":true'; then
+                pass=$((pass+1))
+                echo "$name $i/12 PASS"
+              else
+                fail=$((fail+1))
+                echo "$name $i/12 FAIL: ${BODY:0:180}"
+              fi
+              sleep 1
+            done
+            echo "RESULT $name pass=$pass fail=$fail"
+            if [[ $pass -ge 11 ]]; then return 0; else return 1; fi
+          }
+
+          winners=0
+          test_rpc 'QUICKNODE_DOCS' 'https://docs-demo.solana-devnet.quiknode.pro/' && winners=$((winners+1)) || true
+          test_rpc 'ORBITFLARE_HTTPS' 'https://devnet.rpc.orbitflare.com' && winners=$((winners+1)) || true
+          test_rpc 'SOLANA_PUBLIC' 'https://api.devnet.solana.com' && winners=$((winners+1)) || true
+          test_rpc 'ANKR' 'https://rpc.ankr.com/solana_devnet' && winners=$((winners+1)) || true
+          echo "RPC_WINNERS=$winners"
+          [[ $winners -ge 1 ]]
