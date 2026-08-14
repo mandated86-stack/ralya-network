@@ -27,7 +27,7 @@ jobs:
       - name: Probe alternate Solana Devnet RPC
         run: |
           set -euo pipefail
-          RPC='https://rpc.ankr.com/solana_devnet'
+          RPC='https://docs-demo.solana-devnet.quiknode.pro/'
           for i in $(seq 1 12); do
             BODY=$(curl -sS --fail-with-body -H 'content-type: application/json' \
               --data '{"jsonrpc":"2.0","id":1,"method":"getAccountInfo","params":["Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN",{"encoding":"base64","commitment":"finalized"}]}' \
@@ -97,7 +97,7 @@ jobs:
           cat > /tmp/rlya_devnet_wait.mjs <<'JS'
           import fs from 'node:fs';
           import {Connection,Keypair,LAMPORTS_PER_SOL} from '@solana/web3.js';
-          const rpc='https://rpc.ankr.com/solana_devnet';
+          const rpc='https://docs-demo.solana-devnet.quiknode.pro/';
           const c=new Connection(rpc,'finalized');
           const k=Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync('/tmp/rlya-devnet-protocol-payer.json','utf8'))));
           let ok=false;
@@ -123,7 +123,7 @@ jobs:
           start=src.index(marker)+len(marker)
           end=src.index("\nJS\n\nRALYA_PROGRAM_ID=",start)
           js=src[start:end]
-          rpc='https://rpc.ankr.com/solana_devnet'
+          rpc='https://docs-demo.solana-devnet.quiknode.pro/'
           js=js.replace("const RPC='http://127.0.0.1:8899';",f"const RPC='{rpc}';")
           js=js.replace("if(!RPC.includes('127.0.0.1')) throw new Error('Integration harness refuses non-local RPC');",f"if(RPC!=='{rpc}') throw new Error('Devnet harness refuses unexpected RPC');")
           js=js.replace("/tmp/ralya-local-payer.json","/tmp/rlya-devnet-protocol-payer.json")
