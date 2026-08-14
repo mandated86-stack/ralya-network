@@ -9,7 +9,7 @@ if [[ -n "${GITHUB_ACTIONS:-}" || -n "${CI:-}" ]]; then
   exit 1
 fi
 
-for cmd in solana solana-keygen cargo python3; do
+for cmd in solana solana-keygen cargo python3 git sha256sum cmp; do
   command -v "$cmd" >/dev/null || { echo "Missing required command: $cmd" >&2; exit 1; }
 done
 
@@ -24,6 +24,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "REFUSING: start from a clean git working tree before generating the production Program ID." >&2
   exit 1
 fi
+BASE_COMMIT="$(git rev-parse HEAD)"
 
 umask 077
 SECRETS_DIR="${RALYA_MAINNET_SECRETS_DIR:-$HOME/.config/solana/ralya-mainnet}"
@@ -74,6 +75,7 @@ fi
 SO_FILE="$ROOT/target/deploy/rlya_sale.so"
 [[ -s "$SO_FILE" ]] || { echo "Missing compiled program: $SO_FILE" >&2; exit 1; }
 BYTES="$(wc -c < "$SO_FILE" | tr -d ' ')"
+LOCAL_SHA256="$(sha256sum "$SO_FILE" | awk '{print $1}')"
 
 solana config set --url mainnet-beta >/dev/null
 RPC="$(solana config get | awk -F': ' '/RPC URL/{print $2}')"
@@ -84,6 +86,7 @@ RENT_TEXT="$(solana rent "$BYTES")"
 
 echo
 echo "Compiled program bytes: $BYTES"
+echo "Compiled SHA-256: $LOCAL_SHA256"
 echo "Mainnet program rent estimate: $RENT_TEXT"
 echo "Deployer balance (lamports): $BALANCE"
 echo "Program ID to be deployed: $PROGRAM_ID"
@@ -105,12 +108,41 @@ echo "$INFO"
 echo "$INFO" | grep -F "Program Id: $PROGRAM_ID" >/dev/null || { echo "Program verification failed." >&2; exit 1; }
 echo "$INFO" | grep -F "Authority: $UPGRADE_AUTHORITY" >/dev/null || { echo "Upgrade-authority verification failed." >&2; exit 1; }
 
+# Independently download the actual executable from Mainnet and require exact
+# byte-for-byte equality with the .so that was just built locally.
+DUMP_FILE="$(mktemp)"
+trap 'rm -f "$DUMP_FILE"' EXIT
+DUMP_OK=0
+for attempt in 1 2 3 4 5; do
+  if solana program dump "$PROGRAM_ID" "$DUMP_FILE" >/dev/null 2>&1 && [[ -s "$DUMP_FILE" ]]; then
+    DUMP_OK=1
+    break
+  fi
+  echo "Waiting for deployed program visibility before byte verification ($attempt/5)..."
+  sleep 2
+done
+[[ $DUMP_OK -eq 1 ]] || { echo "Could not download the deployed Mainnet executable for verification." >&2; exit 1; }
+ONCHAIN_SHA256="$(sha256sum "$DUMP_FILE" | awk '{print $1}')"
+ONCHAIN_BYTES="$(wc -c < "$DUMP_FILE" | tr -d ' ')"
+if ! cmp -s "$SO_FILE" "$DUMP_FILE"; then
+  echo "CRITICAL: Mainnet executable does not match the locally built RALYA program." >&2
+  echo "Local:   $BYTES bytes $LOCAL_SHA256" >&2
+  echo "Onchain: $ONCHAIN_BYTES bytes $ONCHAIN_SHA256" >&2
+  exit 1
+fi
+[[ "$LOCAL_SHA256" == "$ONCHAIN_SHA256" ]] || { echo "CRITICAL: executable SHA-256 mismatch." >&2; exit 1; }
+echo "MAINNET_EXECUTABLE_BYTE_MATCH=PASS $LOCAL_SHA256"
+
 cat > "$ROOT/RALYA_MAINNET_PROGRAM_PUBLIC.txt" <<EOF
 RALYA MAINNET PROGRAM DEPLOYMENT
 Program ID: $PROGRAM_ID
 Upgrade authority: $UPGRADE_AUTHORITY
 Deployer public wallet: $DEPLOYER
+Base source commit before public Program ID patch: $BASE_COMMIT
 Program bytes: $BYTES
+Executable SHA-256: $LOCAL_SHA256
+On-chain executable SHA-256: $ONCHAIN_SHA256
+Exact downloaded byte match: PASS
 Cluster: mainnet-beta
 EOF
 
@@ -119,5 +151,6 @@ chmod 644 "$ROOT/RALYA_MAINNET_PROGRAM_PUBLIC.txt"
 echo
 echo "RALYA_MAINNET_PROGRAM_DEPLOYMENT=PASS"
 echo "PUBLIC Program ID: $PROGRAM_ID"
+echo "PUBLIC executable SHA-256: $LOCAL_SHA256"
 echo "Next: commit only the patched PUBLIC Program ID/source plus RALYA_MAINNET_PROGRAM_PUBLIC.txt."
 echo "Never commit $PROGRAM_KEYPAIR or $UPGRADE_KEYPAIR."
