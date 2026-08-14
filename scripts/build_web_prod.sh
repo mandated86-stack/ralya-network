@@ -7,7 +7,9 @@ cd "$ROOT"
 command -v node >/dev/null || { echo "node is required" >&2; exit 1; }
 [ -x node_modules/.bin/esbuild ] || { echo "Run npm install before build:web" >&2; exit 1; }
 
-TMP="$(mktemp -d)"
+# Keep temporary entry files under the repo so esbuild resolves the pinned
+# node_modules tree instead of searching from /tmp.
+TMP="$(mktemp -d "$ROOT/.web-build.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
 python3 - "$ROOT" "$TMP" <<'PY'
