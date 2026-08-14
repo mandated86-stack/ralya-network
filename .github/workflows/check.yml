@@ -18,5 +18,6 @@ jobs:
           node --check scripts/verify_mainnet_public.mjs
           node --check web/site-config.js
           node --check web/owner/launch.js
+          node --check web/owner/atomic-launch.js
           node --check web/owner/smoke.js
           pwsh -NoProfile -Command "[scriptblock]::Create((Get-Content -Raw 'scripts/mainnet_program_deploy.ps1')) | Out-Null"
