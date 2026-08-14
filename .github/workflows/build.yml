@@ -5,11 +5,15 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - 'scripts/build_solana.sh'
+      - 'scripts/build_web_prod.sh'
       - 'scripts/devnet_smoke.sh'
       - 'scripts/local_validator_smoke.sh'
       - 'programs/rlya_sale/**'
       - 'Cargo.toml'
       - 'Anchor.toml'
+      - 'package.json'
+      - 'netlify.toml'
+      - 'web/**'
 permissions:
   contents: read
 jobs:
@@ -17,7 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: bash scripts/build_solana.sh
+      - name: Build and audit Solana program
+        run: bash scripts/build_solana.sh
+      - name: Install pinned browser dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build self-hosted production browser bundles
+        run: npm run build:web
 
   local-integration:
     if: github.event_name == 'push' && contains(github.event.head_commit.message, '[integration]')
