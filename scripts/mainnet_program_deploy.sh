@@ -9,7 +9,7 @@ if [[ -n "${GITHUB_ACTIONS:-}" || -n "${CI:-}" ]]; then
   exit 1
 fi
 
-for cmd in solana solana-keygen cargo python3 git sha256sum cmp; do
+for cmd in solana solana-keygen cargo python3 sha256sum cmp; do
   command -v "$cmd" >/dev/null || { echo "Missing required command: $cmd" >&2; exit 1; }
 done
 
@@ -20,20 +20,41 @@ if [[ "$SOLANA_VERSION" != "3.1.10" ]]; then
   exit 1
 fi
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "REFUSING: start from a clean git working tree before generating the production Program ID." >&2
-  exit 1
+# A normal GitHub Download ZIP is supported. If this is a real git checkout we
+# additionally require a clean tree and record its exact commit.
+if command -v git >/dev/null 2>&1 && [[ -d .git ]]; then
+  if ! git diff --quiet || ! git diff --cached --quiet; then
+    echo "REFUSING: start from a clean git working tree before generating the production Program ID." >&2
+    exit 1
+  fi
+  BASE_COMMIT="$(git rev-parse HEAD)"
+else
+  BASE_COMMIT="github-download-zip-main"
+  echo "No .git directory detected. Running in GitHub Download ZIP mode."
 fi
-BASE_COMMIT="$(git rev-parse HEAD)"
+
+python3 scripts/audit_source.py || {
+  echo "RALYA source/security audit failed. Refusing Mainnet deployment." >&2
+  exit 1
+}
+
 PATCH_APPLIED=0
 KEEP_PATCH=0
 DUMP_FILE=""
+LIB_PATH="$ROOT/programs/rlya_sale/src/lib.rs"
+ANCHOR_PATH="$ROOT/Anchor.toml"
+LIB_BACKUP="$(mktemp)"
+ANCHOR_BACKUP="$(mktemp)"
+cp "$LIB_PATH" "$LIB_BACKUP"
+cp "$ANCHOR_PATH" "$ANCHOR_BACKUP"
 cleanup() {
   if [[ -n "$DUMP_FILE" ]]; then rm -f "$DUMP_FILE" 2>/dev/null || true; fi
   if [[ "$PATCH_APPLIED" -eq 1 && "$KEEP_PATCH" -eq 0 ]]; then
-    git checkout -- programs/rlya_sale/src/lib.rs Anchor.toml 2>/dev/null || true
-    echo "Restored the repository to its clean pre-deployment Program ID state. Production keys remain safely local for a retry."
+    cp "$LIB_BACKUP" "$LIB_PATH" 2>/dev/null || true
+    cp "$ANCHOR_BACKUP" "$ANCHOR_PATH" 2>/dev/null || true
+    echo "Restored the source files to their clean pre-deployment Program ID state. Production keys remain safely local for a retry."
   fi
+  rm -f "$LIB_BACKUP" "$ANCHOR_BACKUP" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -73,7 +94,6 @@ read -r -p "After making an offline backup, type BACKUP-CONFIRMED: " backup
 python3 scripts/set_program_id.py "$PROGRAM_ID"
 PATCH_APPLIED=1
 
-# Build the exact production-ID source with the pinned Solana toolchain.
 set +e
 cargo build-sbf --manifest-path programs/rlya_sale/Cargo.toml 2>&1 | tee /tmp/ralya-mainnet-build.log
 BUILD_STATUS=${PIPESTATUS[0]}
@@ -102,7 +122,7 @@ echo "Compiled SHA-256: $LOCAL_SHA256"
 echo "Mainnet program rent estimate: $RENT_TEXT"
 echo "Deployer balance (lamports): $BALANCE"
 echo "Program ID to be deployed: $PROGRAM_ID"
-echo "If the wallet is not sufficiently funded, answer anything except DEPLOY-RLYA-MAINNET. The repository will clean itself and the same permanent keys can be reused after funding."
+echo "If the wallet is not sufficiently funded, answer anything except DEPLOY-RLYA-MAINNET. The source files will restore automatically and the same permanent local keys can be reused after funding."
 echo
 read -r -p "Type DEPLOY-RLYA-MAINNET to broadcast the real Mainnet deployment: " confirm
 [[ "$confirm" == "DEPLOY-RLYA-MAINNET" ]] || { echo "Stopped before broadcasting."; exit 1; }
@@ -113,13 +133,10 @@ echo "$DEPLOY_OUTPUT" | grep -F "$PROGRAM_ID" >/dev/null || {
   exit 1
 }
 
-# Verify the program exists before trusting it.
 INFO="$(solana program show "$PROGRAM_ID")"
 echo "$INFO"
 echo "$INFO" | grep -F "Program Id: $PROGRAM_ID" >/dev/null || { echo "Program verification failed." >&2; exit 1; }
 
-# Independently download the actual executable from Mainnet and require exact
-# byte-for-byte equality with the .so that was just built locally.
 DUMP_FILE="$(mktemp)"
 DUMP_OK=0
 for attempt in 1 2 3 4 5; do
@@ -142,15 +159,11 @@ fi
 [[ "$LOCAL_SHA256" == "$ONCHAIN_SHA256" ]] || { echo "CRITICAL: executable SHA-256 mismatch." >&2; exit 1; }
 echo "MAINNET_EXECUTABLE_BYTE_MATCH=PASS $LOCAL_SHA256"
 
-# Only after exact executable verification, move upgrade power away from the
-# transaction-paying deployer to the separate owner-controlled authority.
 solana program set-upgrade-authority "$PROGRAM_ID" --new-upgrade-authority "$UPGRADE_KEYPAIR"
 INFO="$(solana program show "$PROGRAM_ID")"
 echo "$INFO"
 echo "$INFO" | grep -F "Authority: $UPGRADE_AUTHORITY" >/dev/null || { echo "Upgrade-authority verification failed." >&2; exit 1; }
 
-# From this point the public Program ID patch is the production truth and must
-# remain in the working tree for the owner/public record commit.
 KEEP_PATCH=1
 
 cat > "$ROOT/RALYA_MAINNET_PROGRAM_PUBLIC.txt" <<EOF
@@ -158,7 +171,7 @@ RALYA MAINNET PROGRAM DEPLOYMENT
 Program ID: $PROGRAM_ID
 Upgrade authority: $UPGRADE_AUTHORITY
 Deployer public wallet: $DEPLOYER
-Base source commit before public Program ID patch: $BASE_COMMIT
+Source baseline: $BASE_COMMIT
 Program bytes: $BYTES
 Executable SHA-256: $LOCAL_SHA256
 On-chain executable SHA-256: $ONCHAIN_SHA256
@@ -172,4 +185,4 @@ echo "RALYA_MAINNET_PROGRAM_DEPLOYMENT=PASS"
 echo "PUBLIC Program ID: $PROGRAM_ID"
 echo "PUBLIC executable SHA-256: $LOCAL_SHA256"
 echo "Return only RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT."
-echo "Never commit or send $PROGRAM_KEYPAIR or $UPGRADE_KEYPAIR."
+echo "Never send $PROGRAM_KEYPAIR or $UPGRADE_KEYPAIR."
