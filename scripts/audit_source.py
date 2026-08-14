@@ -90,6 +90,24 @@ check((ROOT/'scripts/mainnet_program_deploy.sh').exists() and (ROOT/'scripts/mai
 check((ROOT/'scripts/verify_mainnet_public.mjs').exists(), 'public-only mainnet verifier missing')
 check((ROOT/'web/owner/smoke.js').exists(), 'recoverable mainnet smoke verifier missing')
 check((ROOT/'web/owner/atomic-launch.js').exists(), 'atomic mainnet activation module missing')
+
+# Production deployment must not depend on a personal wallet key. Both owner
+# scripts create and configure a dedicated local fee payer, distinct from the
+# permanent Program ID and upgrade authority.
+for deploy_script in (ROOT/'scripts/mainnet_program_deploy.sh', ROOT/'scripts/mainnet_program_deploy.ps1'):
+    body = deploy_script.read_text()
+    body_lower = body.lower()
+    check('rlya-mainnet-payer.json' in body_lower, f'dedicated Mainnet payer missing from {deploy_script.name}')
+    check('rlya-program-keypair.json' in body_lower, f'permanent Program keypair missing from {deploy_script.name}')
+    check('rlya-upgrade-authority.json' in body_lower, f'separate upgrade authority missing from {deploy_script.name}')
+    check('config set --url mainnet-beta --keypair' in body_lower, f'dedicated payer is not configured for Mainnet in {deploy_script.name}')
+    check('program dump' in body_lower and 'sha-256' in body_lower, f'on-chain executable verification missing from {deploy_script.name}')
+    check('program set-upgrade-authority' in body_lower, f'upgrade-authority transfer missing from {deploy_script.name}')
+
+build_gate = (ROOT/'scripts/build_solana.sh').read_text()
+check("release.anza.xyz/v3.1.10/install" in build_gate, 'CI does not explicitly pin Solana 3.1.10')
+check("solana config set --help" in build_gate and "--keypair" in build_gate, 'CI does not verify dedicated-payer CLI option')
+
 check((ROOT/'web/RALYA_Whitepaper_v1.1.pdf').exists(), 'whitepaper PDF missing')
 check((ROOT/'whitepaper/RALYA_Whitepaper_v1.1.md').exists(), 'whitepaper source missing')
 check((ROOT/'LICENSE').exists(), 'open-source license missing')
@@ -119,3 +137,4 @@ print('public sale:', alloc['presale']['tokens'], 'RLYA')
 print('founder initial lock:', alloc['founder']['initial_lock_days'], 'days')
 print('active program contains no RLYA mint/refund/claim instruction')
 print('website contains real wallet/balance/purchase/referral paths, enforced presale gate, atomic owner launch and atomic smoke tools')
+print('mainnet deployment uses isolated payer/program/upgrade identities and exact executable verification')
