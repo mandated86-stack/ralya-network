@@ -15,7 +15,9 @@ jobs:
         with:
           ref: agent/prelaunch-presale
       - name: Apply final financial hardening patches
-        run: python3 scripts/_tmp_finalize_prelaunch_release.py
+        run: |
+          python3 scripts/_tmp_finalize_prelaunch_release.py
+          python3 scripts/_tmp_fix_metrics_harness.py
       - name: Run deterministic prelaunch release checks
         run: |
           python3 scripts/audit_prelaunch.py
