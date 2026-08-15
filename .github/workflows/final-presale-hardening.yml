@@ -1,0 +1,131 @@
+name: Final presale runtime hardening
+
+on:
+  push:
+    branches:
+      - build/presale-stability-wallet-2026-08-16
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rlya-final-presale-hardening
+  cancel-in-progress: false
+
+jobs:
+  patch-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[final-presale-hardening]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/presale-stability-wallet-2026-08-16
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Patch dedicated RPC, Blob store and HTTP-only confirmation paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Production server functions must never fall back to the shared public Solana RPC.
+          old_rpc = """function rpcEndpoint() {\n  return (globalThis as any).Netlify?.env?.get?.('RALYA_SOLANA_RPC') || 'https://api.mainnet-beta.solana.com';\n}"""
+          new_rpc = """function rpcEndpoint() {\n  const endpoint = (globalThis as any).Netlify?.env?.get?.('RALYA_SOLANA_RPC');\n  if (!endpoint) throw new Error('Dedicated Solana Mainnet RPC is not configured. Keep presale access CLOSED.');\n  const parsed = new URL(endpoint);\n  if (parsed.protocol !== 'https:') throw new Error('Dedicated Solana Mainnet RPC must use HTTPS.');\n  return parsed.toString();\n}"""
+          for name in ('netlify/functions/presale-confirm.mts', 'netlify/functions/presale-owner.mts'):
+              p = Path(name); s = p.read_text(encoding='utf-8')
+              if s.count(old_rpc) != 1:
+                  raise SystemExit(f'{name}: expected exactly one public RPC fallback, found {s.count(old_rpc)}')
+              p.write_text(s.replace(old_rpc, new_rpc), encoding='utf-8')
+
+          # Strong-consistency store syntax follows the current Netlify Blobs API.
+          p = Path('netlify/functions/presale-state.mts'); s = p.read_text(encoding='utf-8')
+          old_store = "const s = getStore(PRESALE_STORE, { consistency: 'strong' });"
+          new_store = "const s = getStore({ name: PRESALE_STORE, consistency: 'strong' });"
+          if s.count(old_store) != 1:
+              raise SystemExit(f'presale-state: expected one old getStore call, found {s.count(old_store)}')
+          p.write_text(s.replace(old_store, new_store), encoding='utf-8')
+
+          # The same-origin RPC proxy is HTTP-only. Do not let web3.js confirmation depend on a derived WebSocket URL.
+          p = Path('web/prelaunch.js'); s = p.read_text(encoding='utf-8')
+          anchor = "async function sendTransaction(tx) {\n"
+          helper = """const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));\nasync function waitForSignatureConfirmation(signature, lastValidBlockHeight, timeoutMs = 75000) {\n  const started = Date.now();\n  let polls = 0;\n  while (Date.now() - started < timeoutMs) {\n    const statuses = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });\n    const status = statuses?.value?.[0];\n    if (status?.err) throw new Error(`Solana transaction failed: ${JSON.stringify(status.err)}`);\n    if (status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')) return status;\n    if (++polls % 4 === 0 && lastValidBlockHeight) {\n      const height = await connection.getBlockHeight('confirmed');\n      if (height > lastValidBlockHeight) throw new Error(`Solana transaction expired before confirmation. Signature: ${signature}`);\n    }\n    await sleep(900);\n  }\n  throw new Error(`Solana confirmation is taking longer than expected. Signature: ${signature}. Do not submit another payment until this signature is checked.`);\n}\n"""
+          if helper not in s:
+              if s.count(anchor) != 1: raise SystemExit('prelaunch sendTransaction anchor missing')
+              s = s.replace(anchor, helper + anchor)
+          old_confirm = "await connection.confirmTransaction({ signature, ...latest }, 'confirmed'); return signature;"
+          new_confirm = "await waitForSignatureConfirmation(signature, latest.lastValidBlockHeight); return signature;"
+          if s.count(old_confirm) != 1:
+              raise SystemExit(f'prelaunch: expected one websocket confirmation call, found {s.count(old_confirm)}')
+          p.write_text(s.replace(old_confirm, new_confirm), encoding='utf-8')
+
+          p = Path('web/owner/treasury-prep.js'); s = p.read_text(encoding='utf-8')
+          owner_anchor = "async function send(tx){"
+          owner_helper = """const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));\nasync function waitForSignatureConfirmation(signature,lastValidBlockHeight,timeoutMs=75000){const started=Date.now();let polls=0;while(Date.now()-started<timeoutMs){const statuses=await connection.getSignatureStatuses([signature],{searchTransactionHistory:true});const status=statuses?.value?.[0];if(status?.err)throw new Error(`Solana transaction failed: ${JSON.stringify(status.err)}`);if(status&&(status.confirmationStatus==='confirmed'||status.confirmationStatus==='finalized'))return status;if(++polls%4===0&&lastValidBlockHeight){const height=await connection.getBlockHeight('confirmed');if(height>lastValidBlockHeight)throw new Error(`Solana transaction expired before confirmation. Signature: ${signature}`)}await sleep(900)}throw new Error(`Solana confirmation is taking longer than expected. Signature: ${signature}. Check it before retrying.`)}\n"""
+          if owner_helper not in s:
+              if s.count(owner_anchor) != 1: raise SystemExit('treasury send anchor missing')
+              s = s.replace(owner_anchor, owner_helper + owner_anchor)
+          old_owner_confirm = "await connection.confirmTransaction({signature:sig,...latest},'confirmed');return sig"
+          new_owner_confirm = "await waitForSignatureConfirmation(sig,latest.lastValidBlockHeight);return sig"
+          if s.count(old_owner_confirm) != 1:
+              raise SystemExit(f'treasury: expected one websocket confirmation call, found {s.count(old_owner_confirm)}')
+          p.write_text(s.replace(old_owner_confirm, new_owner_confirm), encoding='utf-8')
+          PY
+
+      - name: Strengthen permanent audit
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/audit_presale_public.py'); s = p.read_text(encoding='utf-8')
+          read_anchor = "rpc = read('netlify/functions/solana-rpc.mts')\n"
+          read_insert = "confirm = read('netlify/functions/presale-confirm.mts')\nowner = read('netlify/functions/presale-owner.mts')\ntreasury = read('web/owner/treasury-prep.js')\nbuild_status = read('docs/BUILD_STATUS.md')\nowner_guide = read('docs/OWNER_GUIDE.md')\nnext_owner = read('NEXT_OWNER_ACTIONS.txt')\n"
+          if read_insert not in s:
+              if s.count(read_anchor) != 1: raise SystemExit('audit read anchor missing')
+              s = s.replace(read_anchor, read_anchor + read_insert)
+          check_anchor = "check(\"path: '/api/solana/rpc'\" in rpc, 'server RPC proxy route is missing')\n"
+          check_insert = "check('https://api.mainnet-beta.solana.com' not in confirm and 'https://api.mainnet-beta.solana.com' not in owner, 'production presale server code still falls back to the public Solana RPC')\ncheck(\"Dedicated Solana Mainnet RPC is not configured\" in confirm and \"Dedicated Solana Mainnet RPC is not configured\" in owner, 'production presale server paths do not fail closed when dedicated RPC is missing')\ncheck(\"getStore({ name: PRESALE_STORE, consistency: 'strong' })\" in state, 'presale state does not use the current strong-consistency Netlify Blobs store form')\ncheck('confirmTransaction(' not in prelaunch and 'confirmTransaction(' not in treasury, 'browser transaction confirmation still depends on an RPC WebSocket endpoint')\ncheck('getSignatureStatuses' in prelaunch and 'getSignatureStatuses' in treasury, 'HTTP signature-status confirmation polling is missing')\n"
+          if check_insert not in s:
+              if s.count(check_anchor) != 1: raise SystemExit('audit check anchor missing')
+              s = s.replace(check_anchor, check_anchor + check_insert)
+          final_anchor = "check('presaleCap: 288000000' in site and 'stakingBonusReserve: 14400000' in site and 'stakingBonusBps: 500' in site, 'authoritative presale economics changed')\n"
+          final_insert = "\ncurrent_docs = build_status + owner_guide + next_owner\ncheck('100,680,000' not in current_docs and '100.68M' not in current_docs, 'current owner/public status docs still contain the obsolete 100.68M pool')\ncheck('36 days after public launch' not in current_docs, 'current owner/public status docs still contain the obsolete day-36 release')\ncheck('DELIBERATELY DEFERRED' not in current_docs and 'deliberately deferred' not in current_docs, 'current owner/public status docs use stale intentional-delay wording')\n"
+          if final_insert not in s:
+              if s.count(final_anchor) != 1: raise SystemExit('audit final anchor missing')
+              s = s.replace(final_anchor, final_anchor + final_insert)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Remove temporary workflows
+        run: rm -f .github/workflows/rpc-runtime-hardening.yml .github/workflows/final-presale-hardening.yml
+
+      - name: Install pinned dependencies
+        run: npm install --no-audit --no-fund
+      - name: Stage source patch before bundle smoke build
+        run: git add -A
+      - name: Audit pre-launch financial/web invariants
+        run: python3 scripts/audit_prelaunch.py
+      - name: Audit final checkout release policy
+        run: python3 scripts/audit_checkout_release.py
+      - name: Audit live-copy safety
+        run: python3 scripts/audit_site_copy.py
+      - name: Audit public presale/runtime boundaries
+        run: python3 scripts/audit_presale_public.py
+      - name: Test pre-launch economic invariants
+        run: npm run test:prelaunch
+      - name: Compile Netlify functions
+        run: npm run build:functions
+      - name: Build production browser bundles
+        run: npm run build:web
+      - name: Restore staged source after bundle smoke build
+        run: git restore --worktree .
+      - name: Re-run permanent audit
+        run: python3 scripts/audit_presale_public.py
+      - name: Validate staged diff
+        run: git diff --cached --check
+      - name: Commit tested hardening
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "[final-presale-hardening] remove public RPC fallback and WebSocket dependency"
+          git push origin HEAD:build/presale-stability-wallet-2026-08-16
