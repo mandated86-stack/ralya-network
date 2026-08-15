@@ -10,10 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Print full generated localhost harness with line numbers
+        with:
+          ref: 66e90367a7b3d977051caf4dbc74e98a73402c07
+      - name: Print failed harness lines around assertion
         shell: bash
         run: |
-          echo 'Mapping entire generated localhost integration harness'
+          echo 'Mapping failed integration commit harness lines 135-150'
           sed -n "/cat > \/tmp\/ralya_local_integration\.mjs <<'JS'/,/^JS$/p" scripts/local_validator_smoke.sh \
             | sed '1d;$d' \
-            | nl -ba
+            | nl -ba \
+            | sed -n '135,150p'
