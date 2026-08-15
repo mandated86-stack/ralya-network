@@ -1,8 +1,9 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.6.0-mainnet-prep',
+  build: '0.7.0-prelaunch-presale',
   launchPhase: 'pre-launch',
+  presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
@@ -10,6 +11,7 @@ window.RALYA_CONFIG = Object.freeze({
   projectUrl: 'https://ralya-network.netlify.app',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
   ownerWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
+  prelaunchTreasuryWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
   hardCap: 839000000,
   decimals: 9,
   presaleCap: 100680000,
@@ -19,32 +21,27 @@ window.RALYA_CONFIG = Object.freeze({
   minimumPurchaseUsdc: 1,
   referralBps: 100,
   usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  // These remain blank until the signed Mainnet launch record exists.
-  // Public launch timing and technical readiness are intentionally controlled separately.
   rlyaMint: '',
   saleProgramId: '',
   salePda: '',
   treasuryWallet: '',
   githubUrl: 'https://github.com/mandated86-stack/ralya-network',
-  whitepaperPdf: 'RALYA_Whitepaper_v1.1.pdf'
+  whitepaperUrl: 'RALYA_Whitepaper_v1.2.html'
 });
 
-// Production purchase master switch. app.js intentionally remains unable to override this gate.
-// Public launch-stage messaging is separate and can never turn buying on by itself.
 (() => {
   const cfg = window.RALYA_CONFIG;
-  if (!cfg.presaleEnabled) {
-    const lockedMessage = 'Presale access is not open yet. Connect your wallet later when allocation access is announced.';
+  if (cfg.presaleMode === 'atomic' && !cfg.presaleEnabled) {
+    const lockedMessage = 'Public token-sale access is not open yet.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
-      if (!button.disabled) button.disabled = true;
-      if (button.getAttribute('aria-disabled') !== 'true') button.setAttribute('aria-disabled', 'true');
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
       const message = document.getElementById('buyMessage');
-      if (message && message.textContent !== lockedMessage) message.textContent = lockedMessage;
+      if (message) message.textContent = lockedMessage;
     };
-
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', event => {
       const target = event.target;
       if (target instanceof Element && target.closest('#buyRlya')) {
         event.preventDefault();
@@ -52,10 +49,7 @@ window.RALYA_CONFIG = Object.freeze({
         enforce();
       }
     }, true);
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enforce, { once: true });
-    else enforce();
-
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enforce, { once: true }); else enforce();
     const observer = new MutationObserver(() => {
       const button = document.getElementById('buyRlya');
       if (button && !button.disabled) enforce();
@@ -63,32 +57,22 @@ window.RALYA_CONFIG = Object.freeze({
     observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
+  const loadScript = (src, marker) => {
+    if (document.querySelector(`script[${marker}]`)) return;
+    const script = document.createElement('script'); script.src = src; script.defer = true; script.setAttribute(marker, '1'); document.body.appendChild(script);
+  };
   const loadExtras = () => {
-    if (document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
-      const transparency = document.createElement('script');
-      transparency.src = 'distribution-transparency.js';
-      transparency.defer = true;
-      transparency.dataset.rlyaTransparency = '1';
-      document.body.appendChild(transparency);
+    if (cfg.presaleMode === 'prelaunch-allocation' && !document.querySelector('link[data-rlya-prelaunch-style]')) {
+      const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = '/prelaunch.css'; style.dataset.rlyaPrelaunchStyle = '1'; document.head.appendChild(style);
     }
-
-    if ((document.getElementById('networkStatus') || document.getElementById('programTag')) && !document.querySelector('script[data-rlya-launch-status]')) {
-      const status = document.createElement('script');
-      status.src = '/launch-status.js';
-      status.defer = true;
-      status.dataset.rlyaLaunchStatus = '1';
-      document.body.appendChild(status);
-    }
-
-    if (location.pathname.includes('/owner/') && !document.querySelector('script[data-rlya-owner-status]')) {
-      const ownerStatus = document.createElement('script');
-      ownerStatus.src = '/owner/status-control.js';
-      ownerStatus.defer = true;
-      ownerStatus.dataset.rlyaOwnerStatus = '1';
-      document.body.appendChild(ownerStatus);
+    if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
+    if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
+    if (location.pathname.includes('/owner/')) {
+      loadScript('/owner/status-control.js', 'data-rlya-owner-status');
+      loadScript('/owner/presale-control.js', 'data-rlya-owner-presale');
+      loadScript('/owner/treasury-prep.js', 'data-rlya-owner-treasury');
+      loadScript('/owner/prelaunch-delivery.js', 'data-rlya-owner-delivery');
     }
   };
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadExtras, { once: true });
-  else loadExtras();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadExtras, { once: true }); else loadExtras();
 })();
