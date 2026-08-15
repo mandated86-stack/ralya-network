@@ -85,12 +85,21 @@ window.RALYA_CONFIG = Object.freeze({
       document.body.appendChild(status);
     }
 
-    if (location.pathname.includes('/owner/') && !document.querySelector('script[data-rlya-owner-status]')) {
-      const ownerStatus = document.createElement('script');
-      ownerStatus.src = '/owner/status-control.js';
-      ownerStatus.defer = true;
-      ownerStatus.dataset.rlyaOwnerStatus = '1';
-      document.body.appendChild(ownerStatus);
+    if (location.pathname.includes('/owner/')) {
+      if (!document.querySelector('script[data-rlya-owner-status]')) {
+        const ownerStatus = document.createElement('script');
+        ownerStatus.src = '/owner/status-control.js';
+        ownerStatus.defer = true;
+        ownerStatus.dataset.rlyaOwnerStatus = '1';
+        document.body.appendChild(ownerStatus);
+      }
+      if (!document.querySelector('script[data-rlya-owner-presale]')) {
+        const ownerPresale = document.createElement('script');
+        ownerPresale.src = '/owner/presale-control.js';
+        ownerPresale.defer = true;
+        ownerPresale.dataset.rlyaOwnerPresale = '1';
+        document.body.appendChild(ownerPresale);
+      }
     }
   };
 
