@@ -1,15 +1,23 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.6.0-mainnet-prep',
+  build: '0.7.0-prelaunch-presale',
   launchPhase: 'pre-launch',
-  presaleEnabled: false,
+
+  // Two deliberately separate sale modes:
+  // - prelaunch-allocation: verified USDC now, RLYA allocation recorded for distribution before public launch.
+  // - atomic: the already-built on-chain USDC -> RLYA settlement path used after production launch.
+  presaleMode: 'prelaunch-allocation',
+  presaleEnabled: false, // atomic Mainnet purchase gate; stays OFF until the later public token launch.
+
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
   projectUrl: 'https://ralya-network.netlify.app',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
   ownerWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
+  prelaunchTreasuryWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
+
   hardCap: 839000000,
   decimals: 9,
   presaleCap: 100680000,
@@ -19,8 +27,9 @@ window.RALYA_CONFIG = Object.freeze({
   minimumPurchaseUsdc: 1,
   referralBps: 100,
   usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  // These remain blank until the signed Mainnet launch record exists.
-  // Public launch timing and technical readiness are intentionally controlled separately.
+
+  // Filled only after the signed production launch record exists.
+  // Public messaging, prelaunch allocation access and atomic token-sale activation are separate controls.
   rlyaMint: '',
   saleProgramId: '',
   salePda: '',
@@ -29,22 +38,23 @@ window.RALYA_CONFIG = Object.freeze({
   whitepaperPdf: 'RALYA_Whitepaper_v1.1.pdf'
 });
 
-// Production purchase master switch. app.js intentionally remains unable to override this gate.
-// Public launch-stage messaging is separate and can never turn buying on by itself.
 (() => {
   const cfg = window.RALYA_CONFIG;
-  if (!cfg.presaleEnabled) {
-    const lockedMessage = 'Presale access is not open yet. Connect your wallet later when allocation access is announced.';
+
+  // The atomic-sale master switch must never accidentally disable the separate
+  // prelaunch allocation flow. Once presaleMode becomes `atomic`, this guard
+  // again blocks purchase controls until the reviewed Mainnet gate is enabled.
+  if (cfg.presaleMode === 'atomic' && !cfg.presaleEnabled) {
+    const lockedMessage = 'Public token-sale access is not open yet.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
-      if (!button.disabled) button.disabled = true;
-      if (button.getAttribute('aria-disabled') !== 'true') button.setAttribute('aria-disabled', 'true');
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
       const message = document.getElementById('buyMessage');
-      if (message && message.textContent !== lockedMessage) message.textContent = lockedMessage;
+      if (message) message.textContent = lockedMessage;
     };
-
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', event => {
       const target = event.target;
       if (target instanceof Element && target.closest('#buyRlya')) {
         event.preventDefault();
@@ -52,19 +62,14 @@ window.RALYA_CONFIG = Object.freeze({
         enforce();
       }
     }, true);
-
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enforce, { once: true });
     else enforce();
-
-    const observer = new MutationObserver(() => {
-      const button = document.getElementById('buyRlya');
-      if (button && !button.disabled) enforce();
-    });
-    observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
   const loadExtras = () => {
-    if (document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
+    // On-chain distribution transparency is only meaningful after the production
+    // mint/program exist. The prelaunch page reads its verified allocation ledger instead.
+    if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
       const transparency = document.createElement('script');
       transparency.src = 'distribution-transparency.js';
       transparency.defer = true;
