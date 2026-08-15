@@ -1,4 +1,5 @@
 name: Debug Local Prelaunch Reconciliation
+# Temporary release-validation runner; removed before merge.
 on:
   push:
     branches: [agent/prelaunch-presale]
