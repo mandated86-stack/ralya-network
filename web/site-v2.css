@@ -1,6 +1,6 @@
 /* RALYA public-site v2: professional tab navigation, mobile polish and visible growth actions. */
 .header{position:sticky;top:0;z-index:60;width:100%;max-width:none;padding-inline:max(20px,calc((100vw - var(--max))/2));margin:0;background:rgba(246,248,251,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(193,206,219,.72)}
-.desktop-nav{display:none!important}
+body:has(#ralyaSiteTabs) .desktop-nav{display:none!important}
 .header-actions{margin-left:auto}
 .site-tabs-wrap{position:sticky;top:78px;z-index:55;background:rgba(246,248,251,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
 .site-tabs{width:min(var(--max),calc(100% - 40px));margin-inline:auto;display:flex;align-items:center;gap:8px;padding:10px 0;overflow-x:auto;scrollbar-width:none}
