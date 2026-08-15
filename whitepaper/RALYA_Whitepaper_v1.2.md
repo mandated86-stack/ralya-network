@@ -63,7 +63,7 @@ Exact token quantities are the source of truth. Percentage figures below are des
 | Liquidity | 5.534061% | 46,430,769 |
 | **Total** | **100%** | **839,000,000** |
 
-The founder allocation is exactly 83,900,000 RLYA (10% of the lifetime supply) and is subject to a 365-day protocol-controlled production lock beginning with activation.
+The founder allocation is exactly 83,900,000 RLYA (10% of the lifetime supply) and is subject to a 365-day protocol-controlled production lock beginning from the deliberately marked public RLYA launch DAY 0.
 
 The 14,400,000 RLYA staking-bonus reserve is sufficient to pay a fixed 5% bonus if the full 288,000,000 RLYA public base allocation chooses the presale staking option. It is part of the existing 839M supply; staking does not mint additional RLYA.
 
@@ -95,13 +95,13 @@ A buyer who selects **Buy + Stake** receives a fixed **5% additional RLYA** rela
 
 The first confirmed presale purchase locks that wallet to its selected release policy for later presale purchases. This prevents one wallet from accumulating incompatible delivery schedules under a single delivery identity.
 
-## 8. Demand-based presale curve
+## 8. Presale pricing
 
-The presale curve begins at **0.003000 USDC per RLYA** and increases by **0.000050 USDC per RLYA for each additional 1,000,000 base RLYA allocated/distributed**.
+The presale uses a deterministic allocation-based pricing curve. The current price is calculated from confirmed base RLYA allocation progress and is displayed by the live presale interface.
 
-A single purchase can cross multiple pricing steps. Only the purchased base RLYA advances the public pricing curve; the fixed 5% staking bonus does not advance the curve and does not change the buyer's base purchase price.
+A single purchase can cross pricing boundaries. Only purchased base RLYA advances the pricing curve; the fixed 5% staking bonus does not advance the curve and does not change the buyer's base purchase price.
 
-This curve is a launch-distribution mechanism, not a promise of future exchange-market pricing.
+The pricing curve is a launch-distribution mechanism, not a promise of future exchange-market pricing.
 
 ## 9. One base-allocation curve for website and private/off-site allocations
 
@@ -142,11 +142,11 @@ The presale delivery clock is tied to that public launch milestone:
 - **Day 21:** standard presale allocations become distributable;
 - **Day 36:** Buy + Stake allocations plus their fixed 5% RLYA bonus become distributable.
 
-These dates do not permit additional minting and do not alter the founder lock.
+These dates do not permit additional minting. Public launch DAY 0 also starts the founder 365-day lock.
 
 ## 13. Founder lock
 
-The founder allocation is **83,900,000 RLYA (10%)** and is part of the fixed 839M supply. The production program is designed to hold that allocation under a **365-day founder lock** beginning with activation.
+The founder allocation is **83,900,000 RLYA (10%)** and is part of the fixed 839M supply. The production program is designed to hold that allocation under a **365-day founder lock beginning from public RLYA launch DAY 0**.
 
 The founder lock is independent of the 21-day and 36-day presale buyer release schedules.
 
@@ -174,8 +174,8 @@ The staged path is:
 2. pre-launch allocation and USDC verification infrastructure;
 3. production Solana Mainnet deployment;
 4. exact 839M production RLYA creation and authority removal;
-5. founder lock and production verification;
-6. deliberate public token launch;
+5. production vault funding and verification while public-launch clocks remain unset;
+6. deliberate public token launch DAY 0, starting the founder 365-day clock;
 7. standard presale distribution beginning at day 21 after public launch;
 8. Buy + Stake distribution plus fixed 5% bonus beginning at day 36 after public launch;
 9. Jobs v1 public testing;
