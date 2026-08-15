@@ -23,6 +23,7 @@ function progress(){try{return JSON.parse(localStorage.getItem(PROGRESS_KEY)||'n
 function save(p){localStorage.setItem(PROGRESS_KEY,JSON.stringify(p));}
 function pk(v,label){try{return new PublicKey(v)}catch{throw new Error(`${label} is invalid`)}}
 function u64(bytes,o){return new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getBigUint64(o,true)}
+function i64(bytes,o){return new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getBigInt64(o,true)}
 function min(a,b){return a<b?a:b}
 function ceilDiv(n,d){return (n+d-1n)/d}
 async function disc(name){const h=await crypto.subtle.digest('SHA-256',enc.encode(`global:${name}`));return new Uint8Array(h).slice(0,8)}
@@ -31,14 +32,14 @@ function downloadRecord(p){const a=document.createElement('a');a.href=URL.create
 
 function decodeSale(data){
   const bytes=data instanceof Uint8Array?data:new Uint8Array(data);
-  if(bytes.length<274)throw new Error('Sale account is incomplete');
-  return {presaleCap:u64(bytes,168),base:u64(bytes,176),step:u64(bytes,184),inc:u64(bytes,192),referralBps:u64(bytes,200),sold:u64(bytes,208),manual:u64(bytes,216),raised:u64(bytes,224),refPaid:u64(bytes,232),status:bytes[248]};
+  if(bytes.length<258)throw new Error('Sale account is incomplete');
+  return {presaleCap:u64(bytes,168),base:u64(bytes,176),step:u64(bytes,184),inc:u64(bytes,192),referralBps:u64(bytes,200),sold:u64(bytes,208),manual:u64(bytes,216),raised:u64(bytes,224),refPaid:u64(bytes,232),startedAt:i64(bytes,240),publicLaunchAt:i64(bytes,248),status:bytes[256]};
 }
 function quote(usdc,state){
   let rem=usdc,curveProgress=state.sold,out=0n,loops=0;
   while(rem>0n){
     if(curveProgress>=state.presaleCap)throw new Error('Presale is sold out');
-    if(++loops>256)throw new Error('Quote crossed too many price steps');
+    if(++loops>512)throw new Error('Quote crossed too many price steps');
     const idx=curveProgress/state.step;
     const price=state.base+idx*state.inc;
     const boundary=min((idx+1n)*state.step,state.presaleCap);
@@ -106,6 +107,7 @@ async function sweepDisposable(provider,admin,p,buyer,referrer,{successful}){
 async function finishSuccessfulSmoke(provider,admin,p,buyer,referrer,state){
   const expectedOut=BigInt(p.smoke.expectedRlyaBaseUnits);
   if(state.status!==2)throw new Error(`Atomic smoke did not finish PAUSED; status=${state.status}`);
+  if(state.publicLaunchAt<=0n)throw new Error('Public launch DAY 0 is not marked; post-launch atomic sale cannot be smoke tested.');
   if(state.raised!==USDC_UNIT||state.refPaid!==10_000n||state.manual!==0n||state.sold!==expectedOut)throw new Error('On-chain state does not match the single expected owner-funded 1 USDC smoke purchase.');
   const mint=pk(p.rlyaMint,'RLYA mint');
   const buyerRlya=await getAssociatedTokenAddress(mint,buyer.publicKey);
@@ -115,8 +117,8 @@ async function finishSuccessfulSmoke(provider,admin,p,buyer,referrer,state){
   if(referrerUsdcAmount!==10_000n)throw new Error(`Disposable referrer USDC mismatch: ${referrerUsdcAmount} != 10000`);
   log(`ATOMIC ON-CHAIN SMOKE VERIFIED: 1 USDC gross -> 0.01 USDC referrer + 0.99 USDC treasury; ${expectedOut} RLYA base units delivered; final sale state PAUSED.`);
   const swept=await sweepDisposable(provider,admin,p,buyer,referrer,{successful:true});
-  p.smoke.completed=true;p.smoke.completedAt=new Date().toISOString();p.smoke.rlyaDeliveredBaseUnits=expectedOut.toString();p.smoke.finalSaleStatus='PAUSED';p.smoke.treasuryUsdcAta=swept.treasuryUsdc;p.smoke.treasuryRlyaAta=swept.treasuryRlya;save(p);clearRecovery();downloadRecord(p);
-  log('RALYA_MAINNET_SMOKE=PASS. Public presale master switch remains OFF.');
+  p.smoke.completed=true;p.smoke.completedAt=new Date().toISOString();p.smoke.rlyaDeliveredBaseUnits=expectedOut.toString();p.smoke.finalSaleStatus='PAUSED';p.smoke.publicLaunchAt=state.publicLaunchAt.toString();p.smoke.treasuryUsdcAta=swept.treasuryUsdc;p.smoke.treasuryRlyaAta=swept.treasuryRlya;save(p);clearRecovery();downloadRecord(p);
+  log('RALYA_MAINNET_SMOKE=PASS. Post-launch atomic sale master switch remains OFF.');
   $('#runSmoke').disabled=true;
 }
 
@@ -125,6 +127,7 @@ async function inspectAndRecover(provider,admin,p,buyer,referrer){
   const observed=await saleState(sale);
   const expectedOut=BigInt(p.smoke.expectedRlyaBaseUnits);
   if(observed.status!==2)throw new Error(`Unexpected post-smoke sale status ${observed.status}. Atomic smoke is designed to commit only PAUSED; stop and investigate.`);
+  if(observed.publicLaunchAt<=0n)throw new Error('Public launch DAY 0 is not marked. Do not retry post-launch smoke.');
   if(observed.raised===USDC_UNIT&&observed.refPaid===10_000n&&observed.sold===expectedOut&&observed.manual===0n){await finishSuccessfulSmoke(provider,admin,p,buyer,referrer,observed);return;}
   if(observed.raised===0n&&observed.refPaid===0n&&observed.sold===0n&&observed.manual===0n){
     await sweepDisposable(provider,admin,p,buyer,referrer,{successful:false});
@@ -146,7 +149,7 @@ async function runSmoke(){
   const p=progress();
   if(!p||p.phase!=='activated-paused'||!p.pausedAfterActivation)throw new Error('Complete Mainnet preparation and atomic activate + pause first.');
   if(p.smoke?.completed)throw new Error('Mainnet smoke test is already recorded as complete. Do not run it twice.');
-  if(cfg.presaleEnabled)throw new Error('Public presale master switch must remain OFF during smoke verification.');
+  if(cfg.presaleEnabled)throw new Error('Post-launch atomic sale master switch must remain OFF during smoke verification.');
   const provider=providerForBrowser();if(!provider)throw new Error('Install/open Phantom or Solflare.');
   const res=await provider.connect();const admin=new PublicKey(res?.publicKey||provider.publicKey);
   if(admin.toBase58()!==p.adminWallet)throw new Error(`Connect the launch admin wallet ${p.adminWallet}.`);
@@ -155,7 +158,8 @@ async function runSmoke(){
   const programId=pk(p.saleProgramId,'Program ID'),mint=pk(p.rlyaMint,'RLYA mint'),sale=pk(p.salePda,'Sale PDA'),saleVault=pk(p.saleVault,'Sale vault'),treasury=pk(p.treasuryWallet,'Treasury');
   const before=await saleState(sale);
   if(before.status!==2)throw new Error(`Smoke requires PAUSED sale state (2), found ${before.status}.`);
-  if(before.sold!==0n||before.raised!==0n||before.refPaid!==0n||before.manual!==0n)throw new Error('Smoke requires a clean zero-sale Mainnet state. Stop and investigate before continuing.');
+  if(before.publicLaunchAt<=0n)throw new Error('Mark the real public RLYA launch DAY 0 on-chain before testing the post-launch atomic purchase path.');
+  if(before.sold!==0n||before.raised!==0n||before.refPaid!==0n||before.manual!==0n)throw new Error('Legacy smoke requires a clean zero-sale on-chain state. Skip this diagnostic if prelaunch deliveries or other sale activity are already recorded.');
   if(before.referralBps!==100n)throw new Error('On-chain referral rate is not 1%.');
   const expectedOut=quote(USDC_UNIT,before);
 
@@ -168,7 +172,7 @@ async function runSmoke(){
   if(treasuryRlya.exists&&await tokenAmount(treasuryRlya.ata)!==0n){clearRecovery();throw new Error('Treasury RLYA ATA already contains tokens. Stop so owner-funded smoke reconciliation can remain exact.');}
   const referralRent=await connection.getMinimumBalanceForRentExemption(REFERRAL_ACCOUNT_SPACE);
 
-  p.smoke={completed:false,ownerFunded:true,atomic:true,grossUsdcBaseUnits:'1000000',expectedReferralUsdcBaseUnits:'10000',expectedRlyaBaseUnits:expectedOut.toString(),buyer:buyer.publicKey.toBase58(),referrer:referrer.publicKey.toBase58(),treasuryUsdcAta:treasuryUsdc.ata.toBase58(),treasuryRlyaAta:treasuryRlya.ata.toBase58(),transactions:{}};save(p);
+  p.smoke={completed:false,ownerFunded:true,atomic:true,grossUsdcBaseUnits:'1000000',expectedReferralUsdcBaseUnits:'10000',expectedRlyaBaseUnits:expectedOut.toString(),buyer:buyer.publicKey.toBase58(),referrer:referrer.publicKey.toBase58(),treasuryUsdcAta:treasuryUsdc.ata.toBase58(),treasuryRlyaAta:treasuryRlya.ata.toBase58(),publicLaunchAt:before.publicLaunchAt.toString(),transactions:{}};save(p);
 
   const setup=new Transaction();
   for(const row of [buyerUsdc,buyerRlya,referrerUsdc,treasuryUsdc,treasuryRlya])if(row.ix)setup.add(row.ix);
@@ -190,5 +194,5 @@ async function runSmoke(){
 }
 
 function updateButton(){const p=progress(),b=$('#runSmoke');if(!b)return;if(p?.smoke?.completed){b.disabled=true;b.textContent='Mainnet smoke verified';return;}const eligible=p?.phase==='activated-paused'&&p?.pausedAfterActivation;b.disabled=!eligible;b.textContent=p?.smoke&&!p.smoke.completed?'Recover interrupted atomic smoke':'Run 1 USDC Mainnet smoke test';}
-$('#runSmoke')?.addEventListener('click',()=>{const p=progress(),recovering=p?.smoke&&!p.smoke.completed;const text=recovering?'Recover the interrupted atomic Mainnet smoke attempt without creating a second purchase?':'Run the owner-funded 1 USDC atomic Mainnet referred-purchase smoke test? Resume, referral, purchase and pause will commit together or all roll back.';if(!confirm(text))return;$('#runSmoke').disabled=true;runSmoke().catch(e=>{log(`ERROR: ${e.message}`);alert(e.message);updateButton();});});
+$('#runSmoke')?.addEventListener('click',()=>{const p=progress(),recovering=p?.smoke&&!p.smoke.completed;const text=recovering?'Recover the interrupted atomic Mainnet smoke attempt without creating a second purchase?':'Run the owner-funded 1 USDC post-launch atomic referred-purchase smoke test? Public launch DAY 0 must already be marked. Resume, referral, purchase and pause will commit together or all roll back.';if(!confirm(text))return;$('#runSmoke').disabled=true;runSmoke().catch(e=>{log(`ERROR: ${e.message}`);alert(e.message);updateButton();});});
 updateButton();setInterval(updateButton,1500);
