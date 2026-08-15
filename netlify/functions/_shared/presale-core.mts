@@ -9,7 +9,11 @@ export const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 export const PRESALE_STORE = 'ralya-prelaunch-presale';
 export const RLYA_UNIT = 1_000_000_000n;
 export const USDC_UNIT = 1_000_000n;
-export const PRESALE_CAP_BASE = 100_680_000n * RLYA_UNIT;
+export const PRESALE_CAP_BASE = 288_000_000n * RLYA_UNIT;
+export const STAKING_BONUS_RESERVE_BASE = 14_400_000n * RLYA_UNIT;
+export const STAKING_BONUS_BPS = 500n;
+export const STANDARD_RELEASE_DAYS = 21;
+export const STAKED_RELEASE_DAYS = 36;
 export const BASE_PRICE_MICRO_USDC = 3_000n;
 export const STEP_SIZE_BASE = 1_000_000n * RLYA_UNIT;
 export const STEP_INCREMENT_MICRO_USDC = 50n;
@@ -37,6 +41,9 @@ export type AllocationEvent = {
   signature?: string;
   paymentReference?: string;
   note?: string;
+  stake?: boolean;
+  stakingBonusBase?: string;
+  deliveryPolicy?: 'standard-21d' | 'staked-36d';
 };
 
 export type PresaleControl = {
@@ -101,6 +108,14 @@ export function priceAt(progressBase: bigint) {
   return BASE_PRICE_MICRO_USDC + (progressBase / STEP_SIZE_BASE) * STEP_INCREMENT_MICRO_USDC;
 }
 
+export function stakingBonus(rlyaBase: bigint) {
+  return rlyaBase * STAKING_BONUS_BPS / BPS_DENOMINATOR;
+}
+
+export function deliveryPolicy(stake: boolean) {
+  return stake ? 'staked-36d' as const : 'standard-21d' as const;
+}
+
 const ceilDiv = (n: bigint, d: bigint) => (n + d - 1n) / d;
 const minBig = (a: bigint, b: bigint) => a < b ? a : b;
 
@@ -115,7 +130,7 @@ export function quoteAllocation(progressBase: bigint, usdcBase: bigint) {
   while (remaining > 0n) {
     if (progress >= PRESALE_CAP_BASE) throw new Error('This order exceeds the remaining presale allocation.');
     loops += 1;
-    if (loops > 256) throw new Error('Order crosses too many pricing steps.');
+    if (loops > 512) throw new Error('Order crosses too many pricing steps.');
     const stepIndex = progress / STEP_SIZE_BASE;
     const price = BASE_PRICE_MICRO_USDC + stepIndex * STEP_INCREMENT_MICRO_USDC;
     const nextBoundary = minBig((stepIndex + 1n) * STEP_SIZE_BASE, PRESALE_CAP_BASE);
@@ -179,6 +194,8 @@ export async function computeState(s = store(), includeReservations = false) {
   let manualAllocated = 0n;
   let totalUsdc = 0n;
   let totalReferral = 0n;
+  let totalStakingBonus = 0n;
+  let stakedBase = 0n;
   let webCount = 0;
   let manualCount = 0;
 
@@ -187,6 +204,10 @@ export async function computeState(s = store(), includeReservations = false) {
     totalAllocated += rlya;
     totalUsdc += BigInt(event.grossUsdcBase || 0);
     totalReferral += BigInt(event.referralUsdcBase || 0);
+    if (event.stake) {
+      stakedBase += rlya;
+      totalStakingBonus += BigInt(event.stakingBonusBase || 0);
+    }
     if (event.kind === 'manual') {
       manualAllocated += rlya;
       manualCount += 1;
@@ -197,7 +218,11 @@ export async function computeState(s = store(), includeReservations = false) {
   }
 
   let reserved = 0n;
-  for (const quote of activeQuotes) reserved += BigInt(quote.rlyaBase || 0);
+  let reservedStakingBonus = 0n;
+  for (const quote of activeQuotes) {
+    reserved += BigInt(quote.rlyaBase || 0);
+    if (quote.stake) reservedStakingBonus += BigInt(quote.stakingBonusBase || 0);
+  }
   const effectiveProgress = totalAllocated + reserved;
   const current = priceAt(effectiveProgress);
   const nextBoundary = minBig(((effectiveProgress / STEP_SIZE_BASE) + 1n) * STEP_SIZE_BASE, PRESALE_CAP_BASE);
@@ -211,10 +236,14 @@ export async function computeState(s = store(), includeReservations = false) {
     manualAllocatedBase: manualAllocated,
     totalUsdcRaisedBase: totalUsdc,
     totalReferralUsdcPaidBase: totalReferral,
+    totalStakedBase: stakedBase,
+    totalStakingBonusBase: totalStakingBonus,
     reservedBase: reserved,
+    reservedStakingBonusBase: reservedStakingBonus,
     effectiveProgressBase: effectiveProgress,
     remainingBase: PRESALE_CAP_BASE - totalAllocated,
     availableForNewQuotesBase: PRESALE_CAP_BASE - effectiveProgress,
+    availableStakingBonusBase: STAKING_BONUS_RESERVE_BASE - totalStakingBonus - reservedStakingBonus,
     currentPriceMicroUsdc: current,
     nextPriceMicroUsdc: current + STEP_INCREMENT_MICRO_USDC,
     toNextStepBase: nextBoundary > effectiveProgress ? nextBoundary - effectiveProgress : 0n,
@@ -234,16 +263,22 @@ export function publicState(state: Awaited<ReturnType<typeof computeState>>) {
     manualAllocatedBase: state.manualAllocatedBase.toString(),
     totalUsdcRaisedBase: state.totalUsdcRaisedBase.toString(),
     totalReferralUsdcPaidBase: state.totalReferralUsdcPaidBase.toString(),
+    totalStakedBase: state.totalStakedBase.toString(),
+    totalStakingBonusBase: state.totalStakingBonusBase.toString(),
     remainingBase: state.remainingBase.toString(),
     toNextStepBase: state.toNextStepBase.toString(),
     presaleCapBase: PRESALE_CAP_BASE.toString(),
+    stakingBonusReserveBase: STAKING_BONUS_RESERVE_BASE.toString(),
+    stakingBonusBps: STAKING_BONUS_BPS.toString(),
+    standardReleaseDays: STANDARD_RELEASE_DAYS,
+    stakedReleaseDays: STAKED_RELEASE_DAYS,
     basePriceMicroUsdc: BASE_PRICE_MICRO_USDC.toString(),
     stepSizeBase: STEP_SIZE_BASE.toString(),
     stepIncrementMicroUsdc: STEP_INCREMENT_MICRO_USDC.toString(),
     referralBps: REFERRAL_BPS.toString(),
     webPurchaseCount: state.webCount,
     manualAllocationCount: state.manualCount,
-    distributionStatus: 'scheduled-before-public-launch',
+    distributionStatus: 'standard-21d-or-staked-36d-after-public-launch',
     updatedAt: state.control.updatedAt,
   };
 }
