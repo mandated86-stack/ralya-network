@@ -2,7 +2,8 @@ import bs58 from 'bs58';
 import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto';
 import {
   PRESALE_TREASURY_WALLET, QUOTE_TTL_MS, USDC_MINT, assertWallet, computeState,
-  decimalToBase, getActiveQuotes, json, newId, quoteAllocation, referralReward, store, withMutationLock,
+  decimalToBase, deliveryPolicy, getActiveQuotes, json, newId, quoteAllocation, referralReward,
+  stakingBonus, store, withMutationLock,
 } from './_shared/presale-core.mts';
 
 const REQUEST_CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -16,12 +17,13 @@ function buyerKey(wallet: string) {
   return createPublicKey({ key: der, format: 'der', type: 'spki' });
 }
 
-function quoteMessage(wallet: string, usdcAmount: string, referrer: string | null, timestamp: string, nonce: string) {
+function quoteMessage(wallet: string, usdcAmount: string, referrer: string | null, stake: boolean, timestamp: string, nonce: string) {
   return [
     'RALYA prelaunch allocation quote',
     `Wallet: ${wallet}`,
     `USDC: ${usdcAmount}`,
     `Referrer: ${referrer || '-'}`,
+    `Stake: ${stake ? 'YES' : 'NO'}`,
     `Timestamp: ${timestamp}`,
     `Nonce: ${nonce}`,
   ].join('\n');
@@ -29,6 +31,7 @@ function quoteMessage(wallet: string, usdcAmount: string, referrer: string | nul
 
 function verifyBuyerRequest(body: any, buyer: string, referrer: string | null) {
   const usdcAmount = String(body?.usdcAmount || '').trim();
+  const stake = body?.stake === true;
   const timestamp = String(body?.timestamp || '').trim();
   const nonce = String(body?.nonce || '').trim();
   const message = String(body?.message || '');
@@ -36,13 +39,13 @@ function verifyBuyerRequest(body: any, buyer: string, referrer: string | null) {
   if (!/^[a-f0-9]{32,64}$/i.test(nonce)) throw new Error('Invalid quote nonce.');
   const time = Date.parse(timestamp);
   if (!Number.isFinite(time) || Math.abs(Date.now() - time) > REQUEST_CLOCK_SKEW_MS) throw new Error('Quote authorization expired. Sign again.');
-  const expected = quoteMessage(buyer, usdcAmount, referrer, timestamp, nonce);
+  const expected = quoteMessage(buyer, usdcAmount, referrer, stake, timestamp, nonce);
   if (message !== expected) throw new Error('Signed quote request does not match checkout.');
   let signature: Buffer;
   try { signature = Buffer.from(signatureB64, 'base64'); } catch { throw new Error('Invalid quote signature encoding.'); }
   if (signature.length !== 64) throw new Error('Invalid quote signature length.');
   if (!verifySignature(null, Buffer.from(message, 'utf8'), buyerKey(buyer), signature)) throw new Error('Buyer quote signature verification failed.');
-  return { usdcAmount, nonce };
+  return { usdcAmount, stake, nonce };
 }
 
 function ipKey(context: any) {
@@ -104,6 +107,10 @@ export default async (req: Request, context: any) => {
       const quoted = quoteAllocation(progress, grossUsdcBase);
       if (quoted.rlyaBase > state.availableForNewQuotesBase) throw new Error('This order exceeds the remaining presale allocation.');
 
+      const stakingBonusBase = auth.stake ? stakingBonus(quoted.rlyaBase) : 0n;
+      if (stakingBonusBase > state.availableStakingBonusBase) throw new Error('The fixed RLYA staking bonus reserve is fully committed.');
+      const expectedTotalRlyaBase = quoted.rlyaBase + stakingBonusBase;
+
       const referralUsdcBase = referrer ? referralReward(grossUsdcBase) : 0n;
       if (referrer && referralUsdcBase <= 0n) throw new Error('Purchase is too small for the referral split.');
       const treasuryUsdcBase = grossUsdcBase - referralUsdcBase;
@@ -113,6 +120,10 @@ export default async (req: Request, context: any) => {
         status: 'active',
         buyer,
         referrer,
+        stake: auth.stake,
+        stakingBonusBase: stakingBonusBase.toString(),
+        expectedTotalRlyaBase: expectedTotalRlyaBase.toString(),
+        deliveryPolicy: deliveryPolicy(auth.stake),
         grossUsdcBase: grossUsdcBase.toString(),
         treasuryUsdcBase: treasuryUsdcBase.toString(),
         referralUsdcBase: referralUsdcBase.toString(),
