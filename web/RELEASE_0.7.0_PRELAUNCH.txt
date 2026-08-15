@@ -5,6 +5,7 @@ Atomic post-launch sale gate: disabled
 Pre-launch allocation access default: closed
 Production Mainnet addresses: not yet configured
 Public token launch: not open
+Final audit checks: semantic release invariants enabled
 
 Required release markers:
 - RALYA_PRELAUNCH_SELFTEST=PASS
