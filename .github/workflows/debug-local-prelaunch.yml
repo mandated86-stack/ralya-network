@@ -4,13 +4,15 @@ on:
     branches: [agent/prelaunch-presale]
     paths: ['.github/workflows/debug-local-prelaunch.yml']
 permissions:
-  contents: read
+  contents: write
 jobs:
   diagnose:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/prelaunch-presale
       - name: Instrument reconciliation values locally
         run: |
           python3 - <<'PY'
@@ -33,5 +35,22 @@ jobs:
           PY
       - name: Prepare temporary Solana JS test dependencies
         run: npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
-      - name: Run instrumented full localhost protocol integration
-        run: bash scripts/local_validator_smoke.sh
+      - name: Run diagnostic integration and preserve only reconciliation values
+        shell: bash
+        run: |
+          set +e
+          bash scripts/local_validator_smoke.sh > /tmp/ralya-debug-full.log 2>&1
+          status=$?
+          {
+            echo "diagnostic_exit=$status"
+            grep -E 'PRELAUNCH_DIAG_|AssertionError|actual:|expected:|RALYA_LOCAL_PRELAUNCH_INTEGRATION|PRELAUNCH_RECONCILIATION' /tmp/ralya-debug-full.log || true
+          } > DEBUG_PRELAUNCH_VALUES.txt
+          cat DEBUG_PRELAUNCH_VALUES.txt
+          exit 0
+      - name: Commit tiny diagnostic report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add DEBUG_PRELAUNCH_VALUES.txt
+          git commit -m 'Capture prelaunch reconciliation diagnostic values'
+          git push origin HEAD:agent/prelaunch-presale
