@@ -6,6 +6,7 @@ declare_id!("AjAMpuiEKuSbi6JUtdtWT5DJzA18ZWmnTqLnVcp3iCS2");
 
 const SALE_SEED: &[u8] = b"sale";
 const SALE_VAULT_SEED: &[u8] = b"sale_vault";
+const STAKING_BONUS_VAULT_SEED: &[u8] = b"staking_bonus_vault";
 const FOUNDER_LOCK_SEED: &[u8] = b"founder_lock";
 const FOUNDER_VAULT_SEED: &[u8] = b"founder_vault";
 const REFERRAL_SEED: &[u8] = b"referral";
@@ -18,23 +19,27 @@ const USDC_DECIMALS: u8 = 6;
 const RLYA_UNIT: u128 = 1_000_000_000;
 const USDC_UNIT: u64 = 1_000_000;
 const HARD_CAP: u64 = 839_000_000_000_000_000;
-const PRESALE_CAP: u64 = 100_680_000_000_000_000;
+const PRESALE_CAP: u64 = 288_000_000_000_000_000;
+const STAKING_BONUS_RESERVE: u64 = 14_400_000_000_000_000;
 const FOUNDER_AMOUNT: u64 = 83_900_000_000_000_000;
 const FOUNDER_LOCK_SECONDS: i64 = 365 * 24 * 60 * 60;
+const STANDARD_PRESALE_RELEASE_SECONDS: i64 = 21 * 24 * 60 * 60;
+const STAKED_PRESALE_RELEASE_SECONDS: i64 = 36 * 24 * 60 * 60;
 const MIN_PURCHASE_USDC: u64 = USDC_UNIT;
 const BASE_PRICE_MICRO_USDC: u64 = 3_000;
 const STEP_SIZE_RLYA: u64 = 1_000_000;
 const STEP_SIZE_BASE_UNITS: u64 = STEP_SIZE_RLYA * 1_000_000_000;
 const STEP_INCREMENT_MICRO_USDC: u64 = 50;
 const REFERRAL_BPS: u64 = 100;
+const STAKING_BONUS_BPS: u64 = 500;
 const BPS_DENOMINATOR: u64 = 10_000;
 
 #[program]
 pub mod rlya_sale {
     use super::*;
 
-    /// Creates the sale state and the two program-controlled token vaults.
-    /// This instruction does not mint any tokens.
+    /// Creates sale state plus separate program-controlled base-sale, staking-bonus
+    /// and founder vaults. No RLYA is minted by this instruction.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         require!(
             ctx.accounts.rlya_mint.decimals == RLYA_DECIMALS,
@@ -69,6 +74,7 @@ pub mod rlya_sale {
         sale.total_usdc_raised = 0;
         sale.total_referral_usdc_paid = 0;
         sale.started_at = 0;
+        sale.public_launch_at = 0;
         sale.status = SaleStatus::Draft as u8;
         sale.bump = ctx.bumps.sale;
 
@@ -84,17 +90,20 @@ pub mod rlya_sale {
             sale: sale.key(),
             rlya_mint: sale.rlya_mint,
             presale_cap: PRESALE_CAP,
+            staking_bonus_reserve: STAKING_BONUS_RESERVE,
             founder_amount: FOUNDER_AMOUNT,
             base_price_micro_usdc: BASE_PRICE_MICRO_USDC,
             step_size_base_units: STEP_SIZE_BASE_UNITS,
             step_increment_micro_usdc: STEP_INCREMENT_MICRO_USDC,
             referral_bps: REFERRAL_BPS,
+            staking_bonus_bps: STAKING_BONUS_BPS,
         });
         Ok(())
     }
 
-    /// Activates the sale only after the complete hard cap exists, mint/freeze
-    /// authority are gone, and the presale/founder vaults are fully funded.
+    /// Activates the production sale state only after the complete 839M supply
+    /// exists, authorities are gone, and all protocol-controlled launch vaults
+    /// hold their exact reviewed allocations. Activation is not public launch.
     pub fn activate(ctx: Context<Activate>) -> Result<()> {
         let sale = &mut ctx.accounts.sale;
         require!(
@@ -118,6 +127,10 @@ pub mod rlya_sale {
             SaleError::SaleVaultFundingMismatch
         );
         require!(
+            ctx.accounts.staking_bonus_vault.amount == STAKING_BONUS_RESERVE,
+            SaleError::StakingBonusVaultFundingMismatch
+        );
+        require!(
             ctx.accounts.founder_vault.amount == FOUNDER_AMOUNT,
             SaleError::FounderVaultFundingMismatch
         );
@@ -125,14 +138,46 @@ pub mod rlya_sale {
         let now = Clock::get()?.unix_timestamp;
         if sale.started_at == 0 {
             sale.started_at = now;
-            ctx.accounts.founder_lock.unlock_at = now
-                .checked_add(FOUNDER_LOCK_SECONDS)
-                .ok_or(SaleError::MathOverflow)?;
         }
         sale.status = SaleStatus::Active as u8;
         emit!(SaleStatusChanged {
             status: sale.status,
-            timestamp: now
+            timestamp: now,
+        });
+        Ok(())
+    }
+
+    /// Marks the deliberate public token launch once. Presale buyer release clocks
+    /// and the founder one-year lock both begin from this public launch timestamp.
+    pub fn mark_public_launch(ctx: Context<MarkPublicLaunch>) -> Result<()> {
+        require!(
+            ctx.accounts.sale.status == SaleStatus::Active as u8
+                || ctx.accounts.sale.status == SaleStatus::Paused as u8,
+            SaleError::InvalidState
+        );
+        require!(
+            ctx.accounts.sale.public_launch_at == 0,
+            SaleError::PublicLaunchAlreadyMarked
+        );
+        require!(
+            ctx.accounts.founder_lock.unlock_at == 0 && !ctx.accounts.founder_lock.released,
+            SaleError::FounderAlreadyReleased
+        );
+        let now = Clock::get()?.unix_timestamp;
+        let founder_unlock_at = now
+            .checked_add(FOUNDER_LOCK_SECONDS)
+            .ok_or(SaleError::MathOverflow)?;
+        ctx.accounts.sale.public_launch_at = now;
+        ctx.accounts.founder_lock.unlock_at = founder_unlock_at;
+        emit!(PublicLaunchMarked {
+            timestamp: now,
+            founder_unlock_at,
+            standard_presale_release_at: now
+                .checked_add(STANDARD_PRESALE_RELEASE_SECONDS)
+                .ok_or(SaleError::MathOverflow)?,
+            staked_presale_release_at: now
+                .checked_add(STAKED_PRESALE_RELEASE_SECONDS)
+                .ok_or(SaleError::MathOverflow)?,
         });
         Ok(())
     }
@@ -145,7 +190,7 @@ pub mod rlya_sale {
         ctx.accounts.sale.status = SaleStatus::Paused as u8;
         emit!(SaleStatusChanged {
             status: ctx.accounts.sale.status,
-            timestamp: Clock::get()?.unix_timestamp
+            timestamp: Clock::get()?.unix_timestamp,
         });
         Ok(())
     }
@@ -158,14 +203,13 @@ pub mod rlya_sale {
         ctx.accounts.sale.status = SaleStatus::Active as u8;
         emit!(SaleStatusChanged {
             status: ctx.accounts.sale.status,
-            timestamp: Clock::get()?.unix_timestamp
+            timestamp: Clock::get()?.unix_timestamp,
         });
         Ok(())
     }
 
-    /// Permanently attributes a buyer wallet to its first referrer. The same
-    /// buyer cannot later switch referrers or bypass the referral with a direct
-    /// buy. A direct two-wallet referral loop is rejected at registration.
+    /// Permanently attributes a buyer wallet to its first referrer. A buyer cannot
+    /// later bypass or change that attribution, and direct two-wallet loops fail.
     pub fn register_referral(ctx: Context<RegisterReferral>) -> Result<()> {
         require!(
             ctx.accounts.buyer.key() != ctx.accounts.referrer.key(),
@@ -193,17 +237,15 @@ pub mod rlya_sale {
         Ok(())
     }
 
-    /// Buyer pays USDC and receives RLYA atomically in the same transaction.
-    /// There is intentionally no refund state or refund instruction.
+    /// Post-launch direct atomic purchase. This path is deliberately unavailable
+    /// before `mark_public_launch` because it transfers RLYA immediately.
     pub fn buy(ctx: Context<Buy>, usdc_amount: u64, min_rlya_out: u64) -> Result<()> {
         require!(
             ctx.accounts.sale.status == SaleStatus::Active as u8,
             SaleError::InvalidState
         );
-        require!(
-            usdc_amount >= MIN_PURCHASE_USDC,
-            SaleError::PurchaseTooSmall
-        );
+        require!(ctx.accounts.sale.public_launch_at > 0, SaleError::PublicLaunchNotMarked);
+        require!(usdc_amount >= MIN_PURCHASE_USDC, SaleError::PurchaseTooSmall);
         require!(
             ctx.accounts.referral_attribution.to_account_info().owner != ctx.program_id,
             SaleError::ReferralRequired
@@ -219,14 +261,8 @@ pub mod rlya_sale {
             .total_sold
             .checked_add(allocation)
             .ok_or(SaleError::MathOverflow)?;
-        require!(
-            new_total <= ctx.accounts.sale.presale_cap,
-            SaleError::PresaleSoldOut
-        );
-        require!(
-            ctx.accounts.sale_vault.amount >= allocation,
-            SaleError::SaleVaultUnderfunded
-        );
+        require!(new_total <= ctx.accounts.sale.presale_cap, SaleError::PresaleSoldOut);
+        require!(ctx.accounts.sale_vault.amount >= allocation, SaleError::SaleVaultUnderfunded);
 
         transfer_checked(
             ctx.accounts.token_program.to_account_info(),
@@ -239,9 +275,9 @@ pub mod rlya_sale {
             None,
         )?;
 
-        let sale_key = ctx.accounts.rlya_mint.key();
+        let mint_key = ctx.accounts.rlya_mint.key();
         let bump = [ctx.accounts.sale.bump];
-        let seeds: &[&[u8]] = &[SALE_SEED, sale_key.as_ref(), &bump];
+        let seeds: &[&[u8]] = &[SALE_SEED, mint_key.as_ref(), &bump];
         transfer_checked(
             ctx.accounts.token_program.to_account_info(),
             ctx.accounts.sale_vault.to_account_info(),
@@ -260,7 +296,6 @@ pub mod rlya_sale {
             .checked_add(usdc_amount)
             .ok_or(SaleError::MathOverflow)?;
         let price_after = current_price(sale)?;
-
         emit!(PurchaseCompleted {
             buyer: ctx.accounts.buyer.key(),
             usdc_amount,
@@ -272,10 +307,8 @@ pub mod rlya_sale {
         Ok(())
     }
 
-    /// Referred buyer flow. The buyer receives the same RLYA quote as a direct
-    /// purchase and pays the same gross USDC amount. A fixed 1% of gross USDC
-    /// is routed to the referrer and the remaining 99% to treasury. No RLYA is
-    /// minted for referrals and the referral rate is not owner-editable.
+    /// Post-launch referred atomic purchase. Buyer allocation is unchanged by the
+    /// referral; fixed 1% gross USDC goes to the locked referrer.
     pub fn buy_with_referral(
         ctx: Context<BuyWithReferral>,
         usdc_amount: u64,
@@ -285,18 +318,10 @@ pub mod rlya_sale {
             ctx.accounts.sale.status == SaleStatus::Active as u8,
             SaleError::InvalidState
         );
-        require!(
-            usdc_amount >= MIN_PURCHASE_USDC,
-            SaleError::PurchaseTooSmall
-        );
-        require!(
-            ctx.accounts.buyer.key() != ctx.accounts.referrer.key(),
-            SaleError::SelfReferral
-        );
-        require!(
-            ctx.accounts.sale.referral_bps == REFERRAL_BPS,
-            SaleError::InvalidReferralRate
-        );
+        require!(ctx.accounts.sale.public_launch_at > 0, SaleError::PublicLaunchNotMarked);
+        require!(usdc_amount >= MIN_PURCHASE_USDC, SaleError::PurchaseTooSmall);
+        require!(ctx.accounts.buyer.key() != ctx.accounts.referrer.key(), SaleError::SelfReferral);
+        require!(ctx.accounts.sale.referral_bps == REFERRAL_BPS, SaleError::InvalidReferralRate);
 
         let price_before = current_price(&ctx.accounts.sale)?;
         let allocation = quote_allocation(&ctx.accounts.sale, usdc_amount)?;
@@ -308,14 +333,8 @@ pub mod rlya_sale {
             .total_sold
             .checked_add(allocation)
             .ok_or(SaleError::MathOverflow)?;
-        require!(
-            new_total <= ctx.accounts.sale.presale_cap,
-            SaleError::PresaleSoldOut
-        );
-        require!(
-            ctx.accounts.sale_vault.amount >= allocation,
-            SaleError::SaleVaultUnderfunded
-        );
+        require!(new_total <= ctx.accounts.sale.presale_cap, SaleError::PresaleSoldOut);
+        require!(ctx.accounts.sale_vault.amount >= allocation, SaleError::SaleVaultUnderfunded);
 
         let referral_reward_u128 = (usdc_amount as u128)
             .checked_mul(REFERRAL_BPS as u128)
@@ -378,7 +397,6 @@ pub mod rlya_sale {
             .checked_add(referral_reward)
             .ok_or(SaleError::MathOverflow)?;
         let price_after = current_price(sale)?;
-
         emit!(ReferralPurchaseCompleted {
             buyer: ctx.accounts.buyer.key(),
             referrer: ctx.accounts.referrer.key(),
@@ -392,15 +410,15 @@ pub mod rlya_sale {
         Ok(())
     }
 
-    /// Owner-only sale for buyers who pay outside the website. RLYA still leaves
-    /// the same presale vault on-chain, and the same public price curve advances.
-    /// This is the project's "manual lever" without a hidden arbitrary price edit.
+    /// Owner-only immediate distribution for legitimate off-site activity after
+    /// public launch. Pre-launch off-site allocations use `deliver_prelaunch_manual`.
     pub fn manual_sale(ctx: Context<ManualSale>, rlya_amount: u64) -> Result<()> {
         require!(
             ctx.accounts.sale.status == SaleStatus::Active as u8
                 || ctx.accounts.sale.status == SaleStatus::Paused as u8,
             SaleError::InvalidState
         );
+        require!(ctx.accounts.sale.public_launch_at > 0, SaleError::PublicLaunchNotMarked);
         require!(rlya_amount > 0, SaleError::InvalidAmount);
         let price_before = current_price(&ctx.accounts.sale)?;
         let new_total = ctx
@@ -409,14 +427,8 @@ pub mod rlya_sale {
             .total_sold
             .checked_add(rlya_amount)
             .ok_or(SaleError::MathOverflow)?;
-        require!(
-            new_total <= ctx.accounts.sale.presale_cap,
-            SaleError::PresaleSoldOut
-        );
-        require!(
-            ctx.accounts.sale_vault.amount >= rlya_amount,
-            SaleError::SaleVaultUnderfunded
-        );
+        require!(new_total <= ctx.accounts.sale.presale_cap, SaleError::PresaleSoldOut);
+        require!(ctx.accounts.sale_vault.amount >= rlya_amount, SaleError::SaleVaultUnderfunded);
 
         let mint_key = ctx.accounts.rlya_mint.key();
         let bump = [ctx.accounts.sale.bump];
@@ -449,15 +461,13 @@ pub mod rlya_sale {
         Ok(())
     }
 
-    /// Creates a separate reconciliation account for RLYA allocated before the
-    /// public token launch. Keeping these counters outside `Sale` preserves the
-    /// already-tested sale-account layout while making pre-launch website
-    /// allocations distinguishable from genuine manual/off-site allocations.
+    /// Commits the final hashed pre-launch manifest and exact expected totals.
     pub fn initialize_prelaunch_metrics(
         ctx: Context<InitializePrelaunchMetrics>,
         manifest_sha256: [u8; 32],
         expected_web_rlya: u64,
         expected_manual_rlya: u64,
+        expected_staking_bonus: u64,
         expected_gross_usdc: u64,
         expected_referral_usdc: u64,
     ) -> Result<()> {
@@ -474,6 +484,10 @@ pub mod rlya_sale {
             SaleError::PrelaunchCommitmentMismatch
         );
         require!(
+            expected_staking_bonus <= STAKING_BONUS_RESERVE,
+            SaleError::StakingBonusCommitmentMismatch
+        );
+        require!(
             expected_referral_usdc <= expected_gross_usdc,
             SaleError::PrelaunchCommitmentMismatch
         );
@@ -482,10 +496,12 @@ pub mod rlya_sale {
         metrics.manifest_sha256 = manifest_sha256;
         metrics.expected_web_rlya = expected_web_rlya;
         metrics.expected_manual_rlya = expected_manual_rlya;
+        metrics.expected_staking_bonus = expected_staking_bonus;
         metrics.expected_gross_usdc = expected_gross_usdc;
         metrics.expected_referral_usdc = expected_referral_usdc;
         metrics.web_rlya_delivered = 0;
         metrics.manual_rlya_delivered = 0;
+        metrics.staking_bonus_delivered = 0;
         metrics.gross_usdc_imported = 0;
         metrics.referral_usdc_imported = 0;
         metrics.bump = ctx.bumps.prelaunch_metrics;
@@ -495,33 +511,23 @@ pub mod rlya_sale {
             manifest_sha256,
             expected_web_rlya,
             expected_manual_rlya,
+            expected_staking_bonus,
             expected_gross_usdc,
             expected_referral_usdc,
         });
         Ok(())
     }
 
-    /// Imports a referral attribution that was locked by the verified pre-launch
-    /// USDC ledger. This is owner-funded because the buyer should not have to
-    /// sign another setup transaction on distribution day.
+    /// Imports referral attribution locked by the verified pre-launch USDC ledger.
     pub fn import_prelaunch_referral(ctx: Context<ImportPrelaunchReferral>) -> Result<()> {
-        require!(
-            ctx.accounts.sale.status == SaleStatus::Paused as u8,
-            SaleError::InvalidState
-        );
-        require!(
-            ctx.accounts.buyer.key() != ctx.accounts.referrer.key(),
-            SaleError::SelfReferral
-        );
+        require!(ctx.accounts.sale.status == SaleStatus::Paused as u8, SaleError::InvalidState);
+        require!(ctx.accounts.buyer.key() != ctx.accounts.referrer.key(), SaleError::SelfReferral);
 
         if ctx.accounts.referrer_attribution.to_account_info().owner == ctx.program_id {
             let data = ctx.accounts.referrer_attribution.try_borrow_data()?;
             let mut slice: &[u8] = &data;
             let existing = ReferralAttribution::try_deserialize(&mut slice)?;
-            require!(
-                existing.referrer != ctx.accounts.buyer.key(),
-                SaleError::CircularReferral
-            );
+            require!(existing.referrer != ctx.accounts.buyer.key(), SaleError::CircularReferral);
         }
 
         let attribution = &mut ctx.accounts.referral_attribution;
@@ -535,35 +541,46 @@ pub mod rlya_sale {
         Ok(())
     }
 
-    /// Delivers RLYA that was already purchased through the verified pre-launch
-    /// USDC ledger. No USDC moves here: the original Mainnet USDC transaction is
-    /// the payment evidence. The imported gross/referral amounts reconcile the
-    /// production Sale counters exactly once while RLYA leaves the official sale
-    /// vault and advances the same total_sold price curve.
+    /// Delivers one wallet's aggregated website presale allocation after its
+    /// public-launch release window. Base RLYA comes from the 288M sale vault.
+    /// A staked wallet receives an exact fixed 5% bonus from the separate 14.4M
+    /// program vault. Bonus RLYA never advances the base sale price curve.
     pub fn deliver_prelaunch(
         ctx: Context<DeliverPrelaunch>,
         rlya_amount: u64,
         gross_usdc_amount: u64,
         referral_usdc_amount: u64,
+        staked: bool,
     ) -> Result<()> {
-        require!(
-            ctx.accounts.sale.status == SaleStatus::Paused as u8,
-            SaleError::InvalidState
-        );
+        require!(ctx.accounts.sale.status == SaleStatus::Paused as u8, SaleError::InvalidState);
         require!(rlya_amount > 0, SaleError::InvalidAmount);
-        require!(
-            gross_usdc_amount >= MIN_PURCHASE_USDC,
-            SaleError::PurchaseTooSmall
-        );
-        require!(
-            referral_usdc_amount <= gross_usdc_amount,
-            SaleError::InvalidReferralReward
-        );
+        require!(gross_usdc_amount >= MIN_PURCHASE_USDC, SaleError::PurchaseTooSmall);
+        require!(referral_usdc_amount <= gross_usdc_amount, SaleError::InvalidReferralReward);
+
+        let release_delay = if staked {
+            STAKED_PRESALE_RELEASE_SECONDS
+        } else {
+            STANDARD_PRESALE_RELEASE_SECONDS
+        };
+        require_release_elapsed(&ctx.accounts.sale, release_delay)?;
+
+        let staking_bonus_amount = if staked {
+            staking_bonus_for(rlya_amount)?
+        } else {
+            0
+        };
+
         let next_web_rlya = ctx
             .accounts
             .prelaunch_metrics
             .web_rlya_delivered
             .checked_add(rlya_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        let next_staking_bonus = ctx
+            .accounts
+            .prelaunch_metrics
+            .staking_bonus_delivered
+            .checked_add(staking_bonus_amount)
             .ok_or(SaleError::MathOverflow)?;
         let next_gross_usdc = ctx
             .accounts
@@ -577,9 +594,14 @@ pub mod rlya_sale {
             .referral_usdc_imported
             .checked_add(referral_usdc_amount)
             .ok_or(SaleError::MathOverflow)?;
+
         require!(
             next_web_rlya <= ctx.accounts.prelaunch_metrics.expected_web_rlya,
             SaleError::PrelaunchCommitmentMismatch
+        );
+        require!(
+            next_staking_bonus <= ctx.accounts.prelaunch_metrics.expected_staking_bonus,
+            SaleError::StakingBonusCommitmentMismatch
         );
         require!(
             next_gross_usdc <= ctx.accounts.prelaunch_metrics.expected_gross_usdc,
@@ -597,13 +619,11 @@ pub mod rlya_sale {
             .total_sold
             .checked_add(rlya_amount)
             .ok_or(SaleError::MathOverflow)?;
+        require!(new_total <= ctx.accounts.sale.presale_cap, SaleError::PresaleSoldOut);
+        require!(ctx.accounts.sale_vault.amount >= rlya_amount, SaleError::SaleVaultUnderfunded);
         require!(
-            new_total <= ctx.accounts.sale.presale_cap,
-            SaleError::PresaleSoldOut
-        );
-        require!(
-            ctx.accounts.sale_vault.amount >= rlya_amount,
-            SaleError::SaleVaultUnderfunded
+            ctx.accounts.staking_bonus_vault.amount >= staking_bonus_amount,
+            SaleError::StakingBonusVaultUnderfunded
         );
 
         let mint_key = ctx.accounts.rlya_mint.key();
@@ -619,6 +639,18 @@ pub mod rlya_sale {
             RLYA_DECIMALS,
             Some(&[seeds]),
         )?;
+        if staking_bonus_amount > 0 {
+            transfer_checked(
+                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.staking_bonus_vault.to_account_info(),
+                ctx.accounts.rlya_mint.to_account_info(),
+                ctx.accounts.recipient_rlya_account.to_account_info(),
+                ctx.accounts.sale.to_account_info(),
+                staking_bonus_amount,
+                RLYA_DECIMALS,
+                Some(&[seeds]),
+            )?;
+        }
 
         let sale = &mut ctx.accounts.sale;
         sale.total_sold = new_total;
@@ -633,44 +665,47 @@ pub mod rlya_sale {
 
         let metrics = &mut ctx.accounts.prelaunch_metrics;
         metrics.web_rlya_delivered = next_web_rlya;
+        metrics.staking_bonus_delivered = next_staking_bonus;
         metrics.gross_usdc_imported = next_gross_usdc;
         metrics.referral_usdc_imported = next_referral_usdc;
 
         let receipt = &mut ctx.accounts.delivery_receipt;
         receipt.recipient = ctx.accounts.recipient.key();
         receipt.rlya_amount = rlya_amount;
+        receipt.staking_bonus_amount = staking_bonus_amount;
         receipt.gross_usdc_amount = gross_usdc_amount;
         receipt.referral_usdc_amount = referral_usdc_amount;
         receipt.delivered_at = Clock::get()?.unix_timestamp;
+        receipt.staked = staked;
         receipt.bump = ctx.bumps.delivery_receipt;
 
         let price_after = current_price(sale)?;
         emit!(PrelaunchDelivered {
             recipient: ctx.accounts.recipient.key(),
             rlya_amount,
+            staking_bonus_amount,
+            staked,
             gross_usdc_amount,
             referral_usdc_amount,
             total_sold: sale.total_sold,
             web_rlya_delivered: metrics.web_rlya_delivered,
+            staking_bonus_delivered: metrics.staking_bonus_delivered,
             price_before_micro_usdc: price_before,
             price_after_micro_usdc: price_after,
         });
         Ok(())
     }
 
-    /// Idempotent delivery for genuine private/off-site allocations recorded
-    /// before public launch. It advances the existing manual_sold counter, but a
-    /// deterministic receipt PDA prevents the same wallet allocation from being
-    /// delivered twice by the distribution tool.
+    /// Delivers a genuine private/off-site pre-launch base allocation on the
+    /// standard day-21 schedule. Private/off-site allocations receive no 5% bonus.
     pub fn deliver_prelaunch_manual(
         ctx: Context<DeliverPrelaunchManual>,
         rlya_amount: u64,
     ) -> Result<()> {
-        require!(
-            ctx.accounts.sale.status == SaleStatus::Paused as u8,
-            SaleError::InvalidState
-        );
+        require!(ctx.accounts.sale.status == SaleStatus::Paused as u8, SaleError::InvalidState);
         require!(rlya_amount > 0, SaleError::InvalidAmount);
+        require_release_elapsed(&ctx.accounts.sale, STANDARD_PRESALE_RELEASE_SECONDS)?;
+
         let price_before = current_price(&ctx.accounts.sale)?;
         let new_total = ctx
             .accounts
@@ -678,14 +713,8 @@ pub mod rlya_sale {
             .total_sold
             .checked_add(rlya_amount)
             .ok_or(SaleError::MathOverflow)?;
-        require!(
-            new_total <= ctx.accounts.sale.presale_cap,
-            SaleError::PresaleSoldOut
-        );
-        require!(
-            ctx.accounts.sale_vault.amount >= rlya_amount,
-            SaleError::SaleVaultUnderfunded
-        );
+        require!(new_total <= ctx.accounts.sale.presale_cap, SaleError::PresaleSoldOut);
+        require!(ctx.accounts.sale_vault.amount >= rlya_amount, SaleError::SaleVaultUnderfunded);
         let next_manual_rlya = ctx
             .accounts
             .prelaunch_metrics
@@ -718,13 +747,17 @@ pub mod rlya_sale {
             .checked_add(rlya_amount)
             .ok_or(SaleError::MathOverflow)?;
         ctx.accounts.prelaunch_metrics.manual_rlya_delivered = next_manual_rlya;
+
         let receipt = &mut ctx.accounts.delivery_receipt;
         receipt.recipient = ctx.accounts.recipient.key();
         receipt.rlya_amount = rlya_amount;
+        receipt.staking_bonus_amount = 0;
         receipt.gross_usdc_amount = 0;
         receipt.referral_usdc_amount = 0;
         receipt.delivered_at = Clock::get()?.unix_timestamp;
+        receipt.staked = false;
         receipt.bump = ctx.bumps.delivery_receipt;
+
         let price_after = current_price(sale)?;
         emit!(ManualSaleRecorded {
             recipient: ctx.accounts.recipient.key(),
@@ -745,35 +778,51 @@ pub mod rlya_sale {
         ctx.accounts.sale.status = SaleStatus::Closed as u8;
         emit!(SaleStatusChanged {
             status: ctx.accounts.sale.status,
-            timestamp: Clock::get()?.unix_timestamp
+            timestamp: Clock::get()?.unix_timestamp,
         });
         Ok(())
     }
 
-    /// Moves only unsold RLYA after the sale is closed.
+    /// After permanent sale close, returns unallocated base-sale inventory and any
+    /// unused staking-bonus reserve to the configured treasury RLYA account.
     pub fn withdraw_unsold(ctx: Context<WithdrawUnsold>) -> Result<()> {
-        require!(
-            ctx.accounts.sale.status == SaleStatus::Closed as u8,
-            SaleError::InvalidState
-        );
-        let amount = ctx.accounts.sale_vault.amount;
-        if amount == 0 {
+        require!(ctx.accounts.sale.status == SaleStatus::Closed as u8, SaleError::InvalidState);
+        let base_amount = ctx.accounts.sale_vault.amount;
+        let staking_bonus_amount = ctx.accounts.staking_bonus_vault.amount;
+        if base_amount == 0 && staking_bonus_amount == 0 {
             return Ok(());
         }
         let mint_key = ctx.accounts.rlya_mint.key();
         let bump = [ctx.accounts.sale.bump];
         let seeds: &[&[u8]] = &[SALE_SEED, mint_key.as_ref(), &bump];
-        transfer_checked(
-            ctx.accounts.token_program.to_account_info(),
-            ctx.accounts.sale_vault.to_account_info(),
-            ctx.accounts.rlya_mint.to_account_info(),
-            ctx.accounts.treasury_rlya_account.to_account_info(),
-            ctx.accounts.sale.to_account_info(),
-            amount,
-            RLYA_DECIMALS,
-            Some(&[seeds]),
-        )?;
-        emit!(UnsoldWithdrawn { amount });
+        if base_amount > 0 {
+            transfer_checked(
+                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.sale_vault.to_account_info(),
+                ctx.accounts.rlya_mint.to_account_info(),
+                ctx.accounts.treasury_rlya_account.to_account_info(),
+                ctx.accounts.sale.to_account_info(),
+                base_amount,
+                RLYA_DECIMALS,
+                Some(&[seeds]),
+            )?;
+        }
+        if staking_bonus_amount > 0 {
+            transfer_checked(
+                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.staking_bonus_vault.to_account_info(),
+                ctx.accounts.rlya_mint.to_account_info(),
+                ctx.accounts.treasury_rlya_account.to_account_info(),
+                ctx.accounts.sale.to_account_info(),
+                staking_bonus_amount,
+                RLYA_DECIMALS,
+                Some(&[seeds]),
+            )?;
+        }
+        emit!(UnsoldWithdrawn {
+            base_amount,
+            staking_bonus_amount,
+        });
         Ok(())
     }
 
@@ -809,7 +858,7 @@ pub mod rlya_sale {
         emit!(FounderReleased {
             founder: ctx.accounts.founder.key(),
             amount: FOUNDER_AMOUNT,
-            timestamp: now
+            timestamp: now,
         });
         Ok(())
     }
@@ -828,7 +877,27 @@ fn current_price(sale: &Sale) -> Result<u64> {
         .ok_or(error!(SaleError::MathOverflow))
 }
 
-/// Piecewise-linear stepped curve. A large purchase may cross multiple price
+fn staking_bonus_for(rlya_amount: u64) -> Result<u64> {
+    let value = (rlya_amount as u128)
+        .checked_mul(STAKING_BONUS_BPS as u128)
+        .ok_or(SaleError::MathOverflow)?
+        .checked_div(BPS_DENOMINATOR as u128)
+        .ok_or(SaleError::MathOverflow)?;
+    u64::try_from(value).map_err(|_| error!(SaleError::MathOverflow))
+}
+
+fn require_release_elapsed(sale: &Sale, delay_seconds: i64) -> Result<i64> {
+    require!(sale.public_launch_at > 0, SaleError::PublicLaunchNotMarked);
+    let release_at = sale
+        .public_launch_at
+        .checked_add(delay_seconds)
+        .ok_or(SaleError::MathOverflow)?;
+    let now = Clock::get()?.unix_timestamp;
+    require!(now >= release_at, SaleError::PresaleReleaseStillLocked);
+    Ok(now)
+}
+
+/// Piecewise-linear stepped curve. Large purchases may cross multiple price
 /// steps; each portion is priced at the step it consumes.
 fn quote_allocation(sale: &Sale, usdc_amount: u64) -> Result<u64> {
     let mut remaining_usdc = usdc_amount as u128;
@@ -843,7 +912,7 @@ fn quote_allocation(sale: &Sale, usdc_amount: u64) -> Result<u64> {
     while remaining_usdc > 0 {
         require!(progress < cap, SaleError::PresaleSoldOut);
         loops = loops.checked_add(1).ok_or(SaleError::MathOverflow)?;
-        require!(loops <= 256, SaleError::TooManyPriceSteps);
+        require!(loops <= 512, SaleError::TooManyPriceSteps);
 
         let step_index = progress
             .checked_div(step_size)
@@ -862,11 +931,12 @@ fn quote_allocation(sale: &Sale, usdc_amount: u64) -> Result<u64> {
         let available = next_boundary
             .checked_sub(progress)
             .ok_or(SaleError::MathOverflow)?;
-
-        let fill_numerator = available
-            .checked_mul(price)
-            .ok_or(SaleError::MathOverflow)?;
-        let cost_to_fill = ceil_div(fill_numerator, RLYA_UNIT)?;
+        let cost_to_fill = ceil_div(
+            available
+                .checked_mul(price)
+                .ok_or(SaleError::MathOverflow)?,
+            RLYA_UNIT,
+        )?;
 
         if remaining_usdc >= cost_to_fill {
             allocation = allocation
@@ -930,9 +1000,9 @@ fn transfer_checked<'info>(
 pub struct Initialize<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
-    /// CHECK: stored as public treasury identity; token accounts are constrained later.
+    /// CHECK: stored treasury identity; token accounts are constrained later.
     pub treasury: UncheckedAccount<'info>,
-    /// CHECK: stored as founder identity; release later requires this signer.
+    /// CHECK: stored founder identity; founder release later requires this signer.
     pub founder: UncheckedAccount<'info>,
     pub rlya_mint: Account<'info, Mint>,
     pub usdc_mint: Account<'info, Mint>,
@@ -953,6 +1023,15 @@ pub struct Initialize<'info> {
         bump
     )]
     pub sale_vault: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = admin,
+        token::mint = rlya_mint,
+        token::authority = sale,
+        seeds = [STAKING_BONUS_VAULT_SEED, rlya_mint.key().as_ref()],
+        bump
+    )]
+    pub staking_bonus_vault: Account<'info, TokenAccount>,
     #[account(
         init,
         payer = admin,
@@ -994,6 +1073,13 @@ pub struct Activate<'info> {
     )]
     pub sale_vault: Account<'info, TokenAccount>,
     #[account(
+        token::mint = rlya_mint,
+        token::authority = sale,
+        seeds = [STAKING_BONUS_VAULT_SEED, rlya_mint.key().as_ref()],
+        bump
+    )]
+    pub staking_bonus_vault: Account<'info, TokenAccount>,
+    #[account(
         mut,
         seeds = [FOUNDER_LOCK_SEED, rlya_mint.key().as_ref()],
         bump = founder_lock.bump,
@@ -1007,6 +1093,27 @@ pub struct Activate<'info> {
         bump
     )]
     pub founder_vault: Account<'info, TokenAccount>,
+}
+
+#[derive(Accounts)]
+pub struct MarkPublicLaunch<'info> {
+    pub admin: Signer<'info>,
+    pub rlya_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        seeds = [SALE_SEED, rlya_mint.key().as_ref()],
+        bump = sale.bump,
+        has_one = admin,
+        has_one = rlya_mint
+    )]
+    pub sale: Account<'info, Sale>,
+    #[account(
+        mut,
+        seeds = [FOUNDER_LOCK_SEED, rlya_mint.key().as_ref()],
+        bump = founder_lock.bump,
+        has_one = rlya_mint
+    )]
+    pub founder_lock: Account<'info, FounderLock>,
 }
 
 #[derive(Accounts)]
@@ -1037,7 +1144,7 @@ pub struct RegisterReferral<'info> {
         bump
     )]
     pub referral_attribution: Account<'info, ReferralAttribution>,
-    /// CHECK: deterministic referrer attribution PDA, inspected only if already program-owned.
+    /// CHECK: deterministic referrer attribution PDA, inspected only if program-owned.
     #[account(seeds = [REFERRAL_SEED, referrer.key().as_ref()], bump)]
     pub referrer_attribution: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
@@ -1047,7 +1154,7 @@ pub struct RegisterReferral<'info> {
 pub struct Buy<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
-    /// CHECK: the buyer's deterministic referral PDA; if program-owned, direct buying is blocked.
+    /// CHECK: buyer referral PDA; if program-owned, direct buying is blocked.
     #[account(seeds = [REFERRAL_SEED, buyer.key().as_ref()], bump)]
     pub referral_attribution: UncheckedAccount<'info>,
     pub rlya_mint: Box<Account<'info, Mint>>,
@@ -1061,7 +1168,7 @@ pub struct Buy<'info> {
         has_one = treasury
     )]
     pub sale: Box<Account<'info, Sale>>,
-    /// CHECK: constrained by sale.has_one and treasury token account owner.
+    /// CHECK: constrained by sale.has_one and treasury token-account owner.
     pub treasury: UncheckedAccount<'info>,
     #[account(mut, constraint = buyer_usdc_account.mint == usdc_mint.key(), constraint = buyer_usdc_account.owner == buyer.key())]
     pub buyer_usdc_account: Box<Account<'info, TokenAccount>>,
@@ -1084,7 +1191,7 @@ pub struct Buy<'info> {
 pub struct BuyWithReferral<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
-    /// CHECK: public referrer identity; ownership is constrained on the USDC token account.
+    /// CHECK: public referrer identity; token-account ownership is constrained.
     pub referrer: UncheckedAccount<'info>,
     #[account(
         seeds = [REFERRAL_SEED, buyer.key().as_ref()],
@@ -1104,7 +1211,7 @@ pub struct BuyWithReferral<'info> {
         has_one = treasury
     )]
     pub sale: Box<Account<'info, Sale>>,
-    /// CHECK: constrained by sale.has_one and treasury token account owner.
+    /// CHECK: constrained by sale.has_one and treasury token-account owner.
     pub treasury: UncheckedAccount<'info>,
     #[account(mut, constraint = buyer_usdc_account.mint == usdc_mint.key(), constraint = buyer_usdc_account.owner == buyer.key())]
     pub buyer_usdc_account: Box<Account<'info, TokenAccount>>,
@@ -1128,7 +1235,7 @@ pub struct BuyWithReferral<'info> {
 #[derive(Accounts)]
 pub struct ManualSale<'info> {
     pub admin: Signer<'info>,
-    /// CHECK: owner of recipient token account.
+    /// CHECK: owner of recipient RLYA token account.
     pub recipient: UncheckedAccount<'info>,
     pub rlya_mint: Account<'info, Mint>,
     #[account(
@@ -1179,7 +1286,7 @@ pub struct InitializePrelaunchMetrics<'info> {
 pub struct ImportPrelaunchReferral<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
-    /// CHECK: pre-launch buyer identity from the signed delivery manifest.
+    /// CHECK: pre-launch buyer identity from final delivery manifest.
     pub buyer: UncheckedAccount<'info>,
     /// CHECK: locked pre-launch referral beneficiary.
     pub referrer: UncheckedAccount<'info>,
@@ -1199,7 +1306,7 @@ pub struct ImportPrelaunchReferral<'info> {
         bump
     )]
     pub referral_attribution: Account<'info, ReferralAttribution>,
-    /// CHECK: deterministic attribution for the referrer; inspected only if program-owned.
+    /// CHECK: deterministic attribution for referrer; inspected if program-owned.
     #[account(seeds = [REFERRAL_SEED, referrer.key().as_ref()], bump)]
     pub referrer_attribution: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
@@ -1209,7 +1316,7 @@ pub struct ImportPrelaunchReferral<'info> {
 pub struct DeliverPrelaunch<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
-    /// CHECK: owner of the destination RLYA token account.
+    /// CHECK: owner of destination RLYA token account.
     pub recipient: UncheckedAccount<'info>,
     pub rlya_mint: Account<'info, Mint>,
     #[account(
@@ -1235,6 +1342,14 @@ pub struct DeliverPrelaunch<'info> {
         bump
     )]
     pub sale_vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint = rlya_mint,
+        token::authority = sale,
+        seeds = [STAKING_BONUS_VAULT_SEED, rlya_mint.key().as_ref()],
+        bump
+    )]
+    pub staking_bonus_vault: Account<'info, TokenAccount>,
     #[account(mut, constraint = recipient_rlya_account.mint == rlya_mint.key(), constraint = recipient_rlya_account.owner == recipient.key())]
     pub recipient_rlya_account: Account<'info, TokenAccount>,
     #[account(
@@ -1253,7 +1368,7 @@ pub struct DeliverPrelaunch<'info> {
 pub struct DeliverPrelaunchManual<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
-    /// CHECK: owner of the destination RLYA account.
+    /// CHECK: owner of destination RLYA token account.
     pub recipient: UncheckedAccount<'info>,
     pub rlya_mint: Account<'info, Mint>,
     #[account(
@@ -1315,6 +1430,14 @@ pub struct WithdrawUnsold<'info> {
         bump
     )]
     pub sale_vault: Account<'info, TokenAccount>,
+    #[account(
+        mut,
+        token::mint = rlya_mint,
+        token::authority = sale,
+        seeds = [STAKING_BONUS_VAULT_SEED, rlya_mint.key().as_ref()],
+        bump
+    )]
+    pub staking_bonus_vault: Account<'info, TokenAccount>,
     #[account(mut, constraint = treasury_rlya_account.mint == rlya_mint.key(), constraint = treasury_rlya_account.owner == treasury.key())]
     pub treasury_rlya_account: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
@@ -1363,11 +1486,12 @@ pub struct Sale {
     pub total_usdc_raised: u64,
     pub total_referral_usdc_paid: u64,
     pub started_at: i64,
+    pub public_launch_at: i64,
     pub status: u8,
     pub bump: u8,
 }
 impl Sale {
-    pub const SPACE: usize = 8 + (32 * 5) + (8 * 8) + 8 + 1 + 1 + 32;
+    pub const SPACE: usize = 8 + (32 * 5) + (8 * 11) + 2 + 32;
 }
 
 #[account]
@@ -1386,29 +1510,33 @@ pub struct PrelaunchMetrics {
     pub manifest_sha256: [u8; 32],
     pub expected_web_rlya: u64,
     pub expected_manual_rlya: u64,
+    pub expected_staking_bonus: u64,
     pub expected_gross_usdc: u64,
     pub expected_referral_usdc: u64,
     pub web_rlya_delivered: u64,
     pub manual_rlya_delivered: u64,
+    pub staking_bonus_delivered: u64,
     pub gross_usdc_imported: u64,
     pub referral_usdc_imported: u64,
     pub bump: u8,
 }
 impl PrelaunchMetrics {
-    pub const SPACE: usize = 8 + 32 + 32 + (8 * 8) + 1 + 16;
+    pub const SPACE: usize = 8 + 32 + 32 + (8 * 10) + 1 + 16;
 }
 
 #[account]
 pub struct PrelaunchDeliveryReceipt {
     pub recipient: Pubkey,
     pub rlya_amount: u64,
+    pub staking_bonus_amount: u64,
     pub gross_usdc_amount: u64,
     pub referral_usdc_amount: u64,
     pub delivered_at: i64,
+    pub staked: bool,
     pub bump: u8,
 }
 impl PrelaunchDeliveryReceipt {
-    pub const SPACE: usize = 8 + 32 + (8 * 4) + 1 + 16;
+    pub const SPACE: usize = 8 + 32 + (8 * 5) + 1 + 1 + 16;
 }
 
 #[account]
@@ -1437,16 +1565,25 @@ pub struct SaleInitialized {
     pub sale: Pubkey,
     pub rlya_mint: Pubkey,
     pub presale_cap: u64,
+    pub staking_bonus_reserve: u64,
     pub founder_amount: u64,
     pub base_price_micro_usdc: u64,
     pub step_size_base_units: u64,
     pub step_increment_micro_usdc: u64,
     pub referral_bps: u64,
+    pub staking_bonus_bps: u64,
 }
 #[event]
 pub struct SaleStatusChanged {
     pub status: u8,
     pub timestamp: i64,
+}
+#[event]
+pub struct PublicLaunchMarked {
+    pub timestamp: i64,
+    pub founder_unlock_at: i64,
+    pub standard_presale_release_at: i64,
+    pub staked_presale_release_at: i64,
 }
 #[event]
 pub struct ReferralRegistered {
@@ -1488,6 +1625,7 @@ pub struct PrelaunchMetricsInitialized {
     pub manifest_sha256: [u8; 32],
     pub expected_web_rlya: u64,
     pub expected_manual_rlya: u64,
+    pub expected_staking_bonus: u64,
     pub expected_gross_usdc: u64,
     pub expected_referral_usdc: u64,
 }
@@ -1495,16 +1633,20 @@ pub struct PrelaunchMetricsInitialized {
 pub struct PrelaunchDelivered {
     pub recipient: Pubkey,
     pub rlya_amount: u64,
+    pub staking_bonus_amount: u64,
+    pub staked: bool,
     pub gross_usdc_amount: u64,
     pub referral_usdc_amount: u64,
     pub total_sold: u64,
     pub web_rlya_delivered: u64,
+    pub staking_bonus_delivered: u64,
     pub price_before_micro_usdc: u64,
     pub price_after_micro_usdc: u64,
 }
 #[event]
 pub struct UnsoldWithdrawn {
-    pub amount: u64,
+    pub base_amount: u64,
+    pub staking_bonus_amount: u64,
 }
 #[event]
 pub struct FounderReleased {
@@ -1535,20 +1677,30 @@ pub enum SaleError {
     MintAuthorityStillActive,
     #[msg("freeze authority must be permanently revoked before activation")]
     FreezeAuthorityStillActive,
-    #[msg("presale vault is not funded with the exact presale allocation")]
+    #[msg("base presale vault is not funded with exactly 288M RLYA")]
     SaleVaultFundingMismatch,
-    #[msg("founder vault is not funded with the exact founder allocation")]
+    #[msg("staking bonus vault is not funded with exactly 14.4M RLYA")]
+    StakingBonusVaultFundingMismatch,
+    #[msg("founder vault is not funded with exactly 83.9M RLYA")]
     FounderVaultFundingMismatch,
     #[msg("purchase is below the 1 USDC minimum or too small for one RLYA base unit")]
     PurchaseTooSmall,
     #[msg("on-chain quote is below the buyer minimum; refresh price and retry")]
     SlippageExceeded,
-    #[msg("presale allocation is sold out")]
+    #[msg("presale base allocation is sold out")]
     PresaleSoldOut,
-    #[msg("presale vault is underfunded")]
+    #[msg("base presale vault is underfunded")]
     SaleVaultUnderfunded,
+    #[msg("staking bonus vault is underfunded")]
+    StakingBonusVaultUnderfunded,
     #[msg("purchase would cross too many pricing steps")]
     TooManyPriceSteps,
+    #[msg("public RLYA launch has not been marked on-chain")]
+    PublicLaunchNotMarked,
+    #[msg("public RLYA launch has already been marked")]
+    PublicLaunchAlreadyMarked,
+    #[msg("this presale allocation is still inside its post-launch release lock")]
+    PresaleReleaseStillLocked,
     #[msg("founder allocation is still locked")]
     FounderStillLocked,
     #[msg("founder allocation has already been released")]
@@ -1565,4 +1717,6 @@ pub enum SaleError {
     CircularReferral,
     #[msg("pre-launch delivery does not match the committed final manifest totals")]
     PrelaunchCommitmentMismatch,
+    #[msg("staking bonus delivery does not match the committed fixed-reserve totals")]
+    StakingBonusCommitmentMismatch,
 }

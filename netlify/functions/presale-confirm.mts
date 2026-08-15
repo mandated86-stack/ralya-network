@@ -1,6 +1,7 @@
 import { Connection } from '@solana/web3.js';
 import {
-  PRESALE_CAP_BASE, PRESALE_TREASURY_WALLET, USDC_MINT, computeState, json, store, withMutationLock,
+  PRESALE_CAP_BASE, PRESALE_TREASURY_WALLET, STAKING_BONUS_RESERVE_BASE, USDC_MINT,
+  computeState, json, stakingBonus, store, withMutationLock,
 } from './_shared/presale-core.mts';
 
 const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
@@ -67,6 +68,11 @@ export default async (req: Request) => {
       const before = await computeState(s, false);
       const quoteRlya = BigInt(quote.rlyaBase);
       if (before.totalAllocatedBase + quoteRlya > PRESALE_CAP_BASE) throw new Error('Presale cap reconciliation failed. Do not credit this allocation automatically.');
+      const stake = quote.stake === true;
+      const quoteBonus = BigInt(quote.stakingBonusBase || 0);
+      const expectedBonus = stake ? stakingBonus(quoteRlya) : 0n;
+      if (quoteBonus !== expectedBonus) throw new Error('Staking bonus reconciliation failed.');
+      if (before.totalStakingBonusBase + quoteBonus > STAKING_BONUS_RESERVE_BASE) throw new Error('The fixed staking bonus reserve would be exceeded.');
 
       const pre = tokenOwnerBalances(tx.meta?.preTokenBalances, USDC_MINT), post = tokenOwnerBalances(tx.meta?.postTokenBalances, USDC_MINT);
       const gross = BigInt(quote.grossUsdcBase), treasuryAmount = BigInt(quote.treasuryUsdcBase), referralAmount = BigInt(quote.referralUsdcBase);
@@ -84,17 +90,47 @@ export default async (req: Request) => {
         if (!attribution) await s.setJSON(`referral/${quote.buyer}`, { buyer: quote.buyer, referrer: quote.referrer, lockedAt: new Date().toISOString(), sourceSignature: signature });
       }
 
+      const stakeLock: any = await s.get(`stake/${quote.buyer}`, { type: 'json' });
+      if (stakeLock && Boolean(stakeLock.stake) !== stake) throw new Error('Buyer staking preference changed before confirmation. Refresh the wallet allocation and retry.');
+      if (!stakeLock) {
+        await s.setJSON(`stake/${quote.buyer}`, {
+          wallet: quote.buyer,
+          stake,
+          stakingBonusBps: stake ? 500 : 0,
+          deliveryPolicy: stake ? 'staked-36d' : 'standard-21d',
+          lockedAt: new Date().toISOString(),
+          sourceSignature: signature,
+        });
+      }
+
       const event = {
-        id: signature, kind: 'web', wallet: quote.buyer, rlyaBase: quote.rlyaBase, grossUsdcBase: quote.grossUsdcBase,
-        referralUsdcBase: quote.referralUsdcBase, referrer: quote.referrer || null, curveStartBase: quote.curveStartBase,
-        curveEndBase: quote.curveEndBase, priceBeforeMicroUsdc: quote.priceBeforeMicroUsdc, priceAfterMicroUsdc: quote.priceAfterMicroUsdc,
-        createdAt: quote.createdAt, confirmedAt: new Date().toISOString(), signature, quoteId, status: 'allocation-confirmed',
-        distributionStatus: 'scheduled-before-public-launch',
+        id: signature,
+        kind: 'web',
+        wallet: quote.buyer,
+        rlyaBase: quote.rlyaBase,
+        stakingBonusBase: quoteBonus.toString(),
+        expectedTotalRlyaBase: (quoteRlya + quoteBonus).toString(),
+        stake,
+        deliveryPolicy: stake ? 'staked-36d' : 'standard-21d',
+        grossUsdcBase: quote.grossUsdcBase,
+        referralUsdcBase: quote.referralUsdcBase,
+        referrer: quote.referrer || null,
+        curveStartBase: quote.curveStartBase,
+        curveEndBase: quote.curveEndBase,
+        priceBeforeMicroUsdc: quote.priceBeforeMicroUsdc,
+        priceAfterMicroUsdc: quote.priceAfterMicroUsdc,
+        createdAt: quote.createdAt,
+        confirmedAt: new Date().toISOString(),
+        signature,
+        quoteId,
+        status: 'allocation-confirmed',
+        distributionStatus: stake ? '36-days-after-public-launch' : '21-days-after-public-launch',
       };
       await s.setJSON(`purchase/${signature}`, event);
       await s.setJSON(`quote/${quoteId}`, { ...quote, status: 'confirmed', signature, confirmedAt: event.confirmedAt });
       const finalState = await computeState(s, false);
-      if (finalState.totalAllocatedBase > PRESALE_CAP_BASE) throw new Error('CRITICAL: confirmed ledger exceeds the fixed presale cap.');
+      if (finalState.totalAllocatedBase > PRESALE_CAP_BASE) throw new Error('CRITICAL: confirmed ledger exceeds the fixed public presale cap.');
+      if (finalState.totalStakingBonusBase > STAKING_BONUS_RESERVE_BASE) throw new Error('CRITICAL: confirmed staking bonuses exceed the fixed reserve.');
       return event;
     });
     return json({ ok: true, receipt });

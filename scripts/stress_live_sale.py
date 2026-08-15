@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from model.ralya_core.config import FOUNDER_ALLOCATION, PRESALE_ALLOCATION, RLYA_MAX_SUPPLY, RLYA_UNIT, USDC_UNIT
+from model.ralya_core.config import FOUNDER_ALLOCATION, PRESALE_ALLOCATION, RLYA_MAX_SUPPLY, RLYA_UNIT, STAKING_BONUS_RESERVE, USDC_UNIT
 from model.ralya_core.ledger import Ledger
 from model.ralya_core.live_sale import LiveSaleEngine, LiveSaleError
 
@@ -17,6 +17,7 @@ def build_engine():
     l = Ledger()
     l.mint("RLYA", "genesis", RLYA_MAX_SUPPLY)
     l.transfer("RLYA", "genesis", LiveSaleEngine.SALE_VAULT, PRESALE_ALLOCATION)
+    l.transfer("RLYA", "genesis", LiveSaleEngine.STAKING_BONUS_VAULT, STAKING_BONUS_RESERVE)
     l.transfer("RLYA", "genesis", LiveSaleEngine.FOUNDER_VAULT, FOUNDER_ALLOCATION)
     l.transfer("RLYA", "genesis", LiveSaleEngine.TREASURY, l.balance("RLYA", "genesis"))
     for i in range(200):

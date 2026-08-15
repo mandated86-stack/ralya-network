@@ -50,35 +50,51 @@ export default async (req: Request, context: any) => {
       s.get(`referral/${wallet}`, { type: 'json' }),
     ]);
     const mine = events.filter(event => event.wallet === wallet).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-    let totalRlya = 0n, totalUsdc = 0n, totalReferral = 0n;
+    let purchasedRlya = 0n, stakingBonus = 0n, totalUsdc = 0n, totalReferral = 0n;
+    let hasStandard = false, hasStaked = false;
     for (const event of mine) {
-      totalRlya += BigInt(event.rlyaBase || 0);
+      purchasedRlya += BigInt(event.rlyaBase || 0);
+      stakingBonus += BigInt(event.stakingBonusBase || 0);
       totalUsdc += BigInt(event.grossUsdcBase || 0);
       totalReferral += BigInt(event.referralUsdcBase || 0);
+      if (event.stake) hasStaked = true; else hasStandard = true;
     }
-    const averagePriceMicroUsdc = totalRlya > 0n && totalUsdc > 0n ? totalUsdc * RLYA_UNIT / totalRlya : 0n;
+    const expectedTotal = purchasedRlya + stakingBonus;
+    const averagePriceMicroUsdc = purchasedRlya > 0n && totalUsdc > 0n ? totalUsdc * RLYA_UNIT / purchasedRlya : 0n;
+    const distributionStatus = purchasedRlya <= 0n ? null : hasStaked && hasStandard ? 'mixed-21d-and-36d-after-public-launch' : hasStaked ? '36-days-after-public-launch' : '21-days-after-public-launch';
     return json({
       wallet,
-      status: totalRlya > 0n ? 'allocation-confirmed' : 'no-allocation',
-      distributionStatus: totalRlya > 0n ? 'scheduled-before-public-launch' : null,
-      totalRlyaBase: totalRlya.toString(),
+      status: purchasedRlya > 0n ? 'allocation-confirmed' : 'no-allocation',
+      distributionStatus,
+      purchasedRlyaBase: purchasedRlya.toString(),
+      stakingBonusRlyaBase: stakingBonus.toString(),
+      totalRlyaBase: expectedTotal.toString(),
+      expectedTotalRlyaBase: expectedTotal.toString(),
       totalUsdcPaidBase: totalUsdc.toString(),
       totalReferralUsdcBase: totalReferral.toString(),
       averagePriceMicroUsdc: averagePriceMicroUsdc.toString(),
       lockedReferrer: (referral as any)?.referrer || null,
-      allocations: mine.map(event => ({
-        id: event.kind === 'web' ? event.id : `private-${event.createdAt}`,
-        kind: event.kind,
-        rlyaBase: event.rlyaBase,
-        grossUsdcBase: event.grossUsdcBase,
-        referralUsdcBase: event.referralUsdcBase,
-        referrer: event.referrer,
-        priceBeforeMicroUsdc: event.priceBeforeMicroUsdc,
-        priceAfterMicroUsdc: event.priceAfterMicroUsdc,
-        createdAt: event.createdAt,
-        confirmedAt: event.confirmedAt || null,
-        signature: event.kind === 'web' ? event.signature || null : null,
-      })),
+      allocations: mine.map(event => {
+        const base = BigInt(event.rlyaBase || 0);
+        const bonus = BigInt(event.stakingBonusBase || 0);
+        return {
+          id: event.kind === 'web' ? event.id : `private-${event.createdAt}`,
+          kind: event.kind,
+          rlyaBase: base.toString(),
+          stakingBonusBase: bonus.toString(),
+          expectedTotalRlyaBase: (base + bonus).toString(),
+          stake: event.stake === true,
+          deliveryPolicy: event.deliveryPolicy || (event.stake ? 'staked-36d' : 'standard-21d'),
+          grossUsdcBase: event.grossUsdcBase,
+          referralUsdcBase: event.referralUsdcBase,
+          referrer: event.referrer,
+          priceBeforeMicroUsdc: event.priceBeforeMicroUsdc,
+          priceAfterMicroUsdc: event.priceAfterMicroUsdc,
+          createdAt: event.createdAt,
+          confirmedAt: event.confirmedAt || null,
+          signature: event.kind === 'web' ? event.signature || null : null,
+        };
+      }),
     });
   } catch (err: any) {
     return json({ error: err?.message || 'Could not load wallet allocation.' }, 400);

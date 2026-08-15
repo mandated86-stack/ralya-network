@@ -1,18 +1,24 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
-  PRESALE_CAP_BASE, PRESALE_TREASURY_WALLET, RLYA_UNIT, USDC_MINT,
+  PRESALE_CAP_BASE, PRESALE_TREASURY_WALLET, RLYA_UNIT, STAKING_BONUS_RESERVE_BASE, USDC_MINT,
   assertWallet, cleanText, computeState, decimalToBase,
   getAllocationEvents, json, newId, priceAt, publicState, sha256Json, store,
   verifyOwnerAction, withMutationLock,
 } from './_shared/presale-core.mts';
 
 function serializeEvent(event: any) {
+  const base = BigInt(event.rlyaBase || 0);
+  const bonus = BigInt(event.stakingBonusBase || 0);
   return {
     id: event.id,
     kind: event.kind,
     wallet: event.wallet,
-    rlyaBase: event.rlyaBase,
+    rlyaBase: base.toString(),
+    stakingBonusBase: bonus.toString(),
+    expectedTotalRlyaBase: (base + bonus).toString(),
+    stake: event.stake === true,
+    deliveryPolicy: event.deliveryPolicy || (event.stake ? 'staked-36d' : 'standard-21d'),
     grossUsdcBase: event.grossUsdcBase,
     referralUsdcBase: event.referralUsdcBase,
     referrer: event.referrer || null,
@@ -76,6 +82,8 @@ async function makeManifest(s: ReturnType<typeof store>) {
         wallet: event.wallet,
         webRlyaBase: 0n,
         manualRlyaBase: 0n,
+        stakingBonusRlyaBase: 0n,
+        stake: null,
         grossUsdcBase: 0n,
         referralUsdcBase: 0n,
         referrer: null,
@@ -84,8 +92,15 @@ async function makeManifest(s: ReturnType<typeof store>) {
       grouped.set(event.wallet, row);
     }
     const rlya = BigInt(event.rlyaBase || 0);
-    if (event.kind === 'web') row.webRlyaBase += rlya;
-    else row.manualRlyaBase += rlya;
+    if (event.kind === 'web') {
+      row.webRlyaBase += rlya;
+      const eventStake = event.stake === true;
+      if (row.stake === null) row.stake = eventStake;
+      else if (row.stake !== eventStake) throw new Error(`Wallet ${event.wallet} contains mixed staking policies. Stop manifest export and reconcile the wallet.`);
+      row.stakingBonusRlyaBase += BigInt(event.stakingBonusBase || 0);
+    } else {
+      row.manualRlyaBase += rlya;
+    }
     row.grossUsdcBase += BigInt(event.grossUsdcBase || 0);
     row.referralUsdcBase += BigInt(event.referralUsdcBase || 0);
     if (event.referrer) row.referrer = event.referrer;
@@ -95,7 +110,11 @@ async function makeManifest(s: ReturnType<typeof store>) {
     wallet: row.wallet,
     webRlyaBase: row.webRlyaBase.toString(),
     manualRlyaBase: row.manualRlyaBase.toString(),
-    totalRlyaBase: (row.webRlyaBase + row.manualRlyaBase).toString(),
+    stakingBonusRlyaBase: row.stakingBonusRlyaBase.toString(),
+    stake: row.stake === true,
+    webDeliveryPolicy: row.stake === true ? 'staked-36d' : 'standard-21d',
+    totalPurchasedRlyaBase: (row.webRlyaBase + row.manualRlyaBase).toString(),
+    totalDeliveryRlyaBase: (row.webRlyaBase + row.manualRlyaBase + row.stakingBonusRlyaBase).toString(),
     grossUsdcBase: row.grossUsdcBase.toString(),
     referralUsdcBase: row.referralUsdcBase.toString(),
     referrer: row.referrer,
@@ -104,18 +123,26 @@ async function makeManifest(s: ReturnType<typeof store>) {
   const totals = allocations.reduce((acc, row) => {
     acc.webRlyaBase += BigInt(row.webRlyaBase);
     acc.manualRlyaBase += BigInt(row.manualRlyaBase);
-    acc.totalRlyaBase += BigInt(row.totalRlyaBase);
+    acc.stakingBonusRlyaBase += BigInt(row.stakingBonusRlyaBase);
+    acc.totalPurchasedRlyaBase += BigInt(row.totalPurchasedRlyaBase);
+    acc.totalDeliveryRlyaBase += BigInt(row.totalDeliveryRlyaBase);
     acc.grossUsdcBase += BigInt(row.grossUsdcBase);
     acc.referralUsdcBase += BigInt(row.referralUsdcBase);
     return acc;
-  }, { webRlyaBase: 0n, manualRlyaBase: 0n, totalRlyaBase: 0n, grossUsdcBase: 0n, referralUsdcBase: 0n });
+  }, { webRlyaBase: 0n, manualRlyaBase: 0n, stakingBonusRlyaBase: 0n, totalPurchasedRlyaBase: 0n, totalDeliveryRlyaBase: 0n, grossUsdcBase: 0n, referralUsdcBase: 0n });
+  if (totals.totalPurchasedRlyaBase > PRESALE_CAP_BASE) throw new Error('Manifest purchased allocation exceeds the 288M RLYA public cap.');
+  if (totals.stakingBonusRlyaBase > STAKING_BONUS_RESERVE_BASE) throw new Error('Manifest staking bonuses exceed the fixed 14.4M RLYA reserve.');
   const manifest: any = {
     project: 'RALYA',
     symbol: 'RLYA',
     purpose: 'prelaunch-allocation-delivery',
-    version: 1,
+    version: 2,
     generatedAt: new Date().toISOString(),
-    deliveryPolicy: 'scheduled-before-public-launch',
+    deliveryPolicy: {
+      standard: '21-days-after-public-launch',
+      staked: '36-days-after-public-launch',
+      stakingBonusBps: 500,
+    },
     allocations,
     totals: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, (v as bigint).toString()])),
   };
@@ -137,13 +164,13 @@ export default async (req: Request) => {
     if (op === 'summary') {
       const state = await computeState(s, true);
       const recent = [...state.events].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 25).map(serializeEvent);
-      return json({ ok: true, state: { ...publicState(state), reservedBase: state.reservedBase.toString() }, recent });
+      return json({ ok: true, state: { ...publicState(state), reservedBase: state.reservedBase.toString(), reservedStakingBonusBase: state.reservedStakingBonusBase.toString() }, recent });
     }
 
     if (op === 'preflight') {
       const readiness = await prelaunchOpeningPreflight();
       const state = await computeState(s, true);
-      return json({ ok: true, readiness, state: { ...publicState(state), reservedBase: state.reservedBase.toString() } });
+      return json({ ok: true, readiness, state: { ...publicState(state), reservedBase: state.reservedBase.toString(), reservedStakingBonusBase: state.reservedStakingBonusBase.toString() } });
     }
 
     if (op === 'set_access') {
@@ -154,7 +181,7 @@ export default async (req: Request) => {
         await s.setJSON('control', { access, updatedAt: new Date().toISOString(), updatedBy: auth.wallet });
         return computeState(s, true);
       });
-      return json({ ok: true, readiness, state: { ...publicState(state), reservedBase: state.reservedBase.toString() } });
+      return json({ ok: true, readiness, state: { ...publicState(state), reservedBase: state.reservedBase.toString(), reservedStakingBonusBase: state.reservedStakingBonusBase.toString() } });
     }
 
     if (op === 'manual_allocate') {
@@ -168,13 +195,16 @@ export default async (req: Request) => {
         if (state.reservedBase > 0n) throw new Error('Wait for active buyer quotes to clear before recording a private allocation. Pause allocation access if you need a clean private-allocation checkpoint.');
         const start = state.totalAllocatedBase;
         const end = start + amount;
-        if (end > PRESALE_CAP_BASE) throw new Error('Manual allocation would exceed the 100.68M RLYA presale cap or active reservations.');
+        if (end > PRESALE_CAP_BASE) throw new Error('Manual allocation would exceed the 288M RLYA public allocation cap or active reservations.');
         const id = newId('m');
         const row = {
           id,
           kind: 'manual',
           wallet: buyer,
           rlyaBase: amount.toString(),
+          stakingBonusBase: '0',
+          stake: false,
+          deliveryPolicy: 'standard-21d',
           grossUsdcBase: '0',
           referralUsdcBase: '0',
           referrer: null,
@@ -187,7 +217,7 @@ export default async (req: Request) => {
           paymentReference,
           note,
           status: 'allocation-confirmed',
-          distributionStatus: 'scheduled-before-public-launch',
+          distributionStatus: '21-days-after-public-launch',
         };
         await s.setJSON(`manual/${id}`, row);
         return row;
@@ -198,8 +228,9 @@ export default async (req: Request) => {
     if (op === 'lookup') {
       const wallet = assertWallet(payload.wallet, 'Buyer wallet');
       const events = (await getAllocationEvents(s)).filter(event => event.wallet === wallet).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-      const total = events.reduce((sum, event) => sum + BigInt(event.rlyaBase || 0), 0n);
-      return json({ ok: true, wallet, totalRlyaBase: total.toString(), allocations: events.map(serializeEvent) });
+      const purchased = events.reduce((sum, event) => sum + BigInt(event.rlyaBase || 0), 0n);
+      const bonus = events.reduce((sum, event) => sum + BigInt(event.stakingBonusBase || 0), 0n);
+      return json({ ok: true, wallet, purchasedRlyaBase: purchased.toString(), stakingBonusRlyaBase: bonus.toString(), totalRlyaBase: (purchased + bonus).toString(), allocations: events.map(serializeEvent) });
     }
 
     if (op === 'manifest') {
@@ -207,7 +238,8 @@ export default async (req: Request) => {
       if (state.control.access !== 'closed') throw new Error('Close pre-launch allocation access before exporting the final delivery manifest.');
       if (state.reservedBase > 0n) throw new Error('Active buyer quote windows are still clearing. Export the final manifest after all reservations expire or confirm.');
       const manifest = await makeManifest(s);
-      if (BigInt(manifest.totals.totalRlyaBase) > PRESALE_CAP_BASE) throw new Error('Manifest exceeds presale cap.');
+      if (BigInt(manifest.totals.totalPurchasedRlyaBase) > PRESALE_CAP_BASE) throw new Error('Manifest exceeds the 288M public allocation cap.');
+      if (BigInt(manifest.totals.stakingBonusRlyaBase) > STAKING_BONUS_RESERVE_BASE) throw new Error('Manifest exceeds the 14.4M staking bonus reserve.');
       return json({ ok: true, manifest });
     }
 

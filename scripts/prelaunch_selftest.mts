@@ -3,12 +3,17 @@ import {
   BASE_PRICE_MICRO_USDC,
   PRESALE_CAP_BASE,
   RLYA_UNIT,
+  STAKING_BONUS_BPS,
+  STAKING_BONUS_RESERVE_BASE,
+  STANDARD_RELEASE_OFFSET_SECONDS,
+  STAKED_RELEASE_DAYS,
   STEP_INCREMENT_MICRO_USDC,
   STEP_SIZE_BASE,
   USDC_UNIT,
   priceAt,
   quoteAllocation,
   referralReward,
+  stakingBonus,
 } from '../netlify/functions/_shared/presale-core.mts';
 
 const usdc = (n: number) => BigInt(n) * USDC_UNIT;
@@ -17,7 +22,13 @@ const rlya = (n: number) => BigInt(n) * RLYA_UNIT;
 assert.equal(BASE_PRICE_MICRO_USDC, 3_000n);
 assert.equal(STEP_INCREMENT_MICRO_USDC, 50n);
 assert.equal(STEP_SIZE_BASE, rlya(1_000_000));
-assert.equal(PRESALE_CAP_BASE, rlya(100_680_000));
+assert.equal(PRESALE_CAP_BASE, rlya(288_000_000));
+assert.equal(STAKING_BONUS_RESERVE_BASE, rlya(14_400_000));
+assert.equal(STAKING_BONUS_BPS, 500n);
+assert.equal(STANDARD_RELEASE_OFFSET_SECONDS, -86_400);
+assert.equal(STAKED_RELEASE_DAYS, 21);
+assert.equal(stakingBonus(PRESALE_CAP_BASE), STAKING_BONUS_RESERVE_BASE);
+assert.equal(stakingBonus(rlya(1_000_000)), rlya(50_000));
 
 const firstMillion = quoteAllocation(0n, usdc(3_000));
 assert.equal(firstMillion.rlyaBase, rlya(1_000_000));
@@ -48,3 +59,5 @@ assert.throws(() => quoteAllocation(PRESALE_CAP_BASE, usdc(1)), /fully reserved/
 assert.throws(() => quoteAllocation(PRESALE_CAP_BASE - 1n, usdc(1)), /exceeds the remaining presale allocation/i);
 
 console.log('RALYA_PRELAUNCH_SELFTEST=PASS');
+console.log('288M base allocation + 14.4M fixed bonus reserve + 5% staking = verified');
+console.log('standard release T-1 day; Buy + Stake unlock day 21');

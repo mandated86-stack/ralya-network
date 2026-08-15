@@ -5,6 +5,7 @@ from model.ralya_core.config import (
     PRESALE_ALLOCATION,
     RLYA_MAX_SUPPLY,
     RLYA_UNIT,
+    STAKING_BONUS_RESERVE,
     USDC_UNIT,
 )
 from model.ralya_core.ledger import Ledger
@@ -16,6 +17,7 @@ class LiveSaleTests(unittest.TestCase):
         self.l = Ledger()
         self.l.mint("RLYA", "genesis", RLYA_MAX_SUPPLY)
         self.l.transfer("RLYA", "genesis", LiveSaleEngine.SALE_VAULT, PRESALE_ALLOCATION)
+        self.l.transfer("RLYA", "genesis", LiveSaleEngine.STAKING_BONUS_VAULT, STAKING_BONUS_RESERVE)
         self.l.transfer("RLYA", "genesis", LiveSaleEngine.FOUNDER_VAULT, FOUNDER_ALLOCATION)
         remaining = self.l.balance("RLYA", "genesis")
         self.l.transfer("RLYA", "genesis", LiveSaleEngine.TREASURY, remaining)
@@ -34,6 +36,15 @@ class LiveSaleTests(unittest.TestCase):
         self.assertEqual(self.l.balance("RLYA", "alice") - before, got)
         self.assertEqual(self.l.balance("USDC", LiveSaleEngine.TREASURY), 300 * USDC_UNIT)
 
+    def test_activation_requires_exact_staking_bonus_reserve(self):
+        bad = Ledger()
+        bad.mint("RLYA", "genesis", RLYA_MAX_SUPPLY)
+        bad.transfer("RLYA", "genesis", LiveSaleEngine.SALE_VAULT, PRESALE_ALLOCATION)
+        bad.transfer("RLYA", "genesis", LiveSaleEngine.FOUNDER_VAULT, FOUNDER_ALLOCATION)
+        bad.transfer("RLYA", "genesis", LiveSaleEngine.TREASURY, bad.balance("RLYA", "genesis"))
+        s = LiveSaleEngine(bad, "admin")
+        with self.assertRaises(LiveSaleError):
+            s.activate("admin")
 
     def test_buyer_minimum_output_protects_against_price_step_movement(self):
         displayed = self.s.quote(300 * USDC_UNIT)
@@ -60,7 +71,6 @@ class LiveSaleTests(unittest.TestCase):
         self.assertEqual(self.s.current_price_micro_usdc, 3_250)
 
     def test_large_purchase_crosses_price_steps_piecewise(self):
-        # 1M at .003 costs 3,000 USDC; next 1M at .00305 costs 3,050 USDC.
         quoted = self.s.quote(6_050 * USDC_UNIT)
         self.assertEqual(quoted, 2_000_000 * RLYA_UNIT)
 
@@ -91,6 +101,7 @@ class LiveSaleTests(unittest.TestCase):
     def test_exact_hard_cap_required_before_activation(self):
         bad = Ledger()
         bad.mint("RLYA", LiveSaleEngine.SALE_VAULT, PRESALE_ALLOCATION)
+        bad.mint("RLYA", LiveSaleEngine.STAKING_BONUS_VAULT, STAKING_BONUS_RESERVE)
         bad.mint("RLYA", LiveSaleEngine.FOUNDER_VAULT, FOUNDER_ALLOCATION)
         s = LiveSaleEngine(bad, "admin")
         with self.assertRaises(LiveSaleError):
@@ -108,6 +119,7 @@ class LiveSaleTests(unittest.TestCase):
         amount = self.s.withdraw_unsold("admin")
         self.assertEqual(amount, PRESALE_ALLOCATION)
         self.assertEqual(self.l.balance("RLYA", LiveSaleEngine.SALE_VAULT), 0)
+        self.assertEqual(self.l.balance("RLYA", LiveSaleEngine.STAKING_BONUS_VAULT), 0)
 
     def test_ledger_conservation_after_mixed_sales(self):
         self.s.buy("alice", 1_000 * USDC_UNIT)

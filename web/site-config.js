@@ -1,20 +1,26 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.7.1-prelaunch-release',
+  build: '0.8.1-prelaunch-staking',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
+  prelaunchCheckoutEnabled: false,
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
-  projectUrl: 'https://ralya-network.netlify.app',
+  projectUrl: 'https://ralyaai.com',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
   ownerWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
   prelaunchTreasuryWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
   hardCap: 839000000,
   decimals: 9,
-  presaleCap: 100680000,
+  presaleCap: 288000000,
+  stakingBonusReserve: 14400000,
+  stakingBonusBps: 500,
+  standardReleaseTiming: '1-day-before-public-launch',
+  standardReleaseOffsetSeconds: -86400,
+  stakedReleaseDaysAfterLaunch: 21,
   basePriceMicroUsdc: 3000,
   priceStepTokens: 1000000,
   priceStepIncrementMicroUsdc: 50,
@@ -26,13 +32,19 @@ window.RALYA_CONFIG = Object.freeze({
   salePda: '',
   treasuryWallet: '',
   githubUrl: 'https://github.com/mandated86-stack/ralya-network',
+  xUrl: 'https://x.com/Ralyaai',
+  tiktokUrl: 'https://tiktok.com/@ralyaai',
   whitepaperUrl: 'RALYA_Whitepaper_v1.2.html'
 });
 
 (() => {
   const cfg = window.RALYA_CONFIG;
-  if (cfg.presaleMode === 'atomic' && !cfg.presaleEnabled) {
-    const lockedMessage = 'Public token-sale access is not open yet.';
+  const atomicLocked = cfg.presaleMode === 'atomic' && !cfg.presaleEnabled;
+  const prelaunchLocked = cfg.presaleMode === 'prelaunch-allocation' && !cfg.prelaunchCheckoutEnabled;
+  if (atomicLocked || prelaunchLocked) {
+    const lockedMessage = atomicLocked
+      ? 'Public token-sale access is not open yet.'
+      : 'Private launch testing is active. Presale checkout opens after final release-policy verification.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
