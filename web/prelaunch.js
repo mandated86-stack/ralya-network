@@ -131,12 +131,19 @@ async function fetchJson(url, options) {
 async function refreshState() {
   try {
     state = await fetchJson('/api/presale/state');
+    const open = state.access === 'open';
+    const paused = state.access === 'paused';
     $('#currentPrice').textContent = formatPrice(state.currentPriceMicroUsdc);
     $('#nextPrice').textContent = formatPrice(state.nextPriceMicroUsdc);
     $('#soldRlya').textContent = `${formatBase(state.totalAllocatedBase, 9, 2)} RLYA`;
-    $('#saleState').textContent = state.access === 'open' ? 'ALLOCATION OPEN' : state.access === 'paused' ? 'PAUSED' : 'PRE-LAUNCH';
+    $('#saleState').textContent = open ? 'PRESALE LIVE' : paused ? 'PAUSED' : 'OPENING AT LAUNCH';
     $('#nextStepText').textContent = `${formatBase(state.toNextStepBase, 9, 2)} RLYA until next step`;
-    $('#saleDot')?.classList.toggle('amber', state.access !== 'open');
+    $('#saleDot')?.classList.toggle('amber', !open);
+    $('#presaleHeroDot')?.classList.toggle('amber', !open);
+    if ($('#presaleHeroStatus')) $('#presaleHeroStatus').textContent = open ? 'RLYA PRESALE • LIVE NOW' : paused ? 'RLYA PRESALE • TEMPORARILY PAUSED' : 'RLYA PRESALE • OPENING WITH SITE LAUNCH';
+    if ($('#presaleEyebrow')) $('#presaleEyebrow').textContent = open ? 'RLYA PRESALE • LIVE' : paused ? 'RLYA PRESALE • PAUSED' : 'RLYA PRESALE • OPENING AT LAUNCH';
+    if ($('#presaleHeading')) $('#presaleHeading').textContent = open ? 'RLYA presale is live.' : paused ? 'RLYA presale is temporarily paused.' : 'Secure your presale position before public launch.';
+    if ($('#presaleHeroCta')) $('#presaleHeroCta').textContent = open ? 'Enter RLYA presale' : paused ? 'View presale status' : 'RLYA presale — opening at launch';
     updatePreview(); updateBuyAvailability();
   } catch (err) { $('#saleState').textContent = 'STATUS UPDATING'; toast(err.message || 'Could not load presale state.'); }
 }
@@ -173,8 +180,8 @@ async function refreshWallet() {
   try {
     const allocation = await fetchWalletAllocation();
     $('#rlyaBalance').textContent = `${formatBase(allocation.totalRlyaBase, 9, 4)} RLYA`;
-    if ($('#allocationStatus')) $('#allocationStatus').textContent = allocation.status === 'allocation-confirmed' ? 'ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
-    if ($('#allocationDelivery')) $('#allocationDelivery').textContent = allocation.status === 'allocation-confirmed' ? 'Distribution scheduled before public launch' : 'Your confirmed allocation will appear here';
+    if ($('#allocationStatus')) $('#allocationStatus').textContent = allocation.status === 'allocation-confirmed' ? 'EXPECTED ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
+    if ($('#allocationDelivery')) $('#allocationDelivery').textContent = allocation.status === 'allocation-confirmed' ? 'Actual RLYA distributed 1 day before public launch' : 'Confirmed expected allocation will appear here';
     if (allocation.lockedReferrer) { lockedReferrer = allocation.lockedReferrer; setReferral(lockedReferrer, true); }
   } catch (err) {
     $('#rlyaBalance').textContent = '-- RLYA';
@@ -201,10 +208,10 @@ function updatePreview() {
 }
 function updateBuyAvailability() {
   const button = $('#buyRlya'), msg = $('#buyMessage'); if (!button || !msg) return; const open = state?.access === 'open';
-  button.disabled = !(wallet && open); button.textContent = 'Secure RLYA allocation';
-  if (!open) msg.textContent = state?.access === 'paused' ? 'Allocation access is temporarily paused.' : 'Pre-launch allocation access will open when announced.';
+  button.disabled = !(wallet && open); button.textContent = 'Secure my presale allocation';
+  if (!open) msg.textContent = state?.access === 'paused' ? 'RLYA presale is temporarily paused.' : 'RLYA presale opens with the production website launch.';
   else if (!wallet) msg.textContent = 'Connect a Solana wallet to continue.';
-  else msg.textContent = 'Checkout first authenticates your wallet and locks the exact curve position, then requests the USDC transaction. Distribution is scheduled before public launch.';
+  else msg.textContent = 'Your expected RLYA allocation is recorded after verified payment. Actual RLYA is distributed to this wallet 1 day before public launch.';
 }
 async function sendTransaction(tx) {
   const latest = await connection.getLatestBlockhash('confirmed'); tx.feePayer = wallet; tx.recentBlockhash = latest.blockhash; let signature;
@@ -240,7 +247,7 @@ async function signedQuoteBody(usdcAmount) {
 }
 async function secureAllocation() {
   if (!wallet || !provider) return connectWallet();
-  if (state?.access !== 'open') throw new Error('Pre-launch allocation access is not open.');
+  if (state?.access !== 'open') throw new Error('RLYA presale is not open yet.');
   const usdcAmount = String($('#usdcInput')?.value || '').trim(); decimalToBase(usdcAmount, 6);
   const typedReferral = String($('#referralInput')?.value || '').trim(); if (typedReferral) setReferral(typedReferral);
   const mint=new PublicKey(cfg.usdcMint),configuredTreasury=new PublicKey(cfg.prelaunchTreasuryWallet);
@@ -266,11 +273,11 @@ async function secureAllocation() {
   }
   tx.add(new TransactionInstruction({ programId: MEMO_PROGRAM, keys: [], data: new TextEncoder().encode(quote.memo) }));
   $('#buyRlya').disabled = true; $('#buyMessage').textContent = 'Confirm the USDC transaction in your wallet…';
-  const signature = await sendTransaction(tx); $('#buyMessage').textContent = 'USDC confirmed. Verifying your locked RLYA allocation…';
+  const signature = await sendTransaction(tx); $('#buyMessage').textContent = 'USDC confirmed. Verifying your expected RLYA allocation…';
   const confirmed = await fetchJson('/api/presale/confirm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId: quote.quoteId, signature }) });
   const receipt = confirmed.receipt, explorer = `${cfg.explorerBase}/tx/${signature}`, box = $('#txResult');
-  if (box) { box.hidden = false; box.innerHTML = `<strong>Allocation Confirmed.</strong> ${formatBase(receipt.rlyaBase, 9, 4)} RLYA is allocated to ${shorten(receipt.wallet)} at the confirmed presale curve position. Distribution is scheduled before public launch. <a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`; }
-  toast('RLYA allocation confirmed.'); await Promise.all([refreshState(), refreshWallet()]);
+  if (box) { box.hidden = false; box.innerHTML = `<strong>Expected Allocation Confirmed.</strong> ${formatBase(receipt.rlyaBase, 9, 4)} RLYA is recorded as the expected allocation for ${shorten(receipt.wallet)} at the confirmed presale curve position. Actual RLYA tokens are distributed to this wallet 1 day before public launch. <a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`; }
+  toast('Expected RLYA allocation confirmed.'); await Promise.all([refreshState(), refreshWallet()]);
 }
 function wireGithub() { const link = $('#githubLink'); if (!cfg.githubUrl || !link) return; link.href = cfg.githubUrl; link.removeAttribute('aria-disabled'); if ($('#githubLabel')) $('#githubLabel').textContent = 'View the public RALYA source →'; }
 
