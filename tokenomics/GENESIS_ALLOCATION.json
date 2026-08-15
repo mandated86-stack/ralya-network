@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "status": "LAUNCH_ALLOCATION_REVISED",
   "symbol": "RLYA",
   "decimals": 9,
@@ -16,9 +16,9 @@
     "claim_state": false
   },
   "presale_delivery": {
-    "standard_release_days_after_public_launch": 21,
-    "staking_lock_extra_days": 15,
-    "staked_release_days_after_public_launch": 36,
+    "standard_release_timing": "1 day before public launch",
+    "standard_release_offset_seconds": -86400,
+    "staked_release_days_after_public_launch": 21,
     "staking_bonus_bps": 500,
     "staking_bonus_percent": "5.00",
     "staking_bonus_reserve_tokens": 14400000,
