@@ -13,6 +13,8 @@ web-check:
 	node --check web/app.js
 	node --check web/admin/admin.js
 	node --check web/owner/launch.js
+	node --check web/launch-status.js
+	node --check web/owner/status-control.js
 
 verify: test stress audit web-check
 
