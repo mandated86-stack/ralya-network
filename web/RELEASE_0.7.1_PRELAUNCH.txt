@@ -14,6 +14,11 @@ Public token launch: not open
 - Mainnet distribution tool loads only after production Program ID/mint/PDA are configured
 - public website wording/version/metadata aligned to delayed-distribution pre-launch model
 
+Final release gate:
+- clean repository verification requested
+- production web/function build requested
+- full disposable localhost Solana integration requested
+
 Required release markers:
 - RALYA_PRELAUNCH_SELFTEST=PASS
 - RALYA_PRELAUNCH_AUDIT=PASS
