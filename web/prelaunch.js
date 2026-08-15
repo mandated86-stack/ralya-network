@@ -266,7 +266,7 @@ function updatePreview() {
     avg.textContent = wantsStake()
       ? `Estimated base price: ${formatPrice(avgMicro)} · expected total includes fixed 5% bonus · unlock day 21`
       : `Estimated average price: ${formatPrice(avgMicro)} per RLYA · standard release T-1`;
-    if ($('#allocationDelivery') && !lockedStake && wallet) $('#allocationDelivery').textContent = wantsStake() ? 'Buy + Stake: base + fixed 5% bonus unlock 21 days after public launch' : 'Standard: release 21 days after public launch';
+    if ($('#allocationDelivery') && !lockedStake && wallet) $('#allocationDelivery').textContent = wantsStake() ? 'Buy + Stake: base + fixed 5% bonus unlock 21 days after public launch' : 'Standard: actual RLYA 1 day before public launch';
   } catch (err) {
     out.textContent = '-- RLYA';
     if (breakdown) breakdown.innerHTML = '<small>Purchased allocation: --</small><small>Staking bonus: --</small>';
