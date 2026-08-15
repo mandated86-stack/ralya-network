@@ -30,6 +30,7 @@ check('STEP_SIZE_BASE = 1_000_000n * RLYA_UNIT' in core, 'prelaunch one-million 
 check('REFERRAL_BPS = 100n' in core, 'prelaunch referral is not fixed at 1%')
 check('quoteAllocation' in core and 'progressBase' in core, 'shared prelaunch stepped quote function missing')
 check("kind: 'web' | 'manual'" in core, 'website/private allocation categories are not separated')
+check('QUOTE_CONFIRMATION_GRACE_MS' in core, 'quote reservation is not retained through confirmation grace')
 
 check('verifySignature' in quote and 'buyerKey' in quote, 'quote reservations are not wallet-signature authenticated')
 check('quote-auth/' in quote and 'has already been used' in quote, 'quote signature replay protection missing')
@@ -45,9 +46,10 @@ check("distributionStatus: 'scheduled-before-public-launch'" in confirm, 'confir
 check('refund' not in (quote + confirm + owner).lower(), 'prelaunch financial API contains refund functionality')
 
 check("op === 'manual_allocate'" in owner, 'owner private/off-site allocation operation missing')
-check('state.effectiveProgressBase' in owner and 'priceAt(start)' in owner and 'priceAt(end)' in owner, 'private/off-site allocations do not advance the shared fixed curve')
+check('state.reservedBase > 0n' in owner and 'state.totalAllocatedBase' in owner and 'priceAt(start)' in owner and 'priceAt(end)' in owner, 'private/off-site allocation is not serialized against active buyer reservations')
 check('PRESALE_CAP_BASE' in owner, 'owner manual allocation cap guard missing')
 check("op === 'manifest'" in owner and 'sha256' in owner, 'delivery manifest export/hash missing')
+check("state.control.access !== 'closed'" in owner and 'Active buyer quote windows are still clearing' in owner, 'final manifest can be exported while the ledger is still moving')
 check('paymentReference' not in wallet, 'private owner payment references leak through buyer wallet endpoint')
 
 check('signMessage' in client and 'RALYA prelaunch allocation quote' in client, 'buyer does not authenticate locked quote before payment')
@@ -92,6 +94,6 @@ if errors:
 print('RALYA_PRELAUNCH_AUDIT=PASS')
 print('verified USDC -> wallet allocation path present')
 print('website + private/off-site allocations share one fixed curve/cap')
-print('owner access control + delivery manifest present')
+print('owner allocation/manifest serialization present')
 print('Mainnet delivery uses distinct web/manual counters and idempotent receipt PDAs')
 print('atomic public token-sale gate remains separately default-OFF')
