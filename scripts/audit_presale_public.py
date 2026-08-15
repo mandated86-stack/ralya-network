@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
@@ -21,7 +22,7 @@ netlify = read('netlify.toml')
 state = read('netlify/functions/presale-state.mts')
 rpc = read('netlify/functions/solana-rpc.mts')
 
-check("rpcEndpoint: '/api/solana/rpc'" in site, 'browser RPC is not routed through the same-origin server proxy')
+check("rpcEndpoint: 'https://ralyaai.com/api/solana/rpc'" in site, 'browser RPC is not routed through the canonical same-origin server proxy with an absolute web3.js-compatible URL')
 check('https://api.mainnet-beta.solana.com' not in site, 'public Solana endpoint remains in browser site configuration')
 check('https://api.mainnet-beta.solana.com' not in netlify, 'public Solana endpoint remains allowed by browser CSP')
 check("Netlify?.env?.get?.('RALYA_SOLANA_RPC')" in rpc, 'server RPC proxy is not sourcing the dedicated endpoint from Netlify environment configuration')
@@ -33,6 +34,7 @@ check("@solana/connector/headless" in wallet and 'ConnectorClient' in wallet, 'W
 check('Connect Wallet — Enter Presale' in wallet, 'large hero wallet CTA is missing')
 check('Live presale data reconnecting…' in wallet, 'small fail-closed reconnect status is missing')
 check('installWalletChooser();' not in hotfix, 'legacy provider-sniffing wallet chooser is still installed')
+check('installSafeCopyObserver();' not in hotfix, 'old DOM mutation copy observer is still installed')
 
 for stale in (
     '36 days after public launch',
@@ -44,6 +46,7 @@ for stale in (
     'RLYA PRESALE • OPENING AT LAUNCH',
 ):
     check(stale not in prelaunch and stale not in index, f'public buyer source still contains stale copy: {stale}')
+check(not re.search(r'Standard.{0,50}(release|receive|unlock).{0,30}21 days after public launch', prelaunch, re.I), 'Standard buyer source still contains a day-21 release path')
 
 check('RLYA PRESALE • FINAL SETUP' in index, 'static page does not start in FINAL SETUP state')
 check('288M base RLYA is reserved for the public presale.' in index, 'static presale urgency heading is missing')
@@ -66,7 +69,7 @@ if errors:
     raise SystemExit(1)
 
 print('RALYA_PRESALE_PUBLIC_AUDIT=PASS')
-print('same-origin RPC proxy configured; provider credential stays server-side')
+print('canonical same-origin RPC proxy configured; provider credential stays server-side')
 print('Wallet Standard chooser + prominent CTA present')
 print('public state copy uses FINAL SETUP/LIVE and fails closed on reconnect')
 print('README/public buyer copy uses 288M, T-1, T+21 and Whitepaper v1.2')
