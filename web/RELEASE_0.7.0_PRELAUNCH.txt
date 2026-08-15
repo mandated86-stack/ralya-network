@@ -1,0 +1,14 @@
+RALYA 0.7.0 PRE-LAUNCH RELEASE CANDIDATE
+
+Release mode: prelaunch-allocation
+Atomic post-launch sale gate: disabled
+Pre-launch allocation access default: closed
+Production Mainnet addresses: not yet configured
+Public token launch: not open
+
+Required release markers:
+- RALYA_PRELAUNCH_SELFTEST=PASS
+- RALYA_PRELAUNCH_AUDIT=PASS
+- RALYA_PRODUCTION_WEB_BUNDLE=PASS
+- RALYA_LOCAL_PROTOCOL_INTEGRATION=PASS
+- RALYA_LOCAL_PRELAUNCH_INTEGRATION=PASS
