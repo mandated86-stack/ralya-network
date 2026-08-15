@@ -48,7 +48,7 @@
         <h1>Economic trust for <em>autonomous work.</em></h1>
         <p class="lead">RALYA is building a settlement layer where AI agents, software, machines and people can commission work from one another, put economic value at risk and settle results without depending on one AI company.</p>
         <div class="cta-row"><a class="btn btn-primary" id="presaleHeroCta" href="#presale">RLYA presale — opening at launch</a><a class="btn btn-secondary" href="RALYA_Whitepaper_v1.2.html">Read whitepaper v1.2</a></div>
-        <p><strong>Presale purchases record an expected RLYA allocation. Standard allocations release 21 days after public launch; Buy + Stake adds a fixed 5% RLYA bonus and releases 36 days after launch.</strong></p>
+        <p><strong>Presale purchases record an expected RLYA allocation. Standard buyers receive actual RLYA 1 day before public launch; Buy + Stake adds a fixed 5% RLYA bonus and unlocks 21 days after launch.</strong></p>
         <div class="hero-facts">
           <div><span>Lifetime maximum</span><strong>839,000,000</strong><small>RLYA</small></div>
           <div><span>Public presale</span><strong>288,000,000</strong><small>base RLYA allocation</small></div>
@@ -81,30 +81,30 @@
         <article><span>Hard cap</span><strong>839M</strong><small>RLYA, ever</small></article>
         <article><span>Public presale</span><strong>288M</strong><small>base RLYA allocation</small></article>
         <article><span>Starting presale price</span><strong>$0.003</strong><small>USDC per RLYA</small></article>
-        <article><span>Buy + Stake bonus</span><strong>+5%</strong><small>fixed RLYA bonus · 36-day release</small></article>
+        <article><span>Buy + Stake bonus</span><strong>+5%</strong><small>fixed RLYA bonus · unlock day 21</small></article>
       </div>
       <div class="principles"><div><b>NO</b><span>post-launch minting</span></div><div><b>NO</b><span>transfer tax</span></div><div><b>1 YR</b><span>founder allocation lock</span></div><div><b>5%</b><span>fixed presale staking bonus</span></div></div>
     </div></section>
 
     <section class="section shell" id="presale">
-      <div class="section-head"><div><span class="eyebrow" id="presaleEyebrow">RLYA PRESALE • OPENING AT LAUNCH</span><h2 id="presaleHeading">Secure your presale position before public launch.</h2></div><p>A confirmed purchase records the expected RLYA allocation against your connected wallet. Standard allocations release 21 days after public launch. Choose Buy + Stake before your first confirmed purchase to receive 5% more RLYA with release 36 days after launch. Confirmed purchases are final.</p></div>
+      <div class="section-head"><div><span class="eyebrow" id="presaleEyebrow">RLYA PRESALE • OPENING AT LAUNCH</span><h2 id="presaleHeading">Secure your presale position before public launch.</h2></div><p>A confirmed purchase records the expected RLYA allocation against your connected wallet. Standard buyers receive actual RLYA 1 day before public launch. Choose Buy + Stake before your first confirmed purchase to receive 5% more RLYA, with the base allocation and bonus unlocking 21 days after public launch. Confirmed purchases are final.</p></div>
       <div class="live-market" id="marketPanel">
         <article><span>Current price</span><strong id="currentPrice">--</strong><small>USDC / RLYA</small></article>
         <article><span>Total allocated</span><strong id="soldRlya">--</strong><small>of 288M public presale</small></article>
-        <article><span>Buy + Stake</span><strong>+5% RLYA</strong><small>fixed bonus · release day 36</small></article>
+        <article><span>Buy + Stake</span><strong>+5% RLYA</strong><small>fixed bonus · unlock day 21</small></article>
         <article><span>Presale access</span><strong id="saleState">--</strong><small>verified live access state</small></article>
       </div>
       <div class="presale-grid live-grid">
         <div class="buy-card">
           <div class="buy-head"><div><span>YOUR WALLET</span><strong id="walletLabel">Not connected</strong></div><button class="btn btn-secondary btn-small wallet-button" data-wallet-connect>Connect</button></div>
           <div class="balance-grid"><div><span>Expected RLYA</span><strong id="rlyaBalance">--</strong></div><div><span>USDC available</span><strong id="usdcBalance">--</strong></div></div>
-          <div class="allocation-strip"><div><span>Status</span><strong id="allocationStatus">CONNECT WALLET</strong></div><div><span>Release</span><strong id="allocationDelivery">Standard: 21 days after public launch</strong></div></div>
+          <div class="allocation-strip"><div><span>Status</span><strong id="allocationStatus">CONNECT WALLET</strong></div><div><span>Release</span><strong id="allocationDelivery">Standard: actual RLYA 1 day before public launch</strong></div></div>
           <label for="usdcInput">Pay with USDC</label>
           <div class="amount-box"><input id="usdcInput" type="number" min="1" step="1" value="100" inputmode="decimal"/><span>USDC</span></div>
 
           <label class="stake-option" for="stakeToggle">
             <input id="stakeToggle" type="checkbox" />
-            <span><strong>Buy + Stake — receive 5% more RLYA</strong><small>Keep this presale allocation locked 15 extra days. Standard release is day 21 after public launch; staked release is day 36.</small></span>
+            <span><strong>Buy + Stake — receive 5% more RLYA</strong><small>Your base allocation plus the fixed 5% bonus stay locked through launch and unlock together 21 days after public launch.</small></span>
           </label>
           <p class="micro stake-note" id="stakeStatus">Your first confirmed presale purchase locks this wallet's release option for later presale purchases.</p>
 
@@ -120,10 +120,10 @@
           <p class="micro" id="buyMessage">Connect a Solana wallet to continue.</p>
         </div>
         <div class="presale-explainer">
-          <div class="sale-status"><span class="live-dot" id="saleDot"></span><strong>PRESALE ALLOCATION</strong><small>Verified USDC. Expected allocation recorded now. Fixed release schedule.</small></div>
+          <div class="sale-status"><span class="live-dot" id="saleDot"></span><strong>PRESALE ALLOCATION</strong><small>Verified USDC. Expected allocation recorded now. Fixed release policy.</small></div>
           <ol class="sale-steps">
             <li><b>1</b><span><strong>Connect wallet</strong><small>Reconnect the same Solana wallet at any time to view confirmed expected RLYA.</small></span></li>
-            <li><b>2</b><span><strong>Choose standard or Buy + Stake</strong><small>Standard releases 21 days after public launch. Buy + Stake adds 5% RLYA and releases 36 days after launch.</small></span></li>
+            <li><b>2</b><span><strong>Choose standard or Buy + Stake</strong><small>Standard buyers receive actual RLYA 1 day before public launch. Buy + Stake adds 5% RLYA and unlocks 21 days after launch.</small></span></li>
             <li><b>3</b><span><strong>Confirm USDC payment</strong><small>The payment is independently verified on Solana before an allocation is recorded.</small></span></li>
             <li><b>4</b><span><strong>Expected allocation confirmed</strong><small>Your dashboard records the base allocation, any fixed 5% staking bonus and the applicable release policy.</small></span></li>
           </ol>
@@ -142,7 +142,7 @@
       <div class="build-grid">
         <article><header><h3>Economic model</h3><span class="tag good">TESTED</span></header><ul><li class="done">839M hard-cap reconciliation</li><li class="done">288M public presale allocation</li><li class="done">14.4M fixed staking-bonus reserve</li><li class="done">Fixed 5% Buy + Stake bonus</li><li class="done">Fixed 1% USDC referral economics</li><li class="done">No voluntary refund path</li><li class="done">Founder 1-year lock model</li></ul></article>
         <article><header><h3>Solana foundation</h3><span class="tag warn" id="programTag">PRE-LAUNCH</span></header><ul><li class="done">Sale + founder-lock program</li><li class="done">Public Devnet protocol verification</li><li class="done">Atomic post-launch USDC settlement path</li><li class="done">Owner private/off-site allocation path</li><li id="deployProgramItem">Production Mainnet deployment</li><li id="mintItem">Production RLYA distribution sequence</li></ul></article>
-        <article><header><h3>Pre-launch product</h3><span class="tag good">RELEASE CANDIDATE</span></header><ul><li class="done">Real Solana wallet connection</li><li class="done">Verified USDC payment receipts</li><li class="done">Expected-allocation ledger</li><li class="done">Wallet-locked staking choice</li><li class="done">21-day / 36-day release policies</li><li class="done">Referral split + locked attribution</li><li class="done">Owner stage and allocation controls</li></ul></article>
+        <article><header><h3>Pre-launch product</h3><span class="tag good">RELEASE CANDIDATE</span></header><ul><li class="done">Real Solana wallet connection</li><li class="done">Verified USDC payment receipts</li><li class="done">Expected-allocation ledger</li><li class="done">Wallet-locked staking choice</li><li class="done">T-1 standard / day-21 staked release policy</li><li class="done">Referral split + locked attribution</li><li class="done">Owner stage and allocation controls</li></ul></article>
       </div>
     </div></section>
 
@@ -157,7 +157,7 @@
 
     <section class="section dark-panel"><div class="shell updates">
       <div class="section-head light"><div><span class="eyebrow">ENGINEERING LOG</span><h2>Build first. Market second.</h2></div></div>
-      <div class="log-row"><time>15 AUG 2026</time><div><h3>Presale staking and delayed release model prepared.</h3><p>The presale records wallet-specific expected RLYA allocations, supports a fixed 5% Buy + Stake bonus from the fixed supply, and separates standard day-21 release from staked day-36 release after public launch.</p></div></div>
+      <div class="log-row"><time>15 AUG 2026</time><div><h3>Presale staking and release policy prepared.</h3><p>The presale records wallet-specific expected RLYA allocations, supports a fixed 5% Buy + Stake bonus from the fixed supply, gives standard buyers actual RLYA 1 day before public launch, and keeps Buy + Stake allocations locked until day 21 after launch.</p></div></div>
       <div class="log-row"><time>15 AUG 2026</time><div><h3>Pre-launch allocation release prepared.</h3><p>Verified Solana USDC transactions can lock wallet-specific expected RLYA allocations while public and authorized private allocations share the reviewed sale accounting.</p></div></div>
       <div class="log-row"><time>13 AUG 2026</time><div><h3>Referral settlement added to the sale protocol.</h3><p>Referred purchases preserve the buyer quote while routing a fixed 1% of gross USDC to the recorded referrer.</p></div></div>
     </div></section>
@@ -165,16 +165,16 @@
     <section class="section shell faq">
       <div class="section-head"><div><span class="eyebrow">FAQ</span><h2>Plain answers.</h2></div></div>
       <details><summary>How much RLYA is available in the public presale?</summary><p>The public base presale allocation is 288,000,000 RLYA. A separate fixed 14,400,000 RLYA reserve covers the maximum possible 5% Buy + Stake bonuses while keeping the lifetime maximum at 839,000,000 RLYA.</p></details>
-      <details><summary>When do presale buyers receive actual RLYA?</summary><p>A confirmed purchase records an expected allocation first. Standard presale allocations are released to the connected wallet 21 days after public launch. Buy + Stake allocations are released 36 days after public launch and include the fixed 5% RLYA bonus.</p></details>
-      <details><summary>What does Buy + Stake mean during presale?</summary><p>The RLYA is not already sitting in your wallet during presale. Buy + Stake means your expected allocation is committed to the longer release schedule. The fixed 5% bonus is recorded with that allocation and is delivered with it on the staked release schedule.</p></details>
-      <details><summary>Can I switch staking on or off later?</summary><p>Your first confirmed presale purchase locks the release option for that wallet. This prevents one wallet from mixing incompatible release schedules across later presale purchases.</p></details>
+      <details><summary>When do presale buyers receive actual RLYA?</summary><p>A confirmed purchase records an expected allocation first. Standard presale buyers receive the purchased RLYA 1 day before public launch. Buy + Stake allocations remain locked through launch and unlock 21 days after public launch together with the fixed 5% RLYA bonus.</p></details>
+      <details><summary>What does Buy + Stake mean during presale?</summary><p>The RLYA is not already sitting in your wallet during presale. Buy + Stake means your expected allocation is committed to the longer release policy. The fixed 5% bonus is recorded with that allocation, and the base allocation plus bonus unlock together 21 days after public launch.</p></details>
+      <details><summary>Can I switch staking on or off later?</summary><p>Your first confirmed presale purchase locks the release option for that wallet. This prevents one wallet from mixing incompatible release policies across later presale purchases.</p></details>
       <details><summary>How does the 1% referral work?</summary><p>Share your personal referral link and earn 1% USDC from confirmed referred purchases. The referred buyer pays the normal amount and keeps the full expected RLYA allocation. The first confirmed referrer for a buyer wallet is locked; self-referrals and direct two-wallet loops are rejected.</p></details>
       <details><summary>What is RLYA ultimately for?</summary><p>RALYA is being built toward economic settlement for autonomous work: AI agents, software, machines and people can commission work, settle practical payment and use RLYA for bonding, collateral, staking and economic accountability.</p></details>
       <details><summary>Can more RLYA be minted later?</summary><p>The production launch sequence is designed around exactly 839,000,000 RLYA and permanent mint-authority removal before public token-sale activation.</p></details>
     </section>
   </main>
 
-  <footer><div class="shell footer-grid"><div><a class="brand" href="#top"><span class="logo">R</span><span>RALYA</span></a><p>Economic trust for autonomous work.</p><p><a href="https://ralyaai.com">ralyaai.com</a></p></div><div><span>Project</span><a href="#purpose">Purpose</a><a href="#rlya">RLYA</a><a href="#presale">Presale</a></div><div><span>Evidence</span><a href="RALYA_Whitepaper_v1.2.html">Whitepaper v1.2</a><a id="footerGithub" href="https://github.com/mandated86-stack/ralya-network" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="status.html">Build status</a></div><div><span>Official social</span><a href="https://x.com/Ralyaai" target="_blank" rel="noopener noreferrer">𝕏 @Ralyaai ↗</a><a href="https://tiktok.com/@ralyaai" target="_blank" rel="noopener noreferrer">♪ TikTok @ralyaai ↗</a><p>Solana first · Fixed 839M maximum</p></div></div><div class="shell copyright">RALYA · BUILD 0.8.0 PRE-LAUNCH STAKING</div></footer>
+  <footer><div class="shell footer-grid"><div><a class="brand" href="#top"><span class="logo">R</span><span>RALYA</span></a><p>Economic trust for autonomous work.</p><p><a href="https://ralyaai.com">ralyaai.com</a></p></div><div><span>Project</span><a href="#purpose">Purpose</a><a href="#rlya">RLYA</a><a href="#presale">Presale</a></div><div><span>Evidence</span><a href="RALYA_Whitepaper_v1.2.html">Whitepaper v1.2</a><a id="footerGithub" href="https://github.com/mandated86-stack/ralya-network" target="_blank" rel="noopener noreferrer">GitHub ↗</a><a href="status.html">Build status</a></div><div><span>Official social</span><a href="https://x.com/Ralyaai" target="_blank" rel="noopener noreferrer">𝕏 @Ralyaai ↗</a><a href="https://tiktok.com/@ralyaai" target="_blank" rel="noopener noreferrer">♪ TikTok @ralyaai ↗</a><p>Solana first · Fixed 839M maximum</p></div></div><div class="shell copyright">RALYA · BUILD 0.8.1 PRE-LAUNCH STAKING</div></footer>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="site-config.js"></script>
   <script type="module" src="prelaunch.js"></script>
