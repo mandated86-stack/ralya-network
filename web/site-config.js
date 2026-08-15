@@ -1,11 +1,11 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.9.0-public-ui-v2',
+  build: '0.9.1-mobile-stability-checkout',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
-  prelaunchCheckoutEnabled: false,
+  prelaunchCheckoutEnabled: true,
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
@@ -39,19 +39,40 @@ window.RALYA_CONFIG = Object.freeze({
 
 (() => {
   const cfg = window.RALYA_CONFIG;
+  const canonicalOrigin = new URL(cfg.projectUrl).origin;
+
+  // Never let public traffic or wallet deep-links settle on the Netlify fallback hostname.
+  if (/\.netlify\.app$/i.test(location.hostname) && location.origin !== canonicalOrigin) {
+    location.replace(`${canonicalOrigin}${location.pathname}${location.search}${location.hash}`);
+    return;
+  }
+
+  // Give Chrome/Android an ordinary PNG icon in addition to the SVG favicon.
+  const ensureIcon = (rel, href, type = null) => {
+    if (document.querySelector(`link[rel="${rel}"][href="${href}"]`)) return;
+    const link = document.createElement('link');
+    link.rel = rel;
+    link.href = href;
+    if (type) link.type = type;
+    document.head.appendChild(link);
+  };
+  ensureIcon('icon', '/rlya-token.png', 'image/png');
+  ensureIcon('shortcut icon', '/rlya-token.png', 'image/png');
+  ensureIcon('apple-touch-icon', '/rlya-token.png');
+
   const atomicLocked = cfg.presaleMode === 'atomic' && !cfg.presaleEnabled;
   const prelaunchLocked = cfg.presaleMode === 'prelaunch-allocation' && !cfg.prelaunchCheckoutEnabled;
   if (atomicLocked || prelaunchLocked) {
     const lockedMessage = atomicLocked
       ? 'Public token-sale access is not open yet.'
-      : 'Private launch testing is active. Presale checkout opens after final release-policy verification.';
+      : 'Presale checkout is not enabled yet.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
-      button.disabled = true;
+      if (!button.disabled) button.disabled = true;
       button.setAttribute('aria-disabled', 'true');
       const message = document.getElementById('buyMessage');
-      if (message) message.textContent = lockedMessage;
+      if (message && message.textContent !== lockedMessage) message.textContent = lockedMessage;
     };
     document.addEventListener('click', event => {
       const target = event.target;
@@ -62,11 +83,6 @@ window.RALYA_CONFIG = Object.freeze({
       }
     }, true);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enforce, { once: true }); else enforce();
-    const observer = new MutationObserver(() => {
-      const button = document.getElementById('buyRlya');
-      if (button && !button.disabled) enforce();
-    });
-    observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
   const loadScript = (src, marker) => {
@@ -89,7 +105,8 @@ window.RALYA_CONFIG = Object.freeze({
     if (cfg.presaleMode === 'prelaunch-allocation') loadStyle('/prelaunch.css', 'data-rlya-prelaunch-style');
     if (!location.pathname.includes('/owner/')) {
       loadStyle('/site-v2.css', 'data-rlya-site-v2-style');
-      loadScript('/site-ui.js', 'data-rlya-site-v2');
+      loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
+      loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
