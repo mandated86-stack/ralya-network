@@ -90,6 +90,19 @@ export default async (req: Request) => {
         if (!attribution) await s.setJSON(`referral/${quote.buyer}`, { buyer: quote.buyer, referrer: quote.referrer, lockedAt: new Date().toISOString(), sourceSignature: signature });
       }
 
+      const stakeLock: any = await s.get(`stake/${quote.buyer}`, { type: 'json' });
+      if (stakeLock && Boolean(stakeLock.stake) !== stake) throw new Error('Buyer staking preference changed before confirmation. Refresh the wallet allocation and retry.');
+      if (!stakeLock) {
+        await s.setJSON(`stake/${quote.buyer}`, {
+          wallet: quote.buyer,
+          stake,
+          stakingBonusBps: stake ? 500 : 0,
+          deliveryPolicy: stake ? 'staked-36d' : 'standard-21d',
+          lockedAt: new Date().toISOString(),
+          sourceSignature: signature,
+        });
+      }
+
       const event = {
         id: signature,
         kind: 'web',
