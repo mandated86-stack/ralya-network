@@ -5,7 +5,7 @@ import {
   RLYA_UNIT,
   STAKING_BONUS_BPS,
   STAKING_BONUS_RESERVE_BASE,
-  STANDARD_RELEASE_DAYS,
+  STANDARD_RELEASE_OFFSET_SECONDS,
   STAKED_RELEASE_DAYS,
   STEP_INCREMENT_MICRO_USDC,
   STEP_SIZE_BASE,
@@ -25,8 +25,8 @@ assert.equal(STEP_SIZE_BASE, rlya(1_000_000));
 assert.equal(PRESALE_CAP_BASE, rlya(288_000_000));
 assert.equal(STAKING_BONUS_RESERVE_BASE, rlya(14_400_000));
 assert.equal(STAKING_BONUS_BPS, 500n);
-assert.equal(STANDARD_RELEASE_DAYS, 21);
-assert.equal(STAKED_RELEASE_DAYS, 36);
+assert.equal(STANDARD_RELEASE_OFFSET_SECONDS, -86_400);
+assert.equal(STAKED_RELEASE_DAYS, 21);
 assert.equal(stakingBonus(PRESALE_CAP_BASE), STAKING_BONUS_RESERVE_BASE);
 assert.equal(stakingBonus(rlya(1_000_000)), rlya(50_000));
 
@@ -60,4 +60,4 @@ assert.throws(() => quoteAllocation(PRESALE_CAP_BASE - 1n, usdc(1)), /exceeds th
 
 console.log('RALYA_PRELAUNCH_SELFTEST=PASS');
 console.log('288M base allocation + 14.4M fixed bonus reserve + 5% staking = verified');
-console.log('standard release day 21; staked release day 36');
+console.log('standard release T-1 day; Buy + Stake unlock day 21');
