@@ -17,7 +17,12 @@ function toBase64(bytes) { let binary = ''; const arr = bytes instanceof Uint8Ar
 function ownerMessage(wallet, operation, payload, timestamp, nonce) {
   return ['RALYA owner presale action', `Wallet: ${wallet}`, `Operation: ${operation}`, `Payload: ${stableStringify(payload || {})}`, `Timestamp: ${timestamp}`, `Nonce: ${nonce}`].join('\n');
 }
-async function fetchJson(url, options) { const response = await fetch(url, { cache: 'no-store', ...options }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data?.error || `Request failed (${response.status}).`); return data; }
+async function fetchJson(url, options) {
+  const response = await fetch(url, { cache: 'no-store', ...options });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || `Request failed (${response.status}).`);
+  return data;
+}
 async function connectAndSign(operation, payload = {}) {
   const provider = providerForOwner();
   if (!provider) throw new Error('Use Phantom or Solflare with message signing support.');
@@ -25,7 +30,9 @@ async function connectAndSign(operation, payload = {}) {
   const wallet = String(result?.publicKey || provider.publicKey || '');
   if (wallet !== OWNER) throw new Error('Connected wallet is not the configured RALYA owner wallet.');
   if (!provider.signMessage) throw new Error('Connected wallet does not support message signing.');
-  const timestamp = new Date().toISOString(), nonce = nonceHex(), message = ownerMessage(wallet, operation, payload, timestamp, nonce);
+  const timestamp = new Date().toISOString();
+  const nonce = nonceHex();
+  const message = ownerMessage(wallet, operation, payload, timestamp, nonce);
   const signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8');
   return { wallet, operation, payload, timestamp, nonce, message, signature: toBase64(signed?.signature || signed) };
 }
@@ -89,29 +96,38 @@ async function lookupBuyer() {
   if (!result.allocations.length) { out.textContent = 'No confirmed allocation for this wallet.'; return; }
   out.textContent = `TOTAL ${fmtRlya(result.totalRlyaBase, 4)} RLYA\n` + result.allocations.map(row => {
     const source = row.kind === 'web' ? `${fmtUsdc(row.grossUsdcBase)} USDC · ${shorten(row.signature || '')}` : `PRIVATE/OFF-SITE${row.paymentReference ? ` · ${row.paymentReference}` : ''}`;
-    return `${row.createdAt}  ${fmtRlya(row.rlyaBase, 4)} RLYA  ${source}`;
+    const release = row.stake ? 'Buy + Stake / T+21' : 'Standard / T-1';
+    return `${row.createdAt}  ${fmtRlya(row.rlyaBase, 4)} RLYA  ${source}  ${release}`;
   }).join('\n');
 }
 async function downloadManifest() {
-  const result = await ownerAction('manifest', {}), manifest = result.manifest;
-  const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' }), a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = `RALYA_PRELAUNCH_DELIVERY_MANIFEST_${new Date().toISOString().slice(0, 10)}.json`; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000); log(`Delivery manifest exported. SHA-256 ${manifest.sha256}`);
+  const result = await ownerAction('manifest', {});
+  const manifest = result.manifest;
+  const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `RALYA_PRELAUNCH_DELIVERY_MANIFEST_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  log(`Delivery manifest exported. SHA-256 ${manifest.sha256}`);
 }
 
 function install() {
   if (!location.pathname.includes('/owner/')) return;
   if (cfg.presaleMode === 'prelaunch-allocation') {
-    const smokeButton = document.getElementById('runSmoke'), smokeCard = smokeButton?.closest('.owner-card');
+    const smokeButton = document.getElementById('runSmoke');
+    const smokeCard = smokeButton?.closest('.owner-card');
     if (smokeCard) { smokeCard.hidden = true; smokeCard.dataset.rlyaDeferred = 'prelaunch-allocation'; }
   }
   const shell = document.querySelector('.owner-shell');
   if (!shell || document.getElementById('prelaunchPresaleControl')) return;
-  const anchor = shell.querySelector('.owner-top')?.nextElementSibling, section = document.createElement('section');
-  section.className = 'owner-card'; section.id = 'prelaunchPresaleControl';
+  const anchor = shell.querySelector('.owner-top')?.nextElementSibling;
+  const section = document.createElement('section');
+  section.className = 'owner-card';
+  section.id = 'prelaunchPresaleControl';
   section.innerHTML = `
     <h2>Pre-launch presale control</h2>
-    <p>This ledger is separate from public token launch. It records verified USDC allocations and authorized private/off-site allocations now; RLYA distribution remains scheduled for before public launch.</p>
+    <p>This ledger is separate from public token launch. It records verified USDC allocations and authorized private/off-site allocations now. Standard purchases receive actual RLYA 1 day before public launch; Buy + Stake base + fixed 5% bonus unlock 21 days after public launch.</p>
     <div class="owner-grid" style="margin:14px 0">
       <div><span>Access</span><strong id="preAccess">--</strong></div><div><span>Opening readiness</span><strong id="preReadiness">NOT CHECKED</strong></div>
       <div><span>Current price</span><strong id="prePrice">--</strong></div><div><span>Total allocated</span><strong id="preTotal">--</strong></div>
@@ -128,7 +144,7 @@ function install() {
     <p class="owner-note">OPEN is refused unless the server can reach Solana Mainnet and verify the configured treasury's USDC receiving account. Mainnet RLYA deployment is not required for this pre-launch allocation phase.</p>
     <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);margin:22px 0"/>
     <h3>Private / off-site investor allocation</h3>
-    <p class="owner-note">The RLYA amount is added to the same 100.68M pool and immediately advances the same fixed price curve. If a buyer has a live locked quote, wait for it to confirm or clear before recording the private allocation.</p>
+    <p class="owner-note">The RLYA amount is added to the same 288M base public presale pool and immediately advances the same internal price curve. If a buyer has a live locked quote, wait for it to confirm or clear before recording the private allocation.</p>
     <label>Investor Solana wallet</label><input id="preManualWallet" placeholder="Investor public wallet"/>
     <label>RLYA allocated</label><input id="preManualAmount" type="number" min="0.000000001" step="1" placeholder="Example: 2000000"/>
     <label>Payment / deal reference <small>(private owner note, optional)</small></label><input id="preManualReference" maxlength="120" placeholder="Example: INV-0042"/>

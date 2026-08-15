@@ -12,6 +12,7 @@ on:
       - 'package-lock.json'
       - 'scripts/build_web_prod.sh'
       - 'scripts/audit_prelaunch.py'
+      - 'scripts/audit_checkout_release.py'
       - 'scripts/audit_site_copy.py'
       - 'scripts/prelaunch_selftest.mts'
 concurrency:
@@ -29,6 +30,8 @@ jobs:
           node-version: '22'
       - name: Audit pre-launch financial/web invariants
         run: python3 scripts/audit_prelaunch.py
+      - name: Audit final checkout release policy
+        run: python3 scripts/audit_checkout_release.py
       - name: Audit live-copy safety
         run: python3 scripts/audit_site_copy.py
       - name: Install pinned web and function dependencies
