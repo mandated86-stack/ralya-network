@@ -178,8 +178,21 @@ async function sendTransaction(tx) {
   if (!signature) throw new Error('Wallet returned no transaction signature.');
   await connection.confirmTransaction({ signature, ...latest }, 'confirmed'); return signature;
 }
-async function ensureAta(tx, payer, owner, mint) {
-  const ata = await getAssociatedTokenAddress(mint, owner); if (!await connection.getAccountInfo(ata, 'confirmed')) tx.add(createAssociatedTokenAccountInstruction(payer, ata, owner, mint)); return ata;
+async function requiredAta(owner,mint,label){
+  const ata=await getAssociatedTokenAddress(mint,owner);
+  if(!await connection.getAccountInfo(ata,'confirmed'))throw new Error(`${label} USDC receiving account is not ready. No funds were moved. Please try again after it is prepared.`);
+  return ata;
+}
+async function activateReferralReceiving(){
+  if(!wallet||!provider)await connectWallet();
+  const mint=new PublicKey(cfg.usdcMint),ata=await getAssociatedTokenAddress(mint,wallet);
+  if(await connection.getAccountInfo(ata,'confirmed'))return ata;
+  const tx=new Transaction().add(createAssociatedTokenAccountInstruction(wallet,ata,wallet,mint));
+  toast('Activate your USDC receiving account once to use referral links.');
+  await sendTransaction(tx);
+  if(!await connection.getAccountInfo(ata,'confirmed'))throw new Error('USDC referral receiving account was not created.');
+  toast('Referral USDC receiving account activated.');
+  return ata;
 }
 async function signedQuoteBody(usdcAmount) {
   if (!provider?.signMessage) throw new Error('This wallet must support message signing to lock a presale quote.');
@@ -194,20 +207,26 @@ async function secureAllocation() {
   if (state?.access !== 'open') throw new Error('Pre-launch allocation access is not open.');
   const usdcAmount = String($('#usdcInput')?.value || '').trim(); decimalToBase(usdcAmount, 6);
   const typedReferral = String($('#referralInput')?.value || '').trim(); if (typedReferral) setReferral(typedReferral);
+  const mint=new PublicKey(cfg.usdcMint),configuredTreasury=new PublicKey(cfg.prelaunchTreasuryWallet);
+  const buyerUsdcAta=await getAssociatedTokenAddress(mint,wallet);
+  if(!await connection.getAccountInfo(buyerUsdcAta,'confirmed'))throw new Error('Your wallet has no USDC token account on Solana.');
+  const treasuryAta=await requiredAta(configuredTreasury,mint,'Treasury');
+  let expectedReferrerAta=null;
+  if(referralWallet)expectedReferrerAta=await requiredAta(referralWallet,mint,'Referrer');
+
   const signedRequest = await signedQuoteBody(usdcAmount);
   const quoteResult = await fetchJson('/api/presale/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(signedRequest) });
   const quote = quoteResult.quote;
   $('#quoteValue').textContent = `${formatBase(quote.rlyaBase, 9, 4)} RLYA`;
   $('#averagePrice').textContent = `Locked allocation · quote valid until ${new Date(quote.expiresAt).toLocaleTimeString()}`;
-
-  const mint = new PublicKey(quote.usdcMint), treasury = new PublicKey(quote.treasuryWallet);
-  const buyerUsdcAta = await getAssociatedTokenAddress(mint, wallet);
-  if (!await connection.getAccountInfo(buyerUsdcAta, 'confirmed')) throw new Error('Your wallet has no USDC token account on Solana.');
-  const tx = new Transaction(); const treasuryAta = await ensureAta(tx, wallet, treasury, mint); const treasuryAmount = BigInt(quote.treasuryUsdcBase);
+  if(quote.usdcMint!==cfg.usdcMint||quote.treasuryWallet!==configuredTreasury.toBase58())throw new Error('Server quote payment addresses do not match the reviewed website configuration.');
+  if((quote.referrer||null)!==(referralWallet?.toBase58()||null))throw new Error('Server referral attribution differs from the wallet checkout state. Refresh and retry.');
+  const tx = new Transaction(); const treasuryAmount = BigInt(quote.treasuryUsdcBase);
   if (treasuryAmount > 0n) tx.add(createTransferCheckedInstruction(buyerUsdcAta, mint, treasuryAta, wallet, treasuryAmount, 6));
   if (quote.referrer) {
-    const referrer = new PublicKey(quote.referrer); const referrerAta = await ensureAta(tx, wallet, referrer, mint); const referralAmount = BigInt(quote.referralUsdcBase);
-    if (referralAmount > 0n) tx.add(createTransferCheckedInstruction(buyerUsdcAta, mint, referrerAta, wallet, referralAmount, 6));
+    const referralAmount = BigInt(quote.referralUsdcBase);
+    if(!expectedReferrerAta)throw new Error('Referrer USDC receiving account was not verified.');
+    if (referralAmount > 0n) tx.add(createTransferCheckedInstruction(buyerUsdcAta, mint, expectedReferrerAta, wallet, referralAmount, 6));
   }
   tx.add(new TransactionInstruction({ programId: MEMO_PROGRAM, keys: [], data: new TextEncoder().encode(quote.memo) }));
   $('#buyRlya').disabled = true; $('#buyMessage').textContent = 'Confirm the USDC transaction in your wallet…';
@@ -224,7 +243,14 @@ $$('#mobileMenu a').forEach(a => a.addEventListener('click', () => $('#mobileMen
 $$('[data-wallet-connect]').forEach(btn => btn.addEventListener('click', connectWallet));
 $('#usdcInput')?.addEventListener('input', updatePreview);
 $('#referralInput')?.addEventListener('change', e => setReferral(e.target.value));
-$('#copyReferralLink')?.addEventListener('click', async () => { if (!wallet) return connectWallet(); await navigator.clipboard.writeText(referralLinkFor(wallet.toBase58())); toast('Referral link copied.'); });
+$('#copyReferralLink')?.addEventListener('click', async () => {
+  try{
+    if(!wallet)await connectWallet();
+    await activateReferralReceiving();
+    await navigator.clipboard.writeText(referralLinkFor(wallet.toBase58()));
+    toast('Referral link copied. Your wallet is ready to receive referral USDC.');
+  }catch(err){toast(err.message||'Could not activate referral receiving account.');}
+});
 $('#buyRlya')?.addEventListener('click', () => secureAllocation().catch(err => { toast(err.message || 'Allocation purchase failed.'); updateBuyAvailability(); }));
 
 wireGithub(); loadReferralFromUrl(); updateReferralLink(); refreshState(); updatePreview(); updateBuyAvailability();

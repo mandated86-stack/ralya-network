@@ -29,6 +29,7 @@ entries = (
     "web/owner/atomic-launch.js",
     "web/owner/smoke.js",
     "web/owner/prelaunch-delivery.js",
+    "web/owner/treasury-prep.js",
 )
 for rel in entries:
     src = root / rel; text = src.read_text(encoding="utf-8")
@@ -44,6 +45,7 @@ PY
 ./node_modules/.bin/esbuild "$TMP/web/owner/atomic-launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --outfile="$TMP/atomic-launch.bundle.js"
 ./node_modules/.bin/esbuild "$TMP/web/owner/smoke.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --outfile="$TMP/smoke.bundle.js"
 ./node_modules/.bin/esbuild "$TMP/web/owner/prelaunch-delivery.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --outfile="$TMP/prelaunch-delivery.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/owner/treasury-prep.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --outfile="$TMP/treasury-prep.bundle.js"
 
 cp "$TMP/app.bundle.js" web/app.js
 cp "$TMP/prelaunch.bundle.js" web/prelaunch.js
@@ -52,8 +54,9 @@ cp "$TMP/launch.bundle.js" web/owner/launch.js
 cp "$TMP/atomic-launch.bundle.js" web/owner/atomic-launch.js
 cp "$TMP/smoke.bundle.js" web/owner/smoke.js
 cp "$TMP/prelaunch-delivery.bundle.js" web/owner/prelaunch-delivery.js
+cp "$TMP/treasury-prep.bundle.js" web/owner/treasury-prep.js
 
-BUNDLED=(web/app.js web/prelaunch.js web/admin/admin.js web/owner/launch.js web/owner/atomic-launch.js web/owner/smoke.js web/owner/prelaunch-delivery.js)
+BUNDLED=(web/app.js web/prelaunch.js web/admin/admin.js web/owner/launch.js web/owner/atomic-launch.js web/owner/smoke.js web/owner/prelaunch-delivery.js web/owner/treasury-prep.js)
 if grep -R -n "https://esm.sh" "${BUNDLED[@]}"; then echo "Production bundle still references esm.sh" >&2; exit 1; fi
 for f in "${BUNDLED[@]}" web/owner/status-control.js web/owner/presale-control.js web/launch-status.js web/site-config.js; do node --check "$f"; done
 

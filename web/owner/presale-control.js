@@ -143,6 +143,15 @@ async function downloadManifest() {
 
 function install() {
   if (!location.pathname.includes('/owner/')) return;
+  if (cfg.presaleMode === 'prelaunch-allocation') {
+    const smokeButton = document.getElementById('runSmoke');
+    const smokeCard = smokeButton?.closest('.owner-card');
+    if (smokeCard) {
+      smokeCard.hidden = true;
+      smokeCard.dataset.rlyaDeferred = 'prelaunch-allocation';
+    }
+    console.info('Atomic 1-USDC smoke is intentionally deferred during pre-launch allocation mode so it cannot consume buyer presale inventory or move the buyer curve.');
+  }
   const shell = document.querySelector('.owner-shell');
   if (!shell || document.getElementById('prelaunchPresaleControl')) return;
   const anchor = shell.querySelector('.owner-top')?.nextElementSibling;
@@ -152,7 +161,7 @@ function install() {
   section.innerHTML = `
     <h2>Pre-launch presale control</h2>
     <p>This ledger is separate from public token launch. It records verified USDC allocations and authorized private/off-site allocations now; RLYA distribution remains scheduled for before public launch.</p>
-    <div class="owner-grid" style="grid-template-columns:repeat(4,1fr);margin:14px 0">
+    <div class="owner-grid" style="margin:14px 0">
       <div><span>Access</span><strong id="preAccess">--</strong></div>
       <div><span>Current price</span><strong id="prePrice">--</strong></div>
       <div><span>Total allocated</span><strong id="preTotal">--</strong></div>
@@ -170,7 +179,7 @@ function install() {
     </div>
     <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);margin:22px 0"/>
     <h3>Private / off-site investor allocation</h3>
-    <p class="owner-note">This does not let you type a replacement public price. The RLYA amount is added to the same 100.68M pool and immediately advances the same fixed price curve.</p>
+    <p class="owner-note">This does not let you type a replacement public price. The RLYA amount is added to the same 100.68M pool and immediately advances the same fixed price curve. If a buyer has a live locked quote, wait for that quote window to confirm or clear before recording the private allocation.</p>
     <label>Investor Solana wallet</label><input id="preManualWallet" placeholder="Investor public wallet"/>
     <label>RLYA allocated</label><input id="preManualAmount" type="number" min="0.000000001" step="1" placeholder="Example: 2000000"/>
     <label>Payment / deal reference <small>(private owner note, optional)</small></label><input id="preManualReference" maxlength="120" placeholder="Example: INV-0042"/>
@@ -179,7 +188,7 @@ function install() {
     <hr style="border:0;border-top:1px solid rgba(255,255,255,.08);margin:22px 0"/>
     <h3>Buyer allocation lookup</h3>
     <label>Buyer wallet</label><input id="preLookupWallet" placeholder="Solana wallet"/>
-    <div class="owner-actions"><button class="btn btn-secondary" id="preLookup">Lookup</button><button class="btn btn-secondary" id="preManifest">Download delivery manifest</button></div>
+    <div class="owner-actions"><button class="btn btn-secondary" id="preLookup">Lookup</button><button class="btn btn-secondary" id="preManifest">Download final delivery manifest</button></div>
     <pre class="launch-log" id="preLookupResult" style="min-height:90px">No lookup yet.</pre>
     <pre class="launch-log" id="prelaunchOwnerLog" style="min-height:90px">Pre-launch presale controls ready.</pre>
   `;

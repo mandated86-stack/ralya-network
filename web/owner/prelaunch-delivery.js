@@ -24,6 +24,8 @@ async function discriminator(name){ const h=await crypto.subtle.digest('SHA-256'
 function u64le(n){ const b=new Uint8Array(8); new DataView(b.buffer).setBigUint64(0,BigInt(n),true); return b; }
 async function dataU64(name,n){ const d=new Uint8Array(16); d.set(await discriminator(name),0); d.set(u64le(n),8); return d; }
 async function dataThreeU64(name,a,b,c){ const d=new Uint8Array(32); d.set(await discriminator(name),0); d.set(u64le(a),8); d.set(u64le(b),16); d.set(u64le(c),24); return d; }
+function hex32(hex){ if(!/^[a-f0-9]{64}$/i.test(String(hex||'')))throw new Error('Manifest SHA-256 is invalid.'); const out=new Uint8Array(32); for(let i=0;i<32;i++)out[i]=parseInt(hex.slice(i*2,i*2+2),16); return out; }
+async function dataInitMetrics(m){ const d=new Uint8Array(72); d.set(await discriminator('initialize_prelaunch_metrics'),0); d.set(hex32(m.sha256),8); d.set(u64le(m.totals.webRlyaBase),40); d.set(u64le(m.totals.manualRlyaBase),48); d.set(u64le(m.totals.grossUsdcBase),56); d.set(u64le(m.totals.referralUsdcBase),64); return d; }
 async function dataNoArgs(name){ return await discriminator(name); }
 
 function configured(){ return Boolean(cfg.saleProgramId && cfg.rlyaMint && cfg.salePda); }
@@ -42,6 +44,24 @@ function decodeSale(data){
   const presaleCap=v.getBigUint64(o,true);o+=8;const basePrice=v.getBigUint64(o,true);o+=8;const stepSize=v.getBigUint64(o,true);o+=8;const stepIncrement=v.getBigUint64(o,true);o+=8;const referralBps=v.getBigUint64(o,true);o+=8;const totalSold=v.getBigUint64(o,true);o+=8;const manualSold=v.getBigUint64(o,true);o+=8;const totalUsdc=v.getBigUint64(o,true);o+=8;const totalReferral=v.getBigUint64(o,true);o+=8;const startedAt=v.getBigInt64(o,true);o+=8;const status=v.getUint8(o);
   return {admin,treasury,founder,mint,usdc,presaleCap,basePrice,stepSize,stepIncrement,referralBps,totalSold,manualSold,totalUsdc,totalReferral,startedAt,status};
 }
+function decodeMetrics(data){
+  const b=data instanceof Uint8Array?data:new Uint8Array(data); if(b.length<137)throw new Error('Pre-launch metrics account is too small.');
+  const v=new DataView(b.buffer,b.byteOffset,b.byteLength); let o=8;
+  const mint=new PublicKey(b.slice(o,o+32));o+=32; const manifestHash=[...b.slice(o,o+32)].map(x=>x.toString(16).padStart(2,'0')).join('');o+=32;
+  const expectedWeb=v.getBigUint64(o,true);o+=8; const expectedManual=v.getBigUint64(o,true);o+=8; const expectedGross=v.getBigUint64(o,true);o+=8; const expectedReferral=v.getBigUint64(o,true);o+=8;
+  const webDelivered=v.getBigUint64(o,true);o+=8; const manualDelivered=v.getBigUint64(o,true);o+=8; const grossImported=v.getBigUint64(o,true);o+=8; const referralImported=v.getBigUint64(o,true);o+=8;
+  return {mint,manifestHash,expectedWeb,expectedManual,expectedGross,expectedReferral,webDelivered,manualDelivered,grossImported,referralImported};
+}
+function manifestExpectations(){
+  if(!manifest)throw new Error('Load the final manifest first.');
+  return {hash:String(manifest.sha256).toLowerCase(),web:BigInt(manifest.totals.webRlyaBase||0),manual:BigInt(manifest.totals.manualRlyaBase||0),gross:BigInt(manifest.totals.grossUsdcBase||0),referral:BigInt(manifest.totals.referralUsdcBase||0)};
+}
+function verifyMetricsCommitment(metrics,a){
+  const e=manifestExpectations();
+  if(!metrics.mint.equals(a.mint)||metrics.manifestHash!==e.hash||metrics.expectedWeb!==e.web||metrics.expectedManual!==e.manual||metrics.expectedGross!==e.gross||metrics.expectedReferral!==e.referral) throw new Error('On-chain pre-launch metrics are committed to a different delivery manifest. STOP distribution.');
+  return metrics;
+}
+async function readMetrics(a){ const info=await connection.getAccountInfo(a.metrics,'confirmed'); return info?decodeMetrics(info.data):null; }
 async function connectOwner(){
   provider=providerForBrowser(); if(!provider?.connect) throw new Error('No Solana wallet detected.');
   const result=await provider.connect(); owner=new PublicKey(result?.publicKey||provider.publicKey);
@@ -56,11 +76,12 @@ async function send(tx,label){
   await connection.confirmTransaction({signature:sig,...latest},'confirmed'); log(`${label}: ${sig}`); return sig;
 }
 async function ensureMetrics(a){
-  if(await connection.getAccountInfo(a.metrics,'confirmed')) return;
-  const tx=new Transaction().add(new TransactionInstruction({programId:a.program,data:await dataNoArgs('initialize_prelaunch_metrics'),keys:[
+  const existing=await readMetrics(a); if(existing){ verifyMetricsCommitment(existing,a); return existing; }
+  const tx=new Transaction().add(new TransactionInstruction({programId:a.program,data:await dataInitMetrics(manifest),keys:[
     {pubkey:owner,isSigner:true,isWritable:true},{pubkey:a.mint,isSigner:false,isWritable:false},{pubkey:a.sale,isSigner:false,isWritable:false},{pubkey:a.metrics,isSigner:false,isWritable:true},{pubkey:SystemProgram.programId,isSigner:false,isWritable:false}
   ]}));
-  await send(tx,'Initialize pre-launch metrics');
+  await send(tx,'Commit final pre-launch manifest metrics');
+  const created=await readMetrics(a); if(!created)throw new Error('Pre-launch metrics commitment was not created.'); verifyMetricsCommitment(created,a); log(`Final manifest commitment verified on-chain: ${manifest.sha256}`); return created;
 }
 async function referralInstruction(a,row){
   if(!row.referrer) return null;
@@ -95,7 +116,7 @@ async function buildWalletTx(a,row){
     const [receipt]=PublicKey.findProgramAddressSync([enc.encode('prelaunch_manual_delivery'),a.mint.toBytes(),recipient.toBytes()],a.program);
     if(!await connection.getAccountInfo(receipt,'confirmed')){
       tx.add(new TransactionInstruction({programId:a.program,data:await dataU64('deliver_prelaunch_manual',manual),keys:[
-        {pubkey:owner,isSigner:true,isWritable:true},{pubkey:recipient,isSigner:false,isWritable:false},{pubkey:a.mint,isSigner:false,isWritable:false},{pubkey:a.sale,isSigner:false,isWritable:true},{pubkey:a.saleVault,isSigner:false,isWritable:true},{pubkey:recipientAta,isSigner:false,isWritable:true},{pubkey:receipt,isSigner:false,isWritable:true},{pubkey:TOKEN_PROGRAM_ID,isSigner:false,isWritable:false},{pubkey:SystemProgram.programId,isSigner:false,isWritable:false}
+        {pubkey:owner,isSigner:true,isWritable:true},{pubkey:recipient,isSigner:false,isWritable:false},{pubkey:a.mint,isSigner:false,isWritable:false},{pubkey:a.sale,isSigner:false,isWritable:true},{pubkey:a.metrics,isSigner:false,isWritable:true},{pubkey:a.saleVault,isSigner:false,isWritable:true},{pubkey:recipientAta,isSigner:false,isWritable:true},{pubkey:receipt,isSigner:false,isWritable:true},{pubkey:TOKEN_PROGRAM_ID,isSigner:false,isWritable:false},{pubkey:SystemProgram.programId,isSigner:false,isWritable:false}
       ]}));
     } else log(`Private/off-site allocation already delivered to ${shorten(row.wallet)}; receipt found.`);
   }
@@ -159,7 +180,9 @@ async function runDistribution(){
         for(let i=0;i<txs.length;i++){ const signed=await provider.signTransaction(txs[i]); const sig=await connection.sendRawTransaction(signed.serialize(),{skipPreflight:false,maxRetries:4}); await connection.confirmTransaction({signature:sig,...txs[i].__ralyaBlockhash},'confirmed'); submitted+=1; log(`Delivered ${shorten(labels[i])}: ${sig}`); }
       }
     }
-    log(`RALYA pre-launch distribution complete. Submitted ${submitted}; already-complete wallets skipped ${skipped}. Re-run preflight to independently re-check receipt PDAs.`);
+    const committed=verifyMetricsCommitment(await readMetrics(a),a); const e=manifestExpectations();
+    if(committed.webDelivered!==e.web||committed.manualDelivered!==e.manual||committed.grossImported!==e.gross||committed.referralImported!==e.referral) throw new Error('Distribution transactions finished but on-chain pre-launch metrics do not exactly reconcile to the committed manifest totals.');
+    log(`RALYA pre-launch distribution complete. Submitted ${submitted}; already-complete wallets skipped ${skipped}. Final manifest commitment verified on-chain.`);
   } finally { running=false; }
 }
 function install(){

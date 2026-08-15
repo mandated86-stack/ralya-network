@@ -20,6 +20,7 @@ web-check:
 	node --check web/owner/atomic-launch.js
 	node --check web/owner/smoke.js
 	node --check web/owner/prelaunch-delivery.js
+	node --check web/owner/treasury-prep.js
 	node --check web/launch-status.js
 	node --check web/owner/status-control.js
 	node --check web/owner/presale-control.js

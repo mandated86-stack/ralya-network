@@ -453,21 +453,50 @@ pub mod rlya_sale {
     /// public token launch. Keeping these counters outside `Sale` preserves the
     /// already-tested sale-account layout while making pre-launch website
     /// allocations distinguishable from genuine manual/off-site allocations.
-    pub fn initialize_prelaunch_metrics(ctx: Context<InitializePrelaunchMetrics>) -> Result<()> {
+    pub fn initialize_prelaunch_metrics(
+        ctx: Context<InitializePrelaunchMetrics>,
+        manifest_sha256: [u8; 32],
+        expected_web_rlya: u64,
+        expected_manual_rlya: u64,
+        expected_gross_usdc: u64,
+        expected_referral_usdc: u64,
+    ) -> Result<()> {
         require!(
             ctx.accounts.sale.status == SaleStatus::Draft as u8
                 || ctx.accounts.sale.status == SaleStatus::Paused as u8,
             SaleError::InvalidState
         );
+        let expected_total = expected_web_rlya
+            .checked_add(expected_manual_rlya)
+            .ok_or(SaleError::MathOverflow)?;
+        require!(
+            expected_total <= ctx.accounts.sale.presale_cap,
+            SaleError::PrelaunchCommitmentMismatch
+        );
+        require!(
+            expected_referral_usdc <= expected_gross_usdc,
+            SaleError::PrelaunchCommitmentMismatch
+        );
         let metrics = &mut ctx.accounts.prelaunch_metrics;
         metrics.rlya_mint = ctx.accounts.rlya_mint.key();
+        metrics.manifest_sha256 = manifest_sha256;
+        metrics.expected_web_rlya = expected_web_rlya;
+        metrics.expected_manual_rlya = expected_manual_rlya;
+        metrics.expected_gross_usdc = expected_gross_usdc;
+        metrics.expected_referral_usdc = expected_referral_usdc;
         metrics.web_rlya_delivered = 0;
+        metrics.manual_rlya_delivered = 0;
         metrics.gross_usdc_imported = 0;
         metrics.referral_usdc_imported = 0;
         metrics.bump = ctx.bumps.prelaunch_metrics;
         emit!(PrelaunchMetricsInitialized {
             account: metrics.key(),
             rlya_mint: metrics.rlya_mint,
+            manifest_sha256,
+            expected_web_rlya,
+            expected_manual_rlya,
+            expected_gross_usdc,
+            expected_referral_usdc,
         });
         Ok(())
     }
@@ -530,6 +559,36 @@ pub mod rlya_sale {
             referral_usdc_amount <= gross_usdc_amount,
             SaleError::InvalidReferralReward
         );
+        let next_web_rlya = ctx
+            .accounts
+            .prelaunch_metrics
+            .web_rlya_delivered
+            .checked_add(rlya_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        let next_gross_usdc = ctx
+            .accounts
+            .prelaunch_metrics
+            .gross_usdc_imported
+            .checked_add(gross_usdc_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        let next_referral_usdc = ctx
+            .accounts
+            .prelaunch_metrics
+            .referral_usdc_imported
+            .checked_add(referral_usdc_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        require!(
+            next_web_rlya <= ctx.accounts.prelaunch_metrics.expected_web_rlya,
+            SaleError::PrelaunchCommitmentMismatch
+        );
+        require!(
+            next_gross_usdc <= ctx.accounts.prelaunch_metrics.expected_gross_usdc,
+            SaleError::PrelaunchCommitmentMismatch
+        );
+        require!(
+            next_referral_usdc <= ctx.accounts.prelaunch_metrics.expected_referral_usdc,
+            SaleError::PrelaunchCommitmentMismatch
+        );
 
         let price_before = current_price(&ctx.accounts.sale)?;
         let new_total = ctx
@@ -573,18 +632,9 @@ pub mod rlya_sale {
             .ok_or(SaleError::MathOverflow)?;
 
         let metrics = &mut ctx.accounts.prelaunch_metrics;
-        metrics.web_rlya_delivered = metrics
-            .web_rlya_delivered
-            .checked_add(rlya_amount)
-            .ok_or(SaleError::MathOverflow)?;
-        metrics.gross_usdc_imported = metrics
-            .gross_usdc_imported
-            .checked_add(gross_usdc_amount)
-            .ok_or(SaleError::MathOverflow)?;
-        metrics.referral_usdc_imported = metrics
-            .referral_usdc_imported
-            .checked_add(referral_usdc_amount)
-            .ok_or(SaleError::MathOverflow)?;
+        metrics.web_rlya_delivered = next_web_rlya;
+        metrics.gross_usdc_imported = next_gross_usdc;
+        metrics.referral_usdc_imported = next_referral_usdc;
 
         let receipt = &mut ctx.accounts.delivery_receipt;
         receipt.recipient = ctx.accounts.recipient.key();
@@ -636,6 +686,16 @@ pub mod rlya_sale {
             ctx.accounts.sale_vault.amount >= rlya_amount,
             SaleError::SaleVaultUnderfunded
         );
+        let next_manual_rlya = ctx
+            .accounts
+            .prelaunch_metrics
+            .manual_rlya_delivered
+            .checked_add(rlya_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        require!(
+            next_manual_rlya <= ctx.accounts.prelaunch_metrics.expected_manual_rlya,
+            SaleError::PrelaunchCommitmentMismatch
+        );
 
         let mint_key = ctx.accounts.rlya_mint.key();
         let bump = [ctx.accounts.sale.bump];
@@ -657,6 +717,7 @@ pub mod rlya_sale {
             .manual_sold
             .checked_add(rlya_amount)
             .ok_or(SaleError::MathOverflow)?;
+        ctx.accounts.prelaunch_metrics.manual_rlya_delivered = next_manual_rlya;
         let receipt = &mut ctx.accounts.delivery_receipt;
         receipt.recipient = ctx.accounts.recipient.key();
         receipt.rlya_amount = rlya_amount;
@@ -1205,6 +1266,13 @@ pub struct DeliverPrelaunchManual<'info> {
     pub sale: Account<'info, Sale>,
     #[account(
         mut,
+        seeds = [PRELAUNCH_METRICS_SEED, rlya_mint.key().as_ref()],
+        bump = prelaunch_metrics.bump,
+        has_one = rlya_mint
+    )]
+    pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,
+    #[account(
+        mut,
         token::mint = rlya_mint,
         token::authority = sale,
         seeds = [SALE_VAULT_SEED, rlya_mint.key().as_ref()],
@@ -1315,13 +1383,19 @@ impl ReferralAttribution {
 #[account]
 pub struct PrelaunchMetrics {
     pub rlya_mint: Pubkey,
+    pub manifest_sha256: [u8; 32],
+    pub expected_web_rlya: u64,
+    pub expected_manual_rlya: u64,
+    pub expected_gross_usdc: u64,
+    pub expected_referral_usdc: u64,
     pub web_rlya_delivered: u64,
+    pub manual_rlya_delivered: u64,
     pub gross_usdc_imported: u64,
     pub referral_usdc_imported: u64,
     pub bump: u8,
 }
 impl PrelaunchMetrics {
-    pub const SPACE: usize = 8 + 32 + (8 * 3) + 1 + 16;
+    pub const SPACE: usize = 8 + 32 + 32 + (8 * 8) + 1 + 16;
 }
 
 #[account]
@@ -1411,6 +1485,11 @@ pub struct ManualSaleRecorded {
 pub struct PrelaunchMetricsInitialized {
     pub account: Pubkey,
     pub rlya_mint: Pubkey,
+    pub manifest_sha256: [u8; 32],
+    pub expected_web_rlya: u64,
+    pub expected_manual_rlya: u64,
+    pub expected_gross_usdc: u64,
+    pub expected_referral_usdc: u64,
 }
 #[event]
 pub struct PrelaunchDelivered {
@@ -1484,4 +1563,6 @@ pub enum SaleError {
     ReferralRequired,
     #[msg("direct two-wallet circular referrals are not allowed")]
     CircularReferral,
+    #[msg("pre-launch delivery does not match the committed final manifest totals")]
+    PrelaunchCommitmentMismatch,
 }

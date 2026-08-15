@@ -70,6 +70,7 @@ window.RALYA_CONFIG = Object.freeze({
     if (location.pathname.includes('/owner/')) {
       loadScript('/owner/status-control.js', 'data-rlya-owner-status');
       loadScript('/owner/presale-control.js', 'data-rlya-owner-presale');
+      loadScript('/owner/treasury-prep.js', 'data-rlya-owner-treasury');
       loadScript('/owner/prelaunch-delivery.js', 'data-rlya-owner-delivery');
     }
   };

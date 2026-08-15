@@ -129,7 +129,7 @@ This preserves the distinction between public website presale and private/off-si
 - owner-controlled local Mainnet deployment scripts with exact executable byte/SHA verification
 - staged Mainnet 839M token-preparation console
 - atomic activate + pause founder-lock sequence
-- owner-funded 1 USDC atomic Mainnet smoke tool
+- legacy owner-funded 1 USDC atomic Mainnet smoke tool retained for later atomic-sale diagnostics; it is not part of the delayed-allocation pre-launch sequence because it would consume presale inventory
 - public-only Mainnet verifier
 
 ## Public Devnet evidence
@@ -166,12 +166,13 @@ The informational website can be public while allocation access remains closed. 
 5. create exactly 839M production RLYA and all seven allocation accounts;
 6. permanently revoke mint authority and confirm freeze authority absent;
 7. start the 365-day founder lock while final sale state remains PAUSED;
-8. complete owner-funded Mainnet smoke verification;
-9. close pre-launch allocations and export the final hashed delivery manifest;
-10. distribute confirmed pre-launch allocations from the official sale vault using idempotent receipt PDAs;
-11. independently verify production supply, allocations, metrics and transaction evidence;
-12. update public production addresses;
-13. announce/publicly launch only when the owner chooses;
-14. later switch from pre-launch allocation mode to the already-built atomic USDC → RLYA settlement mode.
+8. independently verify the clean PAUSED production state without consuming presale inventory;
+9. close pre-launch allocations, let in-flight quote windows clear and export the final hashed delivery manifest;
+10. commit the manifest hash and expected totals in the on-chain pre-launch metrics PDA;
+11. distribute confirmed pre-launch allocations from the official sale vault using idempotent receipt PDAs;
+12. verify the on-chain metrics exactly match the committed manifest and verify production supply/allocation evidence;
+13. update public production addresses;
+14. announce/publicly launch only when the owner chooses;
+15. later switch from pre-launch allocation mode to the already-built atomic USDC → RLYA settlement mode.
 
 No production Mainnet address is to be claimed until signed on-chain evidence exists.

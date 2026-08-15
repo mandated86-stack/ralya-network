@@ -129,17 +129,23 @@ Use `Atomic activate + pause` so activation and pause are one Solana transaction
 
 Public launch is still separate.
 
-## Stage 8 — Mainnet smoke verification
+## Stage 8 — verify the clean PAUSED production state
 
-With the sale PAUSED, the existing owner-funded smoke tool performs the atomic protocol check:
+For the delayed-allocation pre-launch model, do **not** run the legacy 1-USDC atomic smoke purchase before buyer distribution. That transaction would consume part of the same 100.68M presale inventory and move the buyer price curve.
 
-`resume → register referral → buy 1 USDC → pause`
+Instead, require the clean production verification path:
 
-It verifies the fixed referral split and finishes PAUSED. This is transparent owner-funded technical activity, not external buyer demand.
+- exact downloaded Mainnet executable byte/SHA equality;
+- exact 839M production supply;
+- mint authority removed;
+- freeze authority absent;
+- all seven allocation buckets reconciled;
+- founder lock active;
+- sale state PAUSED;
+- production Program ID / mint / PDA / treasury identities verified;
+- `scripts/verify_mainnet_public.mjs` passes in its clean pre-smoke state.
 
-Run the independent public verifier and require:
-
-`RALYA_MAINNET_PUBLIC_VERIFICATION=PASS`
+The old 1-USDC smoke tool remains available only for a later atomic-sale diagnostic when using it cannot steal inventory from pre-launch buyer allocations or silently move their curve. It is hidden in the owner console while `presaleMode` is `prelaunch-allocation`.
 
 ## Stage 9 — final pre-launch RLYA distribution
 
@@ -159,7 +165,8 @@ The preflight checks:
 - sale state is PAUSED;
 - fixed 100.68M presale cap;
 - official sale-vault inventory;
-- existing on-chain delivery receipt PDAs.
+- existing on-chain delivery receipt PDAs;
+- on-chain pre-launch metrics commitment matches the final manifest SHA-256 and expected totals.
 
 Only still-pending allocations count toward a rerun preflight.
 
