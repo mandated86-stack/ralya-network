@@ -63,7 +63,7 @@ window.RALYA_CONFIG = Object.freeze({
     observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
-  const loadPublicExtras = () => {
+  const loadExtras = () => {
     if (document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
       const transparency = document.createElement('script');
       transparency.src = 'distribution-transparency.js';
@@ -79,8 +79,16 @@ window.RALYA_CONFIG = Object.freeze({
       status.dataset.rlyaLaunchStatus = '1';
       document.body.appendChild(status);
     }
+
+    if (location.pathname.includes('/owner/') && !document.querySelector('script[data-rlya-owner-status]')) {
+      const ownerStatus = document.createElement('script');
+      ownerStatus.src = '/owner/status-control.js';
+      ownerStatus.defer = true;
+      ownerStatus.dataset.rlyaOwnerStatus = '1';
+      document.body.appendChild(ownerStatus);
+    }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadPublicExtras, { once: true });
-  else loadPublicExtras();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadExtras, { once: true });
+  else loadExtras();
 })();
