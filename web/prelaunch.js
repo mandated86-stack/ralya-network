@@ -287,13 +287,30 @@ function updateBuyAvailability() {
     ? 'After verified payment, your base allocation plus fixed 5% RLYA bonus unlock 21 days after public launch.'
     : 'After verified payment, Standard buyers receive actual purchased RLYA 1 day before public launch.';
 }
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+async function waitForSignatureConfirmation(signature, lastValidBlockHeight, timeoutMs = 75000) {
+  const started = Date.now();
+  let polls = 0;
+  while (Date.now() - started < timeoutMs) {
+    const statuses = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+    const status = statuses?.value?.[0];
+    if (status?.err) throw new Error(`Solana transaction failed: ${JSON.stringify(status.err)}`);
+    if (status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')) return status;
+    if (++polls % 4 === 0 && lastValidBlockHeight) {
+      const height = await connection.getBlockHeight('confirmed');
+      if (height > lastValidBlockHeight) throw new Error(`Solana transaction expired before confirmation. Signature: ${signature}`);
+    }
+    await sleep(900);
+  }
+  throw new Error(`Solana confirmation is taking longer than expected. Signature: ${signature}. Do not submit another payment until this signature is checked.`);
+}
 async function sendTransaction(tx) {
   const latest = await connection.getLatestBlockhash('confirmed'); tx.feePayer = wallet; tx.recentBlockhash = latest.blockhash; let signature;
   if (provider.signAndSendTransaction) { const result = await provider.signAndSendTransaction(tx); signature = typeof result === 'string' ? result : result?.signature; }
   else if (provider.signTransaction) { const signed = await provider.signTransaction(tx); signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 4 }); }
   else throw new Error('Connected wallet does not support transaction signing.');
   if (!signature) throw new Error('Wallet returned no transaction signature.');
-  await connection.confirmTransaction({ signature, ...latest }, 'confirmed'); return signature;
+  await waitForSignatureConfirmation(signature, latest.lastValidBlockHeight); return signature;
 }
 async function requiredAta(owner,mint,label){
   const ata=await getAssociatedTokenAddress(mint,owner);

@@ -107,7 +107,7 @@ export default async (req: Request) => {
     // runtime initialization is unavailable, this handler can still return a CLOSED 200 state
     // instead of allowing an uncaught module-load failure to surface as a platform 502.
     const { getStore } = await import('@netlify/blobs');
-    const s = getStore(PRESALE_STORE, { consistency: 'strong' });
+    const s = getStore({ name: PRESALE_STORE, consistency: 'strong' });
     const [controlRaw, purchases, manual, quotes] = await Promise.all([
       s.get('control', { type: 'json' }),
       listJson(s, 'purchase/'),

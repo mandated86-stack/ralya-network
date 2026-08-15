@@ -21,12 +21,23 @@ index = read('web/index.html')
 netlify = read('netlify.toml')
 state = read('netlify/functions/presale-state.mts')
 rpc = read('netlify/functions/solana-rpc.mts')
+confirm = read('netlify/functions/presale-confirm.mts')
+owner = read('netlify/functions/presale-owner.mts')
+treasury = read('web/owner/treasury-prep.js')
+build_status = read('docs/BUILD_STATUS.md')
+owner_guide = read('docs/OWNER_GUIDE.md')
+next_owner = read('NEXT_OWNER_ACTIONS.txt')
 
 check("rpcEndpoint: 'https://ralyaai.com/api/solana/rpc'" in site, 'browser RPC is not routed through the canonical same-origin server proxy with an absolute web3.js-compatible URL')
 check('https://api.mainnet-beta.solana.com' not in site, 'public Solana endpoint remains in browser site configuration')
 check('https://api.mainnet-beta.solana.com' not in netlify, 'public Solana endpoint remains allowed by browser CSP')
 check("Netlify?.env?.get?.('RALYA_SOLANA_RPC')" in rpc, 'server RPC proxy is not sourcing the dedicated endpoint from Netlify environment configuration')
 check("path: '/api/solana/rpc'" in rpc, 'server RPC proxy route is missing')
+check('https://api.mainnet-beta.solana.com' not in confirm and 'https://api.mainnet-beta.solana.com' not in owner, 'production presale server code still falls back to the public Solana RPC')
+check("Dedicated Solana Mainnet RPC is not configured" in confirm and "Dedicated Solana Mainnet RPC is not configured" in owner, 'production presale server paths do not fail closed when dedicated RPC is missing')
+check("getStore({ name: PRESALE_STORE, consistency: 'strong' })" in state, 'presale state does not use the current strong-consistency Netlify Blobs store form')
+check('confirmTransaction(' not in prelaunch and 'confirmTransaction(' not in treasury, 'browser transaction confirmation still depends on an RPC WebSocket endpoint')
+check('getSignatureStatuses' in prelaunch and 'getSignatureStatuses' in treasury, 'HTTP signature-status confirmation polling is missing')
 check("await import('@netlify/blobs')" in state and 'backendReady: false' in state, 'presale state endpoint is not catching Blob/runtime initialization inside the handler')
 check("const PRESALE_STORE = 'ralya-prelaunch-presale'" in state, 'presale state endpoint is not using the authoritative production Blob store')
 
@@ -61,6 +72,11 @@ check('pre-launch presale phase' in readme and 'RLYA public token Mainnet Day 0'
 check("presaleEnabled: false" in site, 'post-launch atomic sale switch must remain disabled')
 check("rlyaMint: ''" in site and "saleProgramId: ''" in site and "salePda: ''" in site, 'Mainnet token/program/PDA values must remain blank')
 check('presaleCap: 288000000' in site and 'stakingBonusReserve: 14400000' in site and 'stakingBonusBps: 500' in site, 'authoritative presale economics changed')
+
+current_docs = build_status + owner_guide + next_owner
+check('100,680,000' not in current_docs and '100.68M' not in current_docs, 'current owner/public status docs still contain the obsolete 100.68M pool')
+check('36 days after public launch' not in current_docs, 'current owner/public status docs still contain the obsolete day-36 release')
+check('DELIBERATELY DEFERRED' not in current_docs and 'deliberately deferred' not in current_docs, 'current owner/public status docs use stale intentional-delay wording')
 
 if errors:
     print('PRESALE PUBLIC AUDIT FAILED')
