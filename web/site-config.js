@@ -43,6 +43,12 @@ window.RALYA_CONFIG = Object.freeze({
   const canonicalOrigin = new URL(cfg.projectUrl).origin;
   const isOwnerPath = /^\/owner(?:\/|$)/.test(location.pathname);
 
+  // Trust Wallet exposes its Solana provider under window.trustwallet.solana. The private
+  // owner tools historically consume window.solana, so bridge the same provider locally.
+  if (isOwnerPath && window.trustwallet?.solana && !window.solana) {
+    try { window.solana = window.trustwallet.solana; } catch {}
+  }
+
   // Never let public traffic or wallet deep-links settle on the Netlify fallback hostname.
   if (/\.netlify\.app$/i.test(location.hostname) && location.origin !== canonicalOrigin) {
     location.replace(`${canonicalOrigin}${location.pathname}${location.search}${location.hash}`);
