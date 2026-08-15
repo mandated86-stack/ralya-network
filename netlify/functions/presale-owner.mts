@@ -117,7 +117,8 @@ export default async (req: Request) => {
       const note = cleanText(payload.note, 220);
       const event = await withMutationLock(s, async () => {
         const state = await computeState(s, true);
-        const start = state.effectiveProgressBase;
+        if (state.reservedBase > 0n) throw new Error('Wait for active buyer quotes to clear before recording a private allocation. Pause allocation access if you need a clean private-allocation checkpoint.');
+        const start = state.totalAllocatedBase;
         const end = start + amount;
         if (end > PRESALE_CAP_BASE) throw new Error('Manual allocation would exceed the 100.68M RLYA presale cap or active reservations.');
         const id = newId('m');
@@ -154,6 +155,9 @@ export default async (req: Request) => {
     }
 
     if (op === 'manifest') {
+      const state = await computeState(s, true);
+      if (state.control.access !== 'closed') throw new Error('Close pre-launch allocation access before exporting the final delivery manifest.');
+      if (state.reservedBase > 0n) throw new Error('Active buyer quote windows are still clearing. Export the final manifest after all reservations expire or confirm.');
       const manifest = await makeManifest(s);
       if (BigInt(manifest.totals.totalRlyaBase) > PRESALE_CAP_BASE) throw new Error('Manifest exceeds presale cap.');
       return json({ ok: true, manifest });

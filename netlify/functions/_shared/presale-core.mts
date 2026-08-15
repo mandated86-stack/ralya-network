@@ -17,6 +17,7 @@ export const REFERRAL_BPS = 100n;
 export const BPS_DENOMINATOR = 10_000n;
 export const MIN_PURCHASE_USDC_BASE = USDC_UNIT;
 export const QUOTE_TTL_MS = 5 * 60 * 1000;
+export const QUOTE_CONFIRMATION_GRACE_MS = 2 * 60 * 1000;
 export const MAX_OWNER_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 export type AllocationEvent = {
@@ -163,7 +164,7 @@ export async function getAllocationEvents(s = store()) {
 
 export async function getActiveQuotes(s = store(), now = Date.now()) {
   const quotes = await readPrefix<any>(s, 'quote/');
-  return quotes.filter(q => q?.status === 'active' && Number(q?.expiresAtMs || 0) > now);
+  return quotes.filter(q => q?.status === 'active' && Number(q?.expiresAtMs || 0) + QUOTE_CONFIRMATION_GRACE_MS > now);
 }
 
 export async function computeState(s = store(), includeReservations = false) {
