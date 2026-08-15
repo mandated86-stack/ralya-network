@@ -1,0 +1,22 @@
+RALYA 0.7.1 PRE-LAUNCH RELEASE
+
+Release mode: prelaunch-allocation
+Atomic post-launch sale gate: disabled
+Pre-launch allocation access default: closed
+Production Mainnet addresses: not yet configured by design
+Production Mainnet deployment: deliberately deferred
+Public token launch: not open
+
+0.7.1 release hardening:
+- server-side opening preflight requires reachable Solana Mainnet RPC
+- opening preflight verifies configured treasury USDC associated token account
+- owner console presents pre-launch controls before deferred Mainnet tooling
+- Mainnet distribution tool loads only after production Program ID/mint/PDA are configured
+- public website wording/version/metadata aligned to delayed-distribution pre-launch model
+
+Required release markers:
+- RALYA_PRELAUNCH_SELFTEST=PASS
+- RALYA_PRELAUNCH_AUDIT=PASS
+- RALYA_PRODUCTION_WEB_BUNDLE=PASS
+- RALYA_LOCAL_PROTOCOL_INTEGRATION=PASS
+- RALYA_LOCAL_PRELAUNCH_INTEGRATION=PASS
