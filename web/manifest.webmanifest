@@ -1,9 +1,13 @@
 {
   "name":"RALYA",
   "short_name":"RALYA",
-  "start_url":"./",
+  "start_url":"https://ralyaai.com/",
+  "scope":"https://ralyaai.com/",
   "display":"standalone",
   "background_color":"#07141f",
   "theme_color":"#07141f",
-  "icons":[{"src":"favicon.svg","sizes":"any","type":"image/svg+xml"}]
+  "icons":[
+    {"src":"/rlya-token.png","sizes":"512x512","type":"image/png","purpose":"any maskable"},
+    {"src":"/favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}
+  ]
 }

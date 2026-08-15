@@ -2,6 +2,23 @@
   command = "npm run build:web"
   publish = "web"
 
+[[redirects]]
+  from = "https://ralya-network.netlify.app/*"
+  to = "https://ralyaai.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://main--ralya-network.netlify.app/*"
+  to = "https://ralyaai.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/rlya-token.png"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -10,6 +27,21 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.mainnet-beta.solana.com wss://api.mainnet-beta.solana.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=300, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=300, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/rlya-token.png"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
 
 [[headers]]
   for = "/token-metadata.json"
