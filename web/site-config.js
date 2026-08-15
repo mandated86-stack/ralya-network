@@ -5,6 +5,7 @@ window.RALYA_CONFIG = Object.freeze({
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
+  prelaunchCheckoutEnabled: false,
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
@@ -38,8 +39,12 @@ window.RALYA_CONFIG = Object.freeze({
 
 (() => {
   const cfg = window.RALYA_CONFIG;
-  if (cfg.presaleMode === 'atomic' && !cfg.presaleEnabled) {
-    const lockedMessage = 'Public token-sale access is not open yet.';
+  const atomicLocked = cfg.presaleMode === 'atomic' && !cfg.presaleEnabled;
+  const prelaunchLocked = cfg.presaleMode === 'prelaunch-allocation' && !cfg.prelaunchCheckoutEnabled;
+  if (atomicLocked || prelaunchLocked) {
+    const lockedMessage = atomicLocked
+      ? 'Public token-sale access is not open yet.'
+      : 'Private launch testing is active. Presale checkout opens after final release-policy verification.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
