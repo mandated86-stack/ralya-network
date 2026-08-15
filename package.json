@@ -1,7 +1,7 @@
 {
   "name": "ralya-network-web",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Pinned production dependencies for the RALYA website, owner consoles and pre-launch presale functions.",
   "scripts": {
     "build:web": "bash scripts/build_web_prod.sh",
