@@ -13,6 +13,9 @@
     'opensource.body': '#open-source .section-head > p',
     'engineering.heading': '.dark-panel .section-head h2',
   });
+  const REFRESH_MS = 30_000;
+  let refreshTimer = null;
+  let lastEffective = '';
 
   async function readJson(url) {
     const response = await fetch(url, { cache: 'no-store', headers: { accept: 'application/json' } });
@@ -25,7 +28,7 @@
       const value = copy?.[key];
       if (typeof value !== 'string' || !value.trim()) continue;
       const node = document.querySelector(selector);
-      if (node) node.textContent = value.trim();
+      if (node && node.textContent !== value.trim()) node.textContent = value.trim();
     }
   }
 
@@ -40,11 +43,28 @@
       // Static defaults remain the safe fallback if the live-copy service is unavailable.
     }
     const effective = { ...defaults, ...overrides };
+    const fingerprint = JSON.stringify(effective);
+    if (fingerprint === lastEffective) return;
+    lastEffective = fingerprint;
     apply(effective);
     document.dispatchEvent(new CustomEvent('ralya:site-copy-applied', { detail: { effective } }));
   }
 
+  function schedule() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') refresh().catch(() => {});
+    }, REFRESH_MS);
+  }
+
   window.RALYA_SITE_COPY = Object.freeze({ refresh });
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
-  else refresh();
+  const init = () => {
+    refresh().catch(() => {});
+    schedule();
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refresh().catch(() => {});
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+  else init();
 })();
