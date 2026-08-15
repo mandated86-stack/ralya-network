@@ -20,6 +20,7 @@ cleanup = text('netlify/functions/presale-cleanup.mts')
 client = text('web/prelaunch.js')
 owner_client = text('web/owner/presale-control.js')
 owner_html = text('web/owner/index.html')
+owner_html_lower = owner_html.lower()
 treasury_client = text('web/owner/treasury-prep.js')
 delivery = text('web/owner/prelaunch-delivery.js')
 site = text('web/site-config.js')
@@ -73,8 +74,8 @@ check('requiredAta' in client and 'configuredTreasury' in client and 'No funds w
 check('activateReferralReceiving' in client, 'referrer self-funded USDC receiving-account activation missing')
 
 check('manual_allocate' in owner_client and 'set_access' in owner_client and 'manifest' in owner_client and 'runOpeningPreflight' in owner_client, 'owner prelaunch controls incomplete')
-check('id="mainnetDeferredTools" hidden' in owner_html and 'Mainnet is deliberately deferred' in owner_html, 'future Mainnet controls are not hidden/deferred during prelaunch mode')
-check('run 1 USDC Mainnet smoke test' in owner_html and '<section class="owner-card" hidden>' in owner_html, 'legacy atomic smoke is not hidden during delayed-allocation mode')
+check('id="mainnetdeferredtools" hidden' in owner_html_lower and 'mainnet is deliberately deferred' in owner_html_lower, 'future Mainnet controls are not hidden/deferred during prelaunch mode')
+check('run 1 usdc mainnet smoke test' in owner_html_lower and '<section class="owner-card" hidden>' in owner_html_lower, 'legacy atomic smoke is not hidden during delayed-allocation mode')
 check('verifyOwnerAction' in owner and 'Owner wallet required.' in core, 'server owner-wallet authorization missing')
 check('Prepare / verify USDC receiving account' in treasury_client and 'createAssociatedTokenAccountInstruction' in treasury_client, 'owner treasury USDC preparation control missing')
 
