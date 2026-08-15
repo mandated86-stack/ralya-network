@@ -7,6 +7,7 @@ from .config import (
     USDC_UNIT,
     FOUNDER_ALLOCATION,
     PRESALE_ALLOCATION,
+    STAKING_BONUS_RESERVE,
 )
 from .ledger import Ledger, LedgerError
 
@@ -29,7 +30,7 @@ class LiveSaleState(str, Enum):
 @dataclass(frozen=True)
 class CurveConfig:
     base_price_micro_usdc: int = 3_000       # $0.003000
-    step_size_rlya: int = 1_000_000          # price step every 1M distributed
+    step_size_rlya: int = 1_000_000          # internal price step
     step_increment_micro_usdc: int = 50      # +$0.000050 each step
     min_purchase_micro_usdc: int = USDC_UNIT # 1 USDC
 
@@ -39,19 +40,18 @@ class CurveConfig:
 
 
 class LiveSaleEngine:
-    """Executable mirror of the RLYA mainnet sale design.
+    """Executable mirror of the post-launch atomic RLYA sale path.
 
-    Confirmed buys are final and deliver RLYA immediately. No buyer allocation
-    database, claim phase, refund state or refund instruction exists. Referred
-    buys split a fixed 1% of the buyer's gross USDC payment to the referrer and
-    the remaining 99% to treasury; the buyer receives the same RLYA quote and
-    pays no surcharge. Off-site sales move RLYA from the same program sale vault
-    to the recipient and advance the same public demand curve.
+    The pre-launch website uses a separate verified-USDC allocation ledger and
+    delayed distribution. This mirror covers the later atomic path, while still
+    enforcing the same 288M base sale vault and dedicated 14.4M fixed staking
+    bonus reserve at production activation.
     """
 
     RLYA = "RLYA"
     USDC = "USDC"
     SALE_VAULT = "__rlya_sale_vault__"
+    STAKING_BONUS_VAULT = "__rlya_staking_bonus_vault__"
     FOUNDER_VAULT = "__rlya_founder_vault__"
     TREASURY = "__rlya_treasury__"
 
@@ -79,7 +79,9 @@ class LiveSaleEngine:
         if self.ledger.issued(self.RLYA) != RLYA_MAX_SUPPLY:
             raise LiveSaleError("RLYA issued supply must equal the 839M hard cap")
         if self.ledger.balance(self.RLYA, self.SALE_VAULT) != PRESALE_ALLOCATION:
-            raise LiveSaleError("sale vault must hold the exact presale allocation")
+            raise LiveSaleError("sale vault must hold the exact 288M base presale allocation")
+        if self.ledger.balance(self.RLYA, self.STAKING_BONUS_VAULT) != STAKING_BONUS_RESERVE:
+            raise LiveSaleError("staking bonus vault must hold the exact 14.4M RLYA reserve")
         if self.ledger.balance(self.RLYA, self.FOUNDER_VAULT) != FOUNDER_ALLOCATION:
             raise LiveSaleError("founder vault must hold the exact founder allocation")
         self.state = LiveSaleState.ACTIVE
@@ -122,7 +124,7 @@ class LiveSaleEngine:
             if progress >= PRESALE_ALLOCATION:
                 raise LiveSaleError("presale sold out")
             loops += 1
-            if loops > 256:
+            if loops > 512:
                 raise LiveSaleError("too many pricing steps")
             step_index = progress // self.curve.step_size_base_units
             price = self.curve.base_price_micro_usdc + step_index * self.curve.step_increment_micro_usdc
@@ -179,7 +181,6 @@ class LiveSaleEngine:
                 raise LiveSaleError("purchase too small for referral reward")
             treasury_amount = usdc_amount - referral_reward
 
-        # Model Solana atomicity by proving all legs can complete before state is advanced.
         if self.ledger.balance(self.USDC, buyer) < usdc_amount:
             raise LiveSaleError("insufficient USDC")
         if self.ledger.balance(self.RLYA, self.SALE_VAULT) < allocation:
@@ -227,8 +228,11 @@ class LiveSaleEngine:
         if self.state != LiveSaleState.CLOSED:
             raise LiveSaleError("sale must be closed")
         amount = self.ledger.balance(self.RLYA, self.SALE_VAULT)
+        bonus = self.ledger.balance(self.RLYA, self.STAKING_BONUS_VAULT)
         if amount:
             self.ledger.transfer(self.RLYA, self.SALE_VAULT, self.TREASURY, amount)
+        if bonus:
+            self.ledger.transfer(self.RLYA, self.STAKING_BONUS_VAULT, self.TREASURY, bonus)
         return amount
 
     def _admin(self, caller: str):
