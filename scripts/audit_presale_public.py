@@ -46,6 +46,12 @@ check('Connect Wallet — Enter Presale' in wallet, 'large hero wallet CTA is mi
 check('Live presale data reconnecting…' in wallet, 'small fail-closed reconnect status is missing')
 check("let installedWalletAddress = ''" in wallet and "if (changed) window.dispatchEvent" in wallet, 'Wallet Standard subscription can emit duplicate reconnect events/signing prompts')
 check('installWalletChooser();' not in hotfix, 'legacy provider-sniffing wallet chooser is still installed')
+check("ROUTE_PATHS = Object.freeze({ home: '/', rlya: '/rlya', technology: '/technology', roadmap: '/roadmap', docs: '/docs', presale: '/presale' })" in hotfix, 'clean public route map is missing')
+check('pushState' in hotfix and "window.addEventListener('popstate'" in hotfix, 'clean route history/back navigation is incomplete')
+check('href="#home"' not in hotfix, 'generated navigation still exposes #home')
+check("url.pathname = '/presale'" in prelaunch and "url.hash = ''" in prelaunch, 'referral URLs are not using clean /presale')
+for route in ('/rlya', '/technology', '/roadmap', '/docs', '/presale'):
+    check(f'from = "{route}"' in netlify, f'Netlify direct-route rewrite missing for {route}')
 check('installSafeCopyObserver();' not in hotfix, 'old DOM mutation copy observer is still installed')
 
 for stale in (

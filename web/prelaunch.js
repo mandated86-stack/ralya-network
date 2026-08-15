@@ -52,7 +52,7 @@ function formatBase(base, decimals = 9, maxFraction = 4) {
   return `${Number(whole).toLocaleString()}${frac ? `.${frac}` : ''}`;
 }
 function formatPrice(micro) { return `$${(Number(BigInt(micro || 0)) / 1_000_000).toFixed(6)}`; }
-function referralLinkFor(address) { const url = new URL(window.location.href); url.searchParams.set('ref', address); url.hash = 'presale'; return url.toString(); }
+function referralLinkFor(address) { const url = new URL(cfg.projectUrl || window.location.origin); url.pathname = '/presale'; url.searchParams.set('ref', address); url.hash = ''; return url.toString(); }
 function nonceHex() { const bytes = crypto.getRandomValues(new Uint8Array(20)); return [...bytes].map(v => v.toString(16).padStart(2, '0')).join(''); }
 function toBase64(bytes) { let binary = ''; const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes); for (const b of arr) binary += String.fromCharCode(b); return btoa(binary); }
 function quoteAuthMessage(walletAddress, usdcAmount, referrer, stake, timestamp, nonce) {

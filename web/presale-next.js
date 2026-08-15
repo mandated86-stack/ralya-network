@@ -9,9 +9,9 @@ const MAINNET_CHAIN = 'solana:mainnet';
 
 const canonicalUrl = () => {
   const base = new URL(cfg.projectUrl || location.origin);
-  base.pathname = location.pathname || '/';
+  base.pathname = '/presale';
   base.search = location.search;
-  base.hash = '#presale';
+  base.hash = '';
   return base.toString();
 };
 

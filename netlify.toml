@@ -15,6 +15,56 @@
   force = true
 
 [[redirects]]
+  from = "/rlya/"
+  to = "/rlya"
+  status = 301
+
+[[redirects]]
+  from = "/rlya"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/technology/"
+  to = "/technology"
+  status = 301
+
+[[redirects]]
+  from = "/technology"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/roadmap/"
+  to = "/roadmap"
+  status = 301
+
+[[redirects]]
+  from = "/roadmap"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/docs/"
+  to = "/docs"
+  status = 301
+
+[[redirects]]
+  from = "/docs"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/presale/"
+  to = "/presale"
+  status = 301
+
+[[redirects]]
+  from = "/presale"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/rlya-token.png"
   status = 200

@@ -111,6 +111,7 @@
   }
 
   const tabMap = {};
+  const ROUTE_PATHS = Object.freeze({ home: '/', rlya: '/rlya', technology: '/technology', roadmap: '/roadmap', docs: '/docs', presale: '/presale' });
   const register = (name, nodes) => { tabMap[name] = nodes.filter(Boolean); };
 
   function createTabs() {
@@ -137,7 +138,7 @@
 
     const mobile = $('#mobileMenu');
     if (mobile) {
-      mobile.innerHTML = `<a href="#home" data-mobile-tab="home">Home</a><a href="#rlya" data-mobile-tab="rlya">RLYA</a><a href="#technology" data-mobile-tab="technology">Technology</a><a href="#roadmap" data-mobile-tab="roadmap">Roadmap</a><a href="#docs" data-mobile-tab="docs">Docs</a><a href="#presale" data-mobile-presale>Presale</a><a href="RALYA_Whitepaper_v1.2.html">Whitepaper v1.2</a><a href="https://x.com/Ralyaai" target="_blank" rel="noopener noreferrer">X / @Ralyaai</a><a href="https://tiktok.com/@ralyaai" target="_blank" rel="noopener noreferrer">TikTok / @ralyaai</a><a href="https://github.com/mandated86-stack/ralya-network" target="_blank" rel="noopener noreferrer">GitHub source</a>`;
+      mobile.innerHTML = `<a href="/" data-mobile-tab="home">Home</a><a href="/rlya" data-mobile-tab="rlya">RLYA</a><a href="/technology" data-mobile-tab="technology">Technology</a><a href="/roadmap" data-mobile-tab="roadmap">Roadmap</a><a href="/docs" data-mobile-tab="docs">Docs</a><a href="/presale" data-mobile-presale>Presale</a><a href="RALYA_Whitepaper_v1.2.html">Whitepaper v1.2</a><a href="https://x.com/Ralyaai" target="_blank" rel="noopener noreferrer">X / @Ralyaai</a><a href="https://tiktok.com/@ralyaai" target="_blank" rel="noopener noreferrer">TikTok / @ralyaai</a><a href="https://github.com/mandated86-stack/ralya-network" target="_blank" rel="noopener noreferrer">GitHub source</a>`;
     }
   }
 
@@ -172,14 +173,61 @@
     window.scrollTo({ top, behavior: innerWidth <= 760 ? 'auto' : 'smooth' });
   }
 
-  function routeHash() {
+  function cleanRoutePath(value = location.pathname) {
+    const path = String(value || '/').replace(/\/+$/, '') || '/';
+    return Object.values(ROUTE_PATHS).includes(path) ? path : '/';
+  }
+
+  function routeMeta(routeName) {
+    const route = routeName === 'presale' ? 'presale' : (ROUTE_PATHS[routeName] ? routeName : 'home');
+    const titles = {
+      home: 'RALYA — Economic trust for autonomous work',
+      rlya: 'RLYA — Token & Economics | RALYA',
+      technology: 'Technology | RALYA',
+      roadmap: 'Roadmap | RALYA',
+      docs: 'Docs & Open Source | RALYA',
+      presale: 'RLYA Presale | RALYA',
+    };
+    document.title = titles[route];
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    const base = new URL(cfg.projectUrl || location.origin);
+    base.pathname = ROUTE_PATHS[route];
+    base.search = '';
+    base.hash = '';
+    if (canonical) canonical.href = base.href;
+    if (ogUrl) ogUrl.content = base.href;
+  }
+
+  function writeRoute(path, { replace = false } = {}) {
+    const clean = cleanRoutePath(path);
+    history[replace ? 'replaceState' : 'pushState'](null, '', `${clean}${location.search}`);
+  }
+
+  function routeLocation({ normalizeLegacy = true } = {}) {
+    const legacy = {
+      '#home': '/', '#top': '/', '#purpose': '/',
+      '#rlya': '/rlya', '#technology': '/technology',
+      '#build': '/roadmap', '#roadmap': '/roadmap',
+      '#open-source': '/docs', '#docs': '/docs', '#presale': '/presale',
+    };
     const hash = location.hash.toLowerCase();
-    if (hash === '#rlya') return setTab('rlya', { scroll: false });
-    if (hash === '#technology') return setTab('technology', { scroll: false });
-    if (hash === '#build' || hash === '#roadmap') return setTab('roadmap', { scroll: false });
-    if (hash === '#open-source' || hash === '#docs') return setTab('docs', { scroll: false });
+    let path = cleanRoutePath();
+    if (legacy[hash]) {
+      path = legacy[hash];
+      if (normalizeLegacy) history.replaceState(null, '', `${path}${location.search}`);
+    }
+    if (path === '/rlya') { setTab('rlya', { scroll: false }); routeMeta('rlya'); return; }
+    if (path === '/technology') { setTab('technology', { scroll: false }); routeMeta('technology'); return; }
+    if (path === '/roadmap') { setTab('roadmap', { scroll: false }); routeMeta('roadmap'); return; }
+    if (path === '/docs') { setTab('docs', { scroll: false }); routeMeta('docs'); return; }
     setTab('home', { scroll: false });
-    if (hash === '#presale') requestAnimationFrame(() => setTab('home', { anchor: '#presale' }));
+    if (path === '/presale') {
+      routeMeta('presale');
+      requestAnimationFrame(() => setTab('home', { anchor: '#presale' }));
+      return;
+    }
+    routeMeta('home');
   }
 
   function wireTabs() {
@@ -187,13 +235,16 @@
       if (!(event.target instanceof Element)) return;
       const tab = event.target.closest('[data-site-tab]');
       if (tab) {
-        setTab(tab.dataset.siteTab);
-        history.replaceState(null, '', tab.dataset.siteTab === 'home' ? '#home' : `#${tab.dataset.siteTab}`);
+        const name = tab.dataset.siteTab;
+        setTab(name);
+        writeRoute(ROUTE_PATHS[name] || '/');
+        routeMeta(name);
         return;
       }
       if (event.target.closest('[data-presale-shortcut]')) {
         setTab('home', { anchor: '#presale' });
-        history.replaceState(null, '', '#presale');
+        writeRoute('/presale');
+        routeMeta('presale');
       }
     });
     document.addEventListener('click', event => {
@@ -201,13 +252,18 @@
       const mobileTab = event.target.closest('[data-mobile-tab]');
       if (mobileTab) {
         event.preventDefault();
-        setTab(mobileTab.dataset.mobileTab);
+        const name = mobileTab.dataset.mobileTab;
+        setTab(name);
+        writeRoute(ROUTE_PATHS[name] || '/');
+        routeMeta(name);
         $('#mobileMenu')?.classList.remove('open');
         return;
       }
       if (event.target.closest('[data-mobile-presale]')) {
         event.preventDefault();
         setTab('home', { anchor: '#presale' });
+        writeRoute('/presale');
+        routeMeta('presale');
         $('#mobileMenu')?.classList.remove('open');
         return;
       }
@@ -215,9 +271,9 @@
       if (!anchor) return;
       const href = anchor.getAttribute('href');
       const map = { '#rlya': 'rlya', '#technology': 'technology', '#build': 'roadmap', '#roadmap': 'roadmap', '#open-source': 'docs', '#docs': 'docs' };
-      if (href === '#presale') { event.preventDefault(); setTab('home', { anchor: '#presale' }); }
-      else if (map[href]) { event.preventDefault(); setTab(map[href]); }
-      else if (href === '#purpose' || href === '#top' || href === '#home') { event.preventDefault(); setTab('home', { anchor: href === '#purpose' ? '#purpose' : null }); }
+      if (href === '#presale') { event.preventDefault(); setTab('home', { anchor: '#presale' }); writeRoute('/presale'); routeMeta('presale'); }
+      else if (map[href]) { event.preventDefault(); setTab(map[href]); writeRoute(ROUTE_PATHS[map[href]]); routeMeta(map[href]); }
+      else if (href === '#purpose' || href === '#top' || href === '#home') { event.preventDefault(); setTab('home', { anchor: href === '#purpose' ? '#purpose' : null }); writeRoute('/'); routeMeta('home'); }
     });
   }
 
@@ -238,9 +294,9 @@
   function isMobile() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || innerWidth <= 760; }
   function canonicalDappUrl() {
     const base = new URL(cfg.projectUrl || location.origin);
-    base.pathname = location.pathname || '/';
+    base.pathname = '/presale';
     base.search = location.search;
-    base.hash = location.hash || '#presale';
+    base.hash = '';
     return base.toString();
   }
   const phantomUrl = () => `https://phantom.app/ul/browse/${encodeURIComponent(canonicalDappUrl())}?ref=${encodeURIComponent(cfg.projectUrl || location.origin)}`;
@@ -401,7 +457,8 @@
     polishBuildLanguage();
     wireTabs();
     installReferralShortcut();
-    routeHash();
+    routeLocation();
+    window.addEventListener('popstate', () => routeLocation({ normalizeLegacy: false }));
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
