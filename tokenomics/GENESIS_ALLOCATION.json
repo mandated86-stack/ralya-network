@@ -22,7 +22,7 @@
     "staking_bonus_bps": 500,
     "staking_bonus_percent": "5.00",
     "staking_bonus_reserve_tokens": 14400000,
-    "staking_choice_is_final_for_each_purchase": true
+    "staking_choice_locks_for_wallet_after_first_confirmed_purchase": true
   },
   "allocations": {
     "provider_security_incentives": {
