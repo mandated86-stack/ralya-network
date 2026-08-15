@@ -16,7 +16,6 @@ jobs:
         shell: bash
         run: |
           echo 'Mapping failed integration commit harness lines 135-150'
-          sed -n "/cat > \/tmp\/ralya_local_integration\.mjs <<'JS'/,/^JS$/p" scripts/local_validator_smoke.sh \
-            | sed '1d;$d' \
+          awk 'index($0,"cat > /tmp/ralya_local_integration.mjs"){on=1;next} on && $0=="JS"{exit} on{print}' scripts/local_validator_smoke.sh \
             | nl -ba \
             | sed -n '135,150p'
