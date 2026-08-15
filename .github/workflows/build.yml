@@ -7,6 +7,7 @@ on:
       - 'scripts/build_solana.sh'
       - 'scripts/build_web_prod.sh'
       - 'scripts/audit_source.py'
+      - 'scripts/prelaunch_selftest.mts'
       - 'scripts/verify_mainnet_public.mjs'
       - 'scripts/mainnet_program_deploy.sh'
       - 'scripts/mainnet_program_deploy.ps1'
@@ -30,6 +31,8 @@ jobs:
         run: bash scripts/build_solana.sh
       - name: Install pinned web and function dependencies
         run: npm install --no-audit --no-fund
+      - name: Test prelaunch economic invariants
+        run: npm run test:prelaunch
       - name: Compile Netlify financial functions
         run: npm run build:functions
       - name: Build self-hosted production browser bundles
