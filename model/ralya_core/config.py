@@ -42,8 +42,8 @@ TOKEN_ALLOCATION_BPS = {
 PRESALE_ALLOCATION = TOKEN_ALLOCATION_TOKENS["presale"] * RLYA_UNIT
 STAKING_BONUS_RESERVE = TOKEN_ALLOCATION_TOKENS["staking_bonus_reserve"] * RLYA_UNIT
 STAKING_BONUS_BPS = 500  # fixed 5% bonus on a staked presale purchase
-STANDARD_PRESALE_RELEASE_SECONDS = 21 * 24 * 60 * 60
-STAKED_PRESALE_RELEASE_SECONDS = 36 * 24 * 60 * 60  # 21 days + 15-day staking lock
+STANDARD_PRESALE_RELEASE_OFFSET_SECONDS = -(24 * 60 * 60)  # actual RLYA one day before public launch
+STAKED_PRESALE_RELEASE_SECONDS = 21 * 24 * 60 * 60  # Buy + Stake unlocks 21 days after public launch
 
 # Initial protocol fee for the future autonomous-work protocol; not used by the token sale.
 DEFAULT_PROTOCOL_FEE_BPS = 100  # 1.00% of successful job payment
