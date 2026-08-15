@@ -32,6 +32,7 @@ function toast(msg) {
   window.__ralyaToast = setTimeout(() => el.classList.remove('show'), 3600);
 }
 function getProvider() {
+  if (window.RALYA_WALLET_PROVIDER?.connect) return window.RALYA_WALLET_PROVIDER;
   if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
   if (window.solflare?.isSolflare) return window.solflare;
   if (window.solana?.connect) return window.solana;
@@ -120,8 +121,8 @@ function syncStakeUi() {
     toggle.checked = lockedStake;
     toggle.disabled = true;
     status.textContent = lockedStake
-      ? 'This wallet is locked to Buy + Stake: +5% RLYA, release 36 days after public launch.'
-      : 'This wallet is locked to standard release: 21 days after public launch.';
+      ? 'This wallet is locked to Buy + Stake: base + fixed 5% bonus unlock 21 days after public launch.'
+      : 'This wallet is locked to Standard: actual RLYA 1 day before public launch.';
   } else {
     toggle.disabled = false;
     status.textContent = 'Your first confirmed presale purchase locks this wallet\'s release option for later presale purchases.';
@@ -157,19 +158,28 @@ async function fetchJson(url, options) {
 async function refreshState() {
   try {
     state = await fetchJson('/api/presale/state');
-    const open = state.access === 'open';
-    const paused = state.access === 'paused';
+    const verified = state?.backendReady !== false;
+    const open = verified && state.access === 'open';
+    const paused = verified && state.access === 'paused';
     $('#currentPrice').textContent = formatPrice(state.currentPriceMicroUsdc);
     $('#soldRlya').textContent = `${formatBase(state.totalAllocatedBase, 9, 2)} RLYA`;
-    $('#saleState').textContent = open ? 'PRESALE LIVE' : paused ? 'PAUSED' : 'OPENING AT LAUNCH';
+    $('#saleState').textContent = open ? 'PRESALE LIVE' : paused ? 'PAUSED' : 'FINAL SETUP';
     $('#saleDot')?.classList.toggle('amber', !open);
     $('#presaleHeroDot')?.classList.toggle('amber', !open);
-    if ($('#presaleHeroStatus')) $('#presaleHeroStatus').textContent = open ? 'RLYA PRESALE • LIVE NOW' : paused ? 'RLYA PRESALE • TEMPORARILY PAUSED' : 'RLYA PRESALE • OPENING WITH SITE LAUNCH';
-    if ($('#presaleEyebrow')) $('#presaleEyebrow').textContent = open ? 'RLYA PRESALE • LIVE' : paused ? 'RLYA PRESALE • PAUSED' : 'RLYA PRESALE • OPENING AT LAUNCH';
-    if ($('#presaleHeading')) $('#presaleHeading').textContent = open ? 'RLYA presale is live.' : paused ? 'RLYA presale is temporarily paused.' : 'Secure your presale position before public launch.';
-    if ($('#presaleHeroCta')) $('#presaleHeroCta').textContent = open ? 'Enter RLYA presale' : paused ? 'View presale status' : 'RLYA presale — opening at launch';
+    if ($('#presaleHeroStatus')) $('#presaleHeroStatus').textContent = open ? 'RLYA PRESALE • LIVE' : paused ? 'RLYA PRESALE • TEMPORARILY PAUSED' : 'RLYA PRESALE • FINAL SETUP';
+    if ($('#presaleEyebrow')) $('#presaleEyebrow').textContent = open ? 'RLYA PRESALE • LIVE' : paused ? 'RLYA PRESALE • PAUSED' : 'RLYA PRESALE • FINAL SETUP';
+    if ($('#presaleHeading')) $('#presaleHeading').textContent = open ? 'Secure your pre-launch RLYA allocation.' : paused ? 'RLYA presale is temporarily paused.' : '288M base RLYA is reserved for the public presale.';
+    if ($('#presaleHeroCta')) $('#presaleHeroCta').textContent = open ? 'Enter RLYA presale' : paused ? 'View presale status' : 'View RLYA presale';
+    document.documentElement.dataset.ralyaPresaleState = verified ? String(state.access || 'closed') : 'reconnecting';
+    window.dispatchEvent(new CustomEvent('ralya:presale-state', { detail: state }));
     updatePreview(); updateBuyAvailability();
-  } catch (err) { if ($('#saleState')) $('#saleState').textContent = 'STATUS UPDATING'; toast(err.message || 'Could not load presale state.'); }
+  } catch (err) {
+    state = null;
+    if ($('#saleState')) $('#saleState').textContent = 'FINAL SETUP';
+    document.documentElement.dataset.ralyaPresaleState = 'reconnecting';
+    window.dispatchEvent(new CustomEvent('ralya:presale-state', { detail: { backendReady: false, access: 'closed' } }));
+    updateBuyAvailability();
+  }
 }
 async function fetchUsdcBalance(owner) {
   const mint = new PublicKey(cfg.usdcMint); const accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint }); let total = 0;
@@ -196,9 +206,8 @@ async function fetchWalletAllocation() {
   });
 }
 function releaseText(status, stake = false) {
-  if (status === '36-days-after-public-launch' || stake) return 'Buy + Stake: release 36 days after public launch';
-  if (status === 'mixed-21d-and-36d-after-public-launch') return 'Release schedule verified per allocation';
-  return 'Standard: release 21 days after public launch';
+  if (stake || status === '21-days-after-public-launch' || status === 'staked-plus21d') return 'Buy + Stake: base + fixed 5% bonus unlock 21 days after public launch';
+  return 'Standard: actual RLYA 1 day before public launch';
 }
 async function refreshWallet() {
   if (!wallet) return;
@@ -210,7 +219,7 @@ async function refreshWallet() {
     const allocation = await fetchWalletAllocation();
     $('#rlyaBalance').textContent = `${formatBase(allocation.totalRlyaBase, 9, 4)} RLYA`;
     if ($('#allocationStatus')) $('#allocationStatus').textContent = allocation.status === 'allocation-confirmed' ? 'EXPECTED ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
-    if ($('#allocationDelivery')) $('#allocationDelivery').textContent = allocation.status === 'allocation-confirmed' ? releaseText(allocation.distributionStatus) : 'Standard: 21 days after public launch';
+    if ($('#allocationDelivery')) $('#allocationDelivery').textContent = allocation.status === 'allocation-confirmed' ? releaseText(allocation.distributionStatus) : 'Standard: actual RLYA 1 day before public launch';
     if (allocation.lockedReferrer) { lockedReferrer = allocation.lockedReferrer; setReferral(lockedReferrer, true); }
     const webAllocation = (allocation.allocations || []).find(row => row.kind === 'web');
     lockedStake = webAllocation ? Boolean(webAllocation.stake) : null;
@@ -222,15 +231,29 @@ async function refreshWallet() {
   }
   updatePreview();
 }
+let walletConnectInFlight = null;
 async function connectWallet() {
-  provider = getProvider(); if (!provider) return toast('Install a Solana wallet such as Phantom or Solflare.');
-  try {
-    const result = await provider.connect(); wallet = new PublicKey(result?.publicKey || provider.publicKey);
-    if (allocationViewAuth?.wallet !== wallet.toBase58()) allocationViewAuth = null;
-    lockedStake = null; syncStakeUi();
-    $$('.wallet-button').forEach(btn => btn.textContent = shorten(wallet.toBase58())); if ($('#walletLabel')) $('#walletLabel').textContent = shorten(wallet.toBase58());
-    if (referralWallet && referralWallet.equals(wallet)) setReferral('', true); updateReferralLink(); await refreshWallet(); updateBuyAvailability();
-  } catch (err) { toast(err.message || 'Wallet connection cancelled.'); }
+  if (walletConnectInFlight) return walletConnectInFlight;
+  walletConnectInFlight = (async () => {
+    provider = getProvider();
+    if (!provider) return toast('Choose a Solana wallet to continue.');
+    try {
+      const result = await provider.connect();
+      wallet = new PublicKey(result?.publicKey || provider.publicKey);
+      if (allocationViewAuth?.wallet !== wallet.toBase58()) allocationViewAuth = null;
+      lockedStake = null; syncStakeUi();
+      $$('.wallet-button').forEach(btn => btn.textContent = shorten(wallet.toBase58()));
+      if ($('#walletLabel')) $('#walletLabel').textContent = shorten(wallet.toBase58());
+      if (referralWallet && referralWallet.equals(wallet)) setReferral('', true);
+      updateReferralLink();
+      await refreshWallet();
+      updateBuyAvailability();
+    } catch (err) {
+      toast(err.message || 'Wallet connection cancelled.');
+    }
+  })();
+  try { return await walletConnectInFlight; }
+  finally { walletConnectInFlight = null; }
 }
 function updatePreview() {
   const out = $('#quoteValue'), avg = $('#averagePrice'), breakdown = $('#quoteBreakdown'); if (!out || !avg) return;
@@ -241,9 +264,9 @@ function updatePreview() {
     if (breakdown) breakdown.innerHTML = `<small>Purchased allocation: ${formatBase(baseRlya, 9, 4)} RLYA</small><small>Staking bonus: ${bonus > 0n ? `+${formatBase(bonus, 9, 4)} RLYA (5%)` : 'Not selected'}</small>`;
     const avgMicro = baseRlya > 0n ? gross * RLYA_UNIT / baseRlya : 0n;
     avg.textContent = wantsStake()
-      ? `Estimated base price: ${formatPrice(avgMicro)} · expected total includes fixed 5% bonus · release day 36`
-      : `Estimated average price: ${formatPrice(avgMicro)} per RLYA · standard release day 21`;
-    if ($('#allocationDelivery') && !lockedStake && wallet) $('#allocationDelivery').textContent = wantsStake() ? 'Buy + Stake: release 36 days after public launch' : 'Standard: release 21 days after public launch';
+      ? `Estimated base price: ${formatPrice(avgMicro)} · expected total includes fixed 5% bonus · unlock day 21`
+      : `Estimated average price: ${formatPrice(avgMicro)} per RLYA · standard release T-1`;
+    if ($('#allocationDelivery') && !lockedStake && wallet) $('#allocationDelivery').textContent = wantsStake() ? 'Buy + Stake: base + fixed 5% bonus unlock 21 days after public launch' : 'Standard: release 21 days after public launch';
   } catch (err) {
     out.textContent = '-- RLYA';
     if (breakdown) breakdown.innerHTML = '<small>Purchased allocation: --</small><small>Staking bonus: --</small>';
@@ -251,13 +274,18 @@ function updatePreview() {
   }
 }
 function updateBuyAvailability() {
-  const button = $('#buyRlya'), msg = $('#buyMessage'); if (!button || !msg) return; const open = state?.access === 'open';
-  button.disabled = !(wallet && open); button.textContent = wantsStake() ? 'Buy + Stake · secure allocation' : 'Secure my presale allocation';
-  if (!open) msg.textContent = state?.access === 'paused' ? 'RLYA presale is temporarily paused.' : 'RLYA presale opens with the production website launch.';
+  const button = $('#buyRlya'), msg = $('#buyMessage');
+  if (!button || !msg) return;
+  const verified = state?.backendReady !== false && Boolean(state);
+  const open = verified && state?.access === 'open';
+  button.disabled = !(wallet && open);
+  button.textContent = wantsStake() ? 'Buy + Stake · secure allocation' : 'Secure my presale allocation';
+  if (!verified) msg.textContent = 'Live presale data reconnecting… purchasing remains disabled until the verified state returns.';
+  else if (!open) msg.textContent = state?.access === 'paused' ? 'RLYA presale is temporarily paused.' : 'RLYA presale is in final setup. Connect your wallet and be ready when access opens.';
   else if (!wallet) msg.textContent = 'Connect a Solana wallet to continue.';
   else msg.textContent = wantsStake()
-    ? 'After verified payment, your expected allocation includes a fixed 5% RLYA bonus and uses the 36-day release schedule.'
-    : 'After verified payment, your expected allocation uses the standard 21-day release schedule.';
+    ? 'After verified payment, your base allocation plus fixed 5% RLYA bonus unlock 21 days after public launch.'
+    : 'After verified payment, Standard buyers receive actual purchased RLYA 1 day before public launch.';
 }
 async function sendTransaction(tx) {
   const latest = await connection.getLatestBlockhash('confirmed'); tx.feePayer = wallet; tx.recentBlockhash = latest.blockhash; let signature;
@@ -293,7 +321,7 @@ async function signedQuoteBody(usdcAmount, stake) {
 }
 async function secureAllocation() {
   if (!wallet || !provider) return connectWallet();
-  if (state?.access !== 'open') throw new Error('RLYA presale is not open yet.');
+  if (state?.backendReady === false || state?.access !== 'open') throw new Error('RLYA presale access is not verified open yet.');
   const usdcAmount = String($('#usdcInput')?.value || '').trim(); decimalToBase(usdcAmount, 6);
   const stake = wantsStake();
   const typedReferral = String($('#referralInput')?.value || '').trim(); if (typedReferral) setReferral(typedReferral);
@@ -311,7 +339,7 @@ async function secureAllocation() {
   const baseRlya=BigInt(quote.rlyaBase), bonus=BigInt(quote.stakingBonusBase||0), expectedTotal=BigInt(quote.expectedTotalRlyaBase||baseRlya+bonus);
   $('#quoteValue').textContent = `${formatBase(expectedTotal, 9, 4)} RLYA`;
   if ($('#quoteBreakdown')) $('#quoteBreakdown').innerHTML = `<small>Purchased allocation: ${formatBase(baseRlya, 9, 4)} RLYA</small><small>Staking bonus: ${bonus > 0n ? `+${formatBase(bonus, 9, 4)} RLYA (5%)` : 'Not selected'}</small>`;
-  $('#averagePrice').textContent = `Locked allocation · ${stake ? 'Buy + Stake / release day 36' : 'standard / release day 21'} · quote valid until ${new Date(quote.expiresAt).toLocaleTimeString()}`;
+  $('#averagePrice').textContent = `Locked allocation · ${stake ? 'Buy + Stake / unlock day 21' : 'standard / release T-1'} · quote valid until ${new Date(quote.expiresAt).toLocaleTimeString()}`;
   if(quote.usdcMint!==cfg.usdcMint||quote.treasuryWallet!==configuredTreasury.toBase58())throw new Error('Server quote payment addresses do not match the reviewed website configuration.');
   if((quote.referrer||null)!==(referralWallet?.toBase58()||null))throw new Error('Server referral attribution differs from the wallet checkout state. Refresh and retry.');
   const tx = new Transaction(); const treasuryAmount = BigInt(quote.treasuryUsdcBase);
@@ -327,7 +355,7 @@ async function secureAllocation() {
   const confirmed = await fetchJson('/api/presale/confirm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId: quote.quoteId, signature }) });
   const receipt = confirmed.receipt, explorer = `${cfg.explorerBase}/tx/${signature}`, box = $('#txResult');
   const receiptBase=BigInt(receipt.rlyaBase||0), receiptBonus=BigInt(receipt.stakingBonusBase||0), receiptTotal=receiptBase+receiptBonus;
-  const release = receipt.stake ? '36 days after public launch' : '21 days after public launch';
+  const release = receipt.stake ? '21 days after public launch' : '1 day before public launch';
   if (box) {
     box.hidden = false;
     box.innerHTML = `<strong>Expected Allocation Confirmed.</strong> ${formatBase(receiptBase, 9, 4)} RLYA purchased${receiptBonus > 0n ? ` + ${formatBase(receiptBonus, 9, 4)} RLYA staking bonus` : ''} = <strong>${formatBase(receiptTotal, 9, 4)} RLYA expected</strong> for ${shorten(receipt.wallet)}. Release: ${release}. <a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`;
@@ -340,6 +368,7 @@ function wireGithub() { const link = $('#githubLink'); if (!cfg.githubUrl || !li
 $('#menuButton')?.addEventListener('click', () => $('#mobileMenu')?.classList.toggle('open'));
 $$('#mobileMenu a').forEach(a => a.addEventListener('click', () => $('#mobileMenu')?.classList.remove('open')));
 $$('[data-wallet-connect]').forEach(btn => btn.addEventListener('click', connectWallet));
+window.addEventListener('ralya:wallet-standard-connected', () => connectWallet());
 $('#usdcInput')?.addEventListener('input', updatePreview);
 $('#stakeToggle')?.addEventListener('change', () => { updatePreview(); updateBuyAvailability(); });
 $('#referralInput')?.addEventListener('change', e => setReferral(e.target.value));

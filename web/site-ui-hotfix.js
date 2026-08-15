@@ -324,7 +324,7 @@
     head.insertAdjacentElement('afterend', note);
     share.addEventListener('click', () => {
       const link = String($('#myReferralLink')?.value || '');
-      if (!/^https?:\/\//i.test(link)) return openWalletPicker(connect);
+      if (!/^https?:\/\//i.test(link)) return connect.click();
       showModal({
         eyebrow: 'RLYA REFERRAL',
         title: 'Share your link. Earn 1% USDC.',
@@ -400,9 +400,7 @@
     makeNetworkClickable();
     polishBuildLanguage();
     wireTabs();
-    installWalletChooser();
     installReferralShortcut();
-    installSafeCopyObserver();
     routeHash();
   }
 
