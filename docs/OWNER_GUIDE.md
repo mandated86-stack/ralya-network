@@ -1,221 +1,126 @@
-# Owner guide — RALYA pre-launch through public launch
+# Owner guide — RALYA pre-launch presale
 
-This guide separates **pre-launch fundraising**, **technical Mainnet readiness**, **token distribution** and **public token launch**. Completing one stage does not automatically trigger the next.
+This guide covers the **website + pre-launch USDC presale phase only**. Production RLYA Mainnet deployment and public token Day 0 are a later phase.
 
-Never send a seed phrase, private key, wallet JSON or production keypair to ChatGPT, GitHub, email or cloud storage.
+Never send a seed phrase, recovery phrase, private key or production keypair JSON to ChatGPT, GitHub, email or cloud storage.
 
-## Stage 1 — public website / hype phase
+## 1. Keep the two launches separate
 
-The RALYA website may be public before production Mainnet deployment. Public messaging uses the staged reveal control in `/owner/`:
+There are two different milestones:
 
-- Pre-launch
-- Mainnet preparation
-- Mainnet verified
-- Distribution preparation
-- Distribution scheduled
-- Launch approaching
+1. **Pre-launch presale** — verified USDC purchases can be accepted and expected RLYA allocations recorded before the production RLYA token is publicly launched.
+2. **RLYA public token Day 0** — later production Mainnet/token launch milestone.
 
-Changing these labels changes public messaging only. It cannot mint RLYA, move USDC, deploy a program, open token trading or resume the on-chain sale.
+When owner-signed presale allocation access is `OPEN`, the public website may correctly show **RLYA PRESALE • LIVE** even though RLYA public token Day 0 has not happened.
 
-## Stage 2 — pre-launch allocation access
+## 2. Fixed presale rules
 
-Pre-launch allocation access is a separate owner-signed control with three states:
+- lifetime fixed supply: **839,000,000 RLYA**
+- public presale base allocation: **288,000,000 RLYA**
+- dedicated Buy + Stake bonus reserve: **14,400,000 RLYA** inside the same fixed lifetime supply
+- starting price: **$0.003000 / RLYA**
+- Buy + Stake: **fixed +5% RLYA**, no extra minting
+- Standard: actual purchased RLYA is released **1 day before public token launch (T-1)**
+- Buy + Stake: base allocation + fixed 5% bonus unlock together **21 days after public launch (T+21)**
+- the first confirmed public-presale purchase locks that wallet to Standard or Buy + Stake for later public-presale purchases
+- referral: **1% of gross referred USDC**
+- buyer pays the normal amount and keeps the full expected RLYA allocation; referral payout does not reduce the buyer allocation or staking bonus
+- confirmed on-chain presale purchase is final; **no buyer refund path**
+- founder allocation: **83,900,000 RLYA = 10%**
+- founder lock: **365 days starting from actual public RLYA token Day 0**, not from this presale phase
 
-- `CLOSED` — informational website only;
-- `OPEN` — verified USDC purchases may create RLYA allocations;
-- `PAUSED` — temporarily refuse new allocations while retaining all existing records.
+The website may describe pricing as demand-based/dynamic. Do not publicly advertise the exact internal price-step mechanic.
 
-The post-launch atomic-sale configuration `presaleEnabled` remains a different master switch and stays `false` during this phase.
+## 3. Presale access states
 
-### Website purchase flow
+Pre-launch allocation access is a separate owner-signed control:
 
-When allocation access is open:
+- `CLOSED` — no new purchases; website may still be public
+- `OPEN` — verified USDC purchases may create expected RLYA allocations
+- `PAUSED` — temporarily refuse new purchases while preserving existing records
 
-1. buyer connects a Solana wallet;
-2. buyer enters USDC;
-3. wallet signs a harmless allocation-quote message;
-4. server locks an exact short-lived RLYA allocation at the current shared curve position;
-5. buyer signs the actual Solana USDC transaction;
-6. server independently verifies the transaction, buyer signer, quote memo and exact USDC balance changes;
-7. allocation becomes `CONFIRMED`;
-8. reconnecting that wallet displays the buyer's expected RLYA;
-9. RLYA distribution remains scheduled before public launch.
+The later atomic-token-sale switch `presaleEnabled` remains separate and stays `false` during this phase.
 
-The starting price is $0.003000 and increases $0.000050 each time another 1,000,000 RLYA is allocated. The complete pre-launch pool is 100,680,000 RLYA.
+A visible Connect Wallet button or browser checkout capability does **not** mean access is open.
 
-### Referral flow
+## 4. Required opening preflight
 
-A referred website purchase routes 1% of gross USDC to the referrer and 99% to the pre-launch treasury. The buyer receives the normal RLYA allocation. The first confirmed referrer for a buyer wallet is locked; self-referrals and direct two-wallet circular referrals are rejected.
+Do not sign `OPEN` until all checks below pass:
 
-## Stage 3 — private/off-site investor allocations
+1. Netlify has a dedicated production-capable Solana Mainnet RPC configured as `RALYA_SOLANA_RPC`.
+2. The RPC responds successfully from the deployed server/runtime.
+3. `Prepare / verify USDC receiving account` confirms the treasury USDC associated token account.
+4. If that account does not yet exist, the owner wallet may approve creation and pay the Solana network fee.
+5. Owner opening preflight returns `READY` and confirms both Mainnet RPC reachability and the configured treasury USDC account.
+6. Real Android/browser wallet connection behavior has been checked.
 
-The private owner console has `Private / off-site investor allocation`.
+Only after these checks should the owner sign `OPEN`.
 
-Enter:
+## 5. Website purchase flow
 
-- investor Solana wallet;
-- exact RLYA allocation;
-- optional internal payment/deal reference;
-- optional internal owner note.
+When access is `OPEN`:
 
-The system does **not** expose an arbitrary price box. The RLYA amount consumes the same 100.68M pool and advances the same fixed public curve.
+1. buyer chooses and connects a Solana wallet;
+2. buyer chooses Standard or Buy + Stake if the wallet has no prior locked release choice;
+3. buyer enters USDC;
+4. wallet signs a harmless allocation-quote authorization message;
+5. server locks an exact short-lived expected RLYA allocation;
+6. buyer approves the real Solana USDC transaction;
+7. server independently verifies the transaction, buyer signer, quote memo and exact USDC balance movements;
+8. only after successful verification is the expected RLYA allocation recorded;
+9. reconnecting the wallet can show its confirmed expected allocation and release policy.
 
-Private references/notes stay in the owner ledger and are not returned through the public buyer-wallet endpoint.
+The website must never present expected pre-launch RLYA as if the actual token was already transferred.
 
-## Stage 4 — monitor / reconcile pre-launch
+## 6. Referral flow
 
-The private owner console shows:
+`Share & earn 1% USDC` stays near the wallet/purchase flow.
 
-- current allocation access state;
-- current price;
-- total allocated RLYA;
-- website RLYA allocation;
-- private/off-site RLYA allocation;
-- verified website USDC;
-- referral USDC;
-- buyer lookup.
+For a valid referred purchase:
 
-Use `Download delivery manifest` only when a reconciliation snapshot is needed. The final manifest should be exported after pre-launch allocation access is closed for distribution.
+- the buyer pays the normal quoted USDC amount;
+- the buyer keeps the full expected RLYA allocation;
+- Buy + Stake still receives the fixed 5% RLYA bonus when selected/locked;
+- the referrer receives 1% of gross referred USDC;
+- self-referrals and prohibited direct two-wallet loops remain rejected.
 
-The manifest is hashed and groups each wallet's:
+## 7. Owner ledger and authorized off-site allocations
 
-- website RLYA;
-- private/off-site RLYA;
-- total RLYA;
-- verified website gross USDC;
-- website referral USDC;
-- locked referrer;
-- source transaction IDs.
+Existing authorized off-site/manual allocation tooling shares the reviewed public-presale accounting and must respect the same fixed **288M base presale allocation**. It is not an arbitrary public price setter.
 
-## Stage 5 — permanent Mainnet program
+Do not confuse this existing owner reconciliation tool with any future investor-allocation plan. A future separate 12% investor allocation is **not part of the current build and must not be implemented yet**.
 
-When production Mainnet deployment is ready, download the current `mandated86-stack/ralya-network` main branch to the owner's own computer. A normal GitHub **Code → Download ZIP** extraction is supported; git clone is optional.
+## 8. Buyer release records
 
-Run:
+Every buyer-facing receipt, owner lookup and exported manifest must agree:
 
-- Windows: `scripts/mainnet_program_deploy.ps1`
-- macOS/Linux: `scripts/mainnet_program_deploy.sh`
+- Standard → `standard-tminus1` / **1 day before public launch**
+- Buy + Stake → `staked-plus21d` / **21 days after public launch**, including the fixed 5% bonus
 
-The script refuses CI, runs the RALYA source/security audit and generates three separate local identities:
+If any screen or exported record says Standard day 21 or Buy + Stake day 36, stop and treat it as stale/incorrect.
 
-1. permanent RALYA Program ID keypair;
-2. dedicated upgrade-authority keypair;
-3. dedicated Mainnet deployment/fee-payer keypair.
+## 9. Controlled real-USDC test before broad promotion
 
-Back up all three local JSON key files offline. They must not be uploaded or shared.
+After owner preflight is `READY` and access has been deliberately opened, perform a small real purchase from a **non-owner buyer wallet**.
 
-The script patches only the public Program ID into the source, compiles the exact SBF executable, shows the public fee-payer address and live Mainnet deployment requirement, and broadcasts only after the explicit `DEPLOY-RLYA-MAINNET` confirmation.
+Verify the complete path:
 
-After deployment it downloads the executable back from Mainnet and requires exact byte/SHA-256 equality before completing the authority transfer. A successful run creates `RALYA_MAINNET_PROGRAM_PUBLIC.txt`, containing public evidence only.
+wallet connect → quote → exact USDC transaction → backend confirmation → expected RLYA allocation → correct Standard T-1 or Buy + Stake T+21 record → wallet reconnect/history.
 
-## Stage 6 — create the fixed production RLYA supply
+If referral is included in the test, also verify the 1% USDC referral attribution.
 
-After the permanent Mainnet Program ID is independently verified, open `/owner/`, connect the authorized owner wallet and use `Prepare RLYA Mainnet`.
+Do not use the owner wallet as the normal buyer-flow test wallet.
 
-The staged sequence is:
+## 10. What remains later
 
-1. create the RLYA mint with 9 decimals and no freeze authority;
-2. mint exactly **839,000,000 RLYA** once;
-3. initialize sale and founder-lock accounts while sale remains `DRAFT`;
-4. fund all seven published allocation buckets;
-5. permanently revoke RLYA mint authority;
-6. re-check that freeze authority is absent.
+Do **not** start these actions from the website/presale pass:
 
-The production token can exist at this stage without public trading being opened.
+- create the production RLYA mint
+- deploy the production RLYA sale Program ID/PDA
+- mark public RLYA token Day 0
+- start the founder 365-day lock
+- implement the future 12% investor allocation
+- implement the future sovereign RALYA network
+- implement future RALYA Jobs transaction-fee economics
 
-## Stage 7 — founder lock / PAUSED production sale
-
-Use `Atomic activate + pause` so activation and pause are one Solana transaction. The founder's 365-day lock starts while the final committed sale state is `PAUSED`.
-
-Public launch is still separate.
-
-## Stage 8 — verify the clean PAUSED production state
-
-For the delayed-allocation pre-launch model, do **not** run the legacy 1-USDC atomic smoke purchase before buyer distribution. That transaction would consume part of the same 100.68M presale inventory and move the buyer price curve.
-
-Instead, require the clean production verification path:
-
-- exact downloaded Mainnet executable byte/SHA equality;
-- exact 839M production supply;
-- mint authority removed;
-- freeze authority absent;
-- all seven allocation buckets reconciled;
-- founder lock active;
-- sale state PAUSED;
-- production Program ID / mint / PDA / treasury identities verified;
-- `scripts/verify_mainnet_public.mjs` passes in its clean pre-smoke state.
-
-The old 1-USDC smoke tool remains available only for a later atomic-sale diagnostic when using it cannot steal inventory from pre-launch buyer allocations or silently move their curve. It is hidden in the owner console while `presaleMode` is `prelaunch-allocation`.
-
-## Stage 9 — final pre-launch RLYA distribution
-
-Before distribution:
-
-1. close pre-launch allocation access;
-2. export the final hashed delivery manifest;
-3. keep the production sale PAUSED;
-4. load that manifest into `Pre-launch RLYA distribution` in `/owner/`;
-5. run the distribution preflight.
-
-The preflight checks:
-
-- manifest SHA-256;
-- production Program ID / RLYA mint / deterministic sale PDA;
-- connected owner equals on-chain admin;
-- sale state is PAUSED;
-- fixed 100.68M presale cap;
-- official sale-vault inventory;
-- existing on-chain delivery receipt PDAs;
-- on-chain pre-launch metrics commitment matches the final manifest SHA-256 and expected totals.
-
-Only still-pending allocations count toward a rerun preflight.
-
-### Website-presale delivery
-
-Website allocations use `deliver_prelaunch`:
-
-- RLYA comes from the official sale vault;
-- `total_sold` advances;
-- previously verified gross USDC/referral totals are imported into production accounting;
-- separate pre-launch metrics advance;
-- locked referral attribution is recreated on-chain where required;
-- deterministic web-delivery receipt PDA prevents duplicate delivery.
-
-### Private/off-site delivery
-
-Private/off-site allocations use the separate pre-launch manual delivery path:
-
-- RLYA comes from the same official sale vault;
-- `total_sold` advances;
-- `manual_sold` advances;
-- deterministic private/off-site delivery receipt PDA prevents duplicate delivery.
-
-The owner tool uses small batches. If interrupted, rerun preflight; completed receipt PDAs are skipped.
-
-## Stage 10 — public launch timing
-
-Technical Mainnet readiness does not force launch timing. The public reveal stage can remain at `Mainnet verified`, `Distribution preparation` or another appropriate stage while marketing/community work continues.
-
-When distribution has been completed and independently reconciled, public launch timing can be announced separately.
-
-The post-launch atomic sale remains independently gated. Only when the launch decision is made should production addresses and reviewed configuration be finalized and the post-launch atomic purchase mode enabled/resumed.
-
-## Post-launch atomic settlement
-
-The already-built production sale path supports direct wallet settlement:
-
-`USDC → RLYA in the same transaction`
-
-with the same fixed curve and referral rules. It is the later token-sale mode, not the initial delayed-delivery pre-launch allocation mode.
-
-## Ongoing admin controls
-
-`/admin/` retains on-chain-authorized controls for:
-
-- legitimate off-site sale/delivery from the official sale vault;
-- pause/resume;
-- close sale;
-- withdraw unsold inventory after close;
-- release founder allocation only after the on-chain lock expires.
-
-The core long-term product remains the RALYA autonomous-work / AI-to-AI settlement layer; the broader Jobs/agent modules follow after the token and settlement foundation rather than being falsely presented as live during presale.
+The existing Mainnet engineering and reconciliation code can remain in the repository, but its production deployment sequence must be handled as a separate later phase after the website/presale is operating correctly.
