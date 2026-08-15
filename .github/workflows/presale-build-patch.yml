@@ -1,0 +1,64 @@
+name: Presale stability build patch
+
+on:
+  push:
+    branches:
+      - build/presale-stability-wallet-2026-08-16
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rlya-presale-build-patch
+  cancel-in-progress: false
+
+jobs:
+  patch-test-commit:
+    if: ${{ !contains(github.event.head_commit.message, '[presale-build]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/presale-stability-wallet-2026-08-16
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply buyer source patch
+        run: python3 scripts/apply_presale_stability_patch.py
+      - name: Install pinned dependencies and refresh lockfile
+        run: npm install --no-audit --no-fund
+      - name: Remove one-time patch machinery
+        run: rm -f scripts/apply_presale_stability_patch.py .github/workflows/presale-build-patch.yml
+      - name: Stage intended source tree
+        run: git add -A
+      - name: Audit pre-launch financial/web invariants
+        run: python3 scripts/audit_prelaunch.py
+      - name: Audit final checkout release policy
+        run: python3 scripts/audit_checkout_release.py
+      - name: Audit live-copy safety
+        run: python3 scripts/audit_site_copy.py
+      - name: Audit presale public/runtime boundaries
+        run: python3 scripts/audit_presale_public.py
+      - name: Test pre-launch economic invariants
+        run: npm run test:prelaunch
+      - name: Compile Netlify functions
+        run: npm run build:functions
+      - name: Build self-hosted production browser bundles
+        run: npm run build:web
+      - name: Restore tested source tree after bundle smoke build
+        run: git restore --worktree .
+      - name: Re-run public audit on committed source
+        run: python3 scripts/audit_presale_public.py
+      - name: Validate staged diff
+        run: git diff --cached --check
+      - name: Commit tested build patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --cached --quiet; then
+            echo "No staged changes to commit."
+            exit 0
+          fi
+          git commit -m "[presale-build] stabilize presale runtime and wallet flow"
+          git push origin HEAD:build/presale-stability-wallet-2026-08-16
