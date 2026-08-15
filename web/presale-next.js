@@ -112,11 +112,15 @@ function providerFromConnector() {
   return adapter;
 }
 
+let installedWalletAddress = '';
 function installProvider() {
   const adapter = providerFromConnector();
   if (!adapter) return false;
+  const address = adapter.publicKey.toBase58();
+  const changed = address !== installedWalletAddress;
+  installedWalletAddress = address;
   window.RALYA_WALLET_PROVIDER = adapter;
-  window.dispatchEvent(new CustomEvent('ralya:wallet-standard-connected', { detail: { address: adapter.publicKey.toBase58() } }));
+  if (changed) window.dispatchEvent(new CustomEvent('ralya:wallet-standard-connected', { detail: { address } }));
   return true;
 }
 
@@ -282,7 +286,11 @@ function installCaptureChooser() {
 }
 
 function syncConnectedState(state = client.getSnapshot()) {
-  if (state.wallet?.status !== 'connected' && !state.connected) return;
+  if (state.wallet?.status !== 'connected' && !state.connected) {
+    installedWalletAddress = '';
+    window.RALYA_WALLET_PROVIDER = null;
+    return;
+  }
   if (!installProvider()) return;
   const { address } = stateAccount(state);
   if (address) $$('.wallet-button').forEach(button => { button.textContent = shorten(address); });

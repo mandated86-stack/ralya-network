@@ -44,6 +44,7 @@ check("const PRESALE_STORE = 'ralya-prelaunch-presale'" in state, 'presale state
 check("@solana/connector/headless" in wallet and 'ConnectorClient' in wallet, 'Wallet Standard connector client is missing')
 check('Connect Wallet — Enter Presale' in wallet, 'large hero wallet CTA is missing')
 check('Live presale data reconnecting…' in wallet, 'small fail-closed reconnect status is missing')
+check("let installedWalletAddress = ''" in wallet and "if (changed) window.dispatchEvent" in wallet, 'Wallet Standard subscription can emit duplicate reconnect events/signing prompts')
 check('installWalletChooser();' not in hotfix, 'legacy provider-sniffing wallet chooser is still installed')
 check('installSafeCopyObserver();' not in hotfix, 'old DOM mutation copy observer is still installed')
 
