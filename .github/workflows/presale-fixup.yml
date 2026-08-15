@@ -1,0 +1,51 @@
+name: Final presale copy fixup
+
+on:
+  push:
+    branches:
+      - build/presale-stability-wallet-2026-08-16
+
+permissions:
+  contents: write
+
+jobs:
+  fixup:
+    if: ${{ !contains(github.event.head_commit.message, '[presale-fixup]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/presale-stability-wallet-2026-08-16
+          fetch-depth: 0
+      - name: Correct final Standard T-1 preview copy
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('web/prelaunch.js')
+          s = p.read_text(encoding='utf-8')
+          old = "'Standard: release 21 days after public launch'"
+          new = "'Standard: actual RLYA 1 day before public launch'"
+          if s.count(old) != 1:
+              raise SystemExit(f'expected one stale Standard preview string, found {s.count(old)}')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+      - name: Verify no stale Standard day-21 buyer copy remains
+        run: |
+          if grep -nEi "Standard.{0,40}(release|receive|unlock).{0,20}21 days after public launch|Standard: release 21 days" web/prelaunch.js web/index.html; then
+            echo "Stale Standard day-21 buyer copy remains" >&2
+            exit 1
+          fi
+      - name: Remove one-time workflow
+        run: rm -f .github/workflows/presale-fixup.yml
+      - name: Validate public presale audit
+        run: python3 scripts/audit_presale_public.py
+      - name: Validate JavaScript syntax
+        run: node --check web/prelaunch.js
+      - name: Commit fixup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "[presale-fixup] correct Standard T-1 preview copy"
+          git push origin HEAD:build/presale-stability-wallet-2026-08-16
