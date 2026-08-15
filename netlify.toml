@@ -2,6 +2,9 @@
   command = "npm run build:web"
   publish = "web"
 
+[build.processing.html]
+  pretty_urls = false
+
 [[redirects]]
   from = "https://ralya-network.netlify.app/*"
   to = "https://ralyaai.com/:splat"
@@ -15,19 +18,9 @@
   force = true
 
 [[redirects]]
-  from = "/rlya/"
-  to = "/rlya"
-  status = 301
-
-[[redirects]]
   from = "/rlya"
   to = "/index.html"
   status = 200
-
-[[redirects]]
-  from = "/technology/"
-  to = "/technology"
-  status = 301
 
 [[redirects]]
   from = "/technology"
@@ -35,29 +28,14 @@
   status = 200
 
 [[redirects]]
-  from = "/roadmap/"
-  to = "/roadmap"
-  status = 301
-
-[[redirects]]
   from = "/roadmap"
   to = "/index.html"
   status = 200
 
 [[redirects]]
-  from = "/docs/"
-  to = "/docs"
-  status = 301
-
-[[redirects]]
   from = "/docs"
   to = "/index.html"
   status = 200
-
-[[redirects]]
-  from = "/presale/"
-  to = "/presale"
-  status = 301
 
 [[redirects]]
   from = "/presale"
