@@ -1,4 +1,5 @@
 name: Web release
+
 on:
   workflow_dispatch:
   push:
@@ -10,16 +11,39 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/build_web_prod.sh'
+      - 'scripts/audit_source.py'
       - 'scripts/audit_prelaunch.py'
       - 'scripts/audit_site_copy.py'
       - 'scripts/prelaunch_selftest.mts'
+  pull_request:
+    paths:
+      - '.github/workflows/web-release.yml'
+      - 'web/**'
+      - 'netlify/functions/**'
+      - 'netlify.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build_web_prod.sh'
+      - 'scripts/audit_source.py'
+      - 'scripts/audit_prelaunch.py'
+      - 'scripts/audit_site_copy.py'
+      - 'scripts/prelaunch_selftest.mts'
+
+concurrency:
+  group: rlya-web-release-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+
 jobs:
   web:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+      - name: Audit release/source invariants without rebuilding Solana
+        run: python3 scripts/audit_source.py
       - name: Audit pre-launch financial/web invariants
         run: python3 scripts/audit_prelaunch.py
       - name: Audit live-copy safety
@@ -32,3 +56,5 @@ jobs:
         run: npm run build:functions
       - name: Build self-hosted production browser bundles
         run: npm run build:web
+      - name: Fast website marker
+        run: echo 'RALYA_WEB_RELEASE=PASS'
