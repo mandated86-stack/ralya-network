@@ -8,7 +8,7 @@ window.RALYA_CONFIG = Object.freeze({
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
-  projectUrl: 'https://ralya-network.netlify.app',
+  projectUrl: 'https://ralyaai.com',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
   ownerWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
   prelaunchTreasuryWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
