@@ -27,10 +27,14 @@ function deployContext() {
   return String(n?.context?.deploy?.context || n?.env?.get?.('CONTEXT') || process.env.CONTEXT || '').toLowerCase();
 }
 
-function store() {
-  return deployContext() === 'production'
-    ? getStore({ name: STORE_NAME, consistency: 'strong' })
-    : getDeployStore({ name: STORE_NAME });
+function storeFor(req: Request) {
+  const contextIsProduction = deployContext() === 'production';
+  const host = new URL(req.url).hostname.toLowerCase();
+  const isNetlifyBranchDeploy = host.endsWith('.netlify.app') && host.includes('--');
+  const explicitlyNonProduction = Boolean(deployContext()) && !contextIsProduction;
+  return (isNetlifyBranchDeploy || explicitlyNonProduction)
+    ? getDeployStore({ name: STORE_NAME })
+    : getStore({ name: STORE_NAME, consistency: 'strong' });
 }
 
 function json(body: unknown, status = 200) {
@@ -72,7 +76,7 @@ function normalizeOverrides(input: unknown) {
   return out;
 }
 
-async function verifyOwner(body: any, operation: string, payload: any) {
+async function verifyOwner(body: any, operation: string, payload: any, s: any) {
   const wallet = String(body?.wallet || '').trim();
   const timestamp = String(body?.timestamp || '').trim();
   const nonce = String(body?.nonce || '').trim();
@@ -95,7 +99,6 @@ async function verifyOwner(body: any, operation: string, payload: any) {
   const signature = Buffer.from(signatureB64, 'base64');
   if (signature.length !== 64) throw new Error('Invalid Ed25519 signature length.');
   if (!verifySignature(null, Buffer.from(message, 'utf8'), ownerKey(wallet), signature)) throw new Error('Owner signature verification failed.');
-  const s = store();
   const nonceKey = `auth/${nonce}`;
   if (await s.get(nonceKey)) throw new Error('Signed request has already been used.');
   await s.setJSON(nonceKey, { usedAt: new Date().toISOString() });
@@ -103,7 +106,7 @@ async function verifyOwner(body: any, operation: string, payload: any) {
 }
 
 export default async (req: Request) => {
-  const s = store();
+  const s = storeFor(req);
   if (req.method === 'GET') {
     const current: any = await s.get(CURRENT_KEY, { type: 'json' });
     return json({
@@ -122,7 +125,7 @@ export default async (req: Request) => {
 
   try {
     const payload = operation === 'save' ? { overrides: normalizeOverrides(body?.payload?.overrides || {}) } : {};
-    const wallet = await verifyOwner(body, operation, payload);
+    const wallet = await verifyOwner(body, operation, payload, s);
     const next = {
       overrides: operation === 'reset' ? {} : payload.overrides,
       updatedAt: new Date().toISOString(),
