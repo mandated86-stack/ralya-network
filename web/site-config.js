@@ -40,10 +40,6 @@ window.RALYA_CONFIG = Object.freeze({
 
 (() => {
   const cfg = window.RALYA_CONFIG;
-
-  // The atomic-sale master switch must never accidentally disable the separate
-  // prelaunch allocation flow. Once presaleMode becomes `atomic`, this guard
-  // again blocks purchase controls until the reviewed Mainnet gate is enabled.
   if (cfg.presaleMode === 'atomic' && !cfg.presaleEnabled) {
     const lockedMessage = 'Public token-sale access is not open yet.';
     const enforce = () => {
@@ -67,8 +63,14 @@ window.RALYA_CONFIG = Object.freeze({
   }
 
   const loadExtras = () => {
-    // On-chain distribution transparency is only meaningful after the production
-    // mint/program exist. The prelaunch page reads its verified allocation ledger instead.
+    if (cfg.presaleMode === 'prelaunch-allocation' && !document.querySelector('link[data-rlya-prelaunch-style]')) {
+      const style = document.createElement('link');
+      style.rel = 'stylesheet';
+      style.href = '/prelaunch.css';
+      style.dataset.rlyaPrelaunchStyle = '1';
+      document.head.appendChild(style);
+    }
+
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
       const transparency = document.createElement('script');
       transparency.src = 'distribution-transparency.js';
