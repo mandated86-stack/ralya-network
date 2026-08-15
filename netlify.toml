@@ -15,6 +15,56 @@
   force = true
 
 [[redirects]]
+  from = "/rlya/"
+  to = "/rlya"
+  status = 301
+
+[[redirects]]
+  from = "/rlya"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/technology/"
+  to = "/technology"
+  status = 301
+
+[[redirects]]
+  from = "/technology"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/roadmap/"
+  to = "/roadmap"
+  status = 301
+
+[[redirects]]
+  from = "/roadmap"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/docs/"
+  to = "/docs"
+  status = 301
+
+[[redirects]]
+  from = "/docs"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/presale/"
+  to = "/presale"
+  status = 301
+
+[[redirects]]
+  from = "/presale"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
   from = "/favicon.ico"
   to = "/rlya-token.png"
   status = 200
@@ -26,7 +76,7 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.mainnet-beta.solana.com wss://api.mainnet-beta.solana.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 [[headers]]
   for = "/*.js"

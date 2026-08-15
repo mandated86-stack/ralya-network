@@ -1,13 +1,13 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.9.1-mobile-stability-checkout',
+  build: '1.0.0-presale-stability-wallet',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
   prelaunchCheckoutEnabled: true,
   network: 'mainnet-beta',
-  rpcEndpoint: 'https://api.mainnet-beta.solana.com',
+  rpcEndpoint: 'https://ralyaai.com/api/solana/rpc',
   explorerBase: 'https://explorer.solana.com',
   projectUrl: 'https://ralyaai.com',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
@@ -89,6 +89,7 @@ window.RALYA_CONFIG = Object.freeze({
     if (document.querySelector(`script[${marker}]`)) return;
     const script = document.createElement('script');
     script.src = src;
+    script.async = false;
     script.defer = true;
     script.setAttribute(marker, '1');
     document.body.appendChild(script);
@@ -106,6 +107,8 @@ window.RALYA_CONFIG = Object.freeze({
     if (!location.pathname.includes('/owner/')) {
       loadStyle('/site-v2.css', 'data-rlya-site-v2-style');
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
+      loadStyle('/presale-next.css', 'data-rlya-presale-next-style');
+      loadScript('/presale-next.js', 'data-rlya-presale-next');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
     }

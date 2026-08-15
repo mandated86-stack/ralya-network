@@ -41,7 +41,11 @@ function serializeEvent(event: any) {
 }
 
 function rpcEndpoint() {
-  return (globalThis as any).Netlify?.env?.get?.('RALYA_SOLANA_RPC') || 'https://api.mainnet-beta.solana.com';
+  const endpoint = (globalThis as any).Netlify?.env?.get?.('RALYA_SOLANA_RPC');
+  if (!endpoint) throw new Error('Dedicated Solana Mainnet RPC is not configured. Keep presale access CLOSED.');
+  const parsed = new URL(endpoint);
+  if (parsed.protocol !== 'https:') throw new Error('Dedicated Solana Mainnet RPC must use HTTPS.');
+  return parsed.toString();
 }
 
 async function prelaunchOpeningPreflight() {
