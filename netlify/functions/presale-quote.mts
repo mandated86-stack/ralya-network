@@ -82,8 +82,6 @@ export default async (req: Request, context: any) => {
       const authClaim = await s.setJSON(`quote-auth/${auth.nonce}`, { buyer, usedAt: new Date(now).toISOString() }, { onlyIfNew: true });
       if (!authClaim.modified) throw new Error('This quote authorization has already been used.');
 
-      // A buyer can hold only one live reservation. Replacing a quote releases the
-      // old reservation before the new one is priced, preventing accidental self-blocking.
       const active = await getActiveQuotes(s, now);
       for (const old of active) {
         if (old?.buyer === buyer) await s.setJSON(`quote/${old.quoteId}`, { ...old, status: 'replaced', replacedAt: new Date(now).toISOString() });
@@ -102,7 +100,7 @@ export default async (req: Request, context: any) => {
         referrer = storedReferral.referrer;
       }
       if (storedStake && Boolean(storedStake.stake) !== auth.stake) {
-        throw new Error(storedStake.stake ? 'This wallet already locked the 5% staking option for its presale purchases.' : 'This wallet already locked standard 21-day release for its presale purchases.');
+        throw new Error(storedStake.stake ? 'This wallet already locked the 5% staking option for its presale purchases.' : 'This wallet already locked standard T-1 release for its presale purchases.');
       }
       if (referrer) {
         const reverse: any = await s.get(`referral/${referrer}`, { type: 'json' });

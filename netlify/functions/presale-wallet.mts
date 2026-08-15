@@ -61,7 +61,13 @@ export default async (req: Request, context: any) => {
     }
     const expectedTotal = purchasedRlya + stakingBonus;
     const averagePriceMicroUsdc = purchasedRlya > 0n && totalUsdc > 0n ? totalUsdc * RLYA_UNIT / purchasedRlya : 0n;
-    const distributionStatus = purchasedRlya <= 0n ? null : hasStaked && hasStandard ? 'mixed-21d-and-36d-after-public-launch' : hasStaked ? '36-days-after-public-launch' : '21-days-after-public-launch';
+    const distributionStatus = purchasedRlya <= 0n
+      ? null
+      : hasStaked && hasStandard
+        ? 'mixed-tminus1-and-21d-after-public-launch'
+        : hasStaked
+          ? '21-days-after-public-launch'
+          : '1-day-before-public-launch';
     return json({
       wallet,
       status: purchasedRlya > 0n ? 'allocation-confirmed' : 'no-allocation',
@@ -84,7 +90,7 @@ export default async (req: Request, context: any) => {
           stakingBonusBase: bonus.toString(),
           expectedTotalRlyaBase: (base + bonus).toString(),
           stake: event.stake === true,
-          deliveryPolicy: event.deliveryPolicy || (event.stake ? 'staked-36d' : 'standard-21d'),
+          deliveryPolicy: event.deliveryPolicy || (event.stake ? 'staked-plus21d' : 'standard-tminus1'),
           grossUsdcBase: event.grossUsdcBase,
           referralUsdcBase: event.referralUsdcBase,
           referrer: event.referrer,

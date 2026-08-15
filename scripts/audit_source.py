@@ -52,6 +52,10 @@ index_text = read('web/index.html').lower()
 site = read('web/site-config.js').lower()
 whitepaper = read('web/RALYA_Whitepaper_v1.2.html').lower()
 prelaunch_client = read('web/prelaunch.js').lower()
+site_ui = read('web/site-ui.js').lower()
+status_page = read('web/status.html').lower()
+confirm_fn = read('netlify/functions/presale-confirm.mts').lower()
+wallet_fn = read('netlify/functions/presale-wallet.mts').lower()
 for forbidden in ('simulate purchase', 'simulated allocation', 'preview checkout', 'browser simulation', 'need 3 sol', 'cannot afford'):
     check(forbidden not in '\n'.join(p.read_text(errors='ignore').lower() for p in (ROOT / 'web').rglob('*') if p.is_file() and p.suffix in {'.html','.js'}), f'public release contains forbidden/internal language: {forbidden}')
 check('ai-to-ai settlement' in index_text and 'autonomous work' in index_text, 'public AI-to-AI/autonomous-work positioning missing')
@@ -67,8 +71,29 @@ check('1 day before the public rlya launch' in whitepaper and '21 days after pub
 check('getparsedtokenaccountsbyowner' in prelaunch_client, 'real Solana token-account query missing from presale client')
 check('createtransfercheckedinstruction' in prelaunch_client and "'/api/presale/confirm'" in prelaunch_client, 'real verified USDC presale path missing from existing client')
 
-# Private technical launch is deliberately purchase-gated until every financial
-# receipt path has been migrated to the final T-1 / +21 schedule.
+# Public UI v2 must remain visibly navigable and mobile-wallet friendly.
+for required in ('data-site-tab="home"', 'data-site-tab="rlya"', 'data-site-tab="technology"', 'data-site-tab="roadmap"', 'data-site-tab="docs"'):
+    check(required in site_ui, f'public tab navigation missing: {required}')
+check('share & earn 1% usdc' in site_ui, 'prominent referral share action missing')
+check('phantom' in site_ui and 'solflare' in site_ui and 'trust wallet' in site_ui and 'metamask' in site_ui, 'multi-wallet chooser is incomplete')
+check('protocol step' in site_ui and 'open ${info.title} explanation' in site_ui, 'clickable Request/Bond/Work/Settle flow missing')
+check('/site-v2.css' in site and '/site-ui.js' in site, 'public UI v2 assets are not loaded by site config')
+check('100,680,000' not in status_page and '100.68m' not in status_page, 'status page contains obsolete presale allocation')
+check('deferred' not in status_page and 'not open' not in status_page, 'status page still uses negative deferred/not-open launch wording')
+check('next phase' in status_page and 'upcoming' in status_page, 'positive Mainnet/public-launch status wording missing')
+check('every 1,000,000' not in status_page, 'status page publicly exposes internal price-step mechanic')
+
+# Financial records must store the final owner-approved release policy even while
+# real checkout remains privately gated.
+for stale in ('staked-36d', 'standard-21d', "'36-days-after-public-launch'"):
+    check(stale not in confirm_fn, f'confirmation function still stores stale release policy: {stale}')
+    check(stale not in wallet_fn, f'wallet function still returns stale release policy: {stale}')
+check("'staked-plus21d'" in confirm_fn and "'standard-tminus1'" in confirm_fn, 'confirmation function final delivery policy missing')
+check("'21-days-after-public-launch'" in confirm_fn and "'1-day-before-public-launch'" in confirm_fn, 'confirmation distribution timing mismatch')
+check("'21-days-after-public-launch'" in wallet_fn and "'1-day-before-public-launch'" in wallet_fn, 'wallet distribution timing mismatch')
+
+# Private technical launch is deliberately purchase-gated until owner explicitly
+# approves real checkout after the final controlled verification pass.
 check("presalemode: 'prelaunch-allocation'" in site, 'pre-launch allocation mode is not configured')
 check('presaleenabled: false' in site, 'post-launch atomic sale master switch is not default-off')
 check('prelaunchcheckoutenabled: false' in site, 'private technical-launch checkout gate is not active')
@@ -78,7 +103,8 @@ check('presalecap: 288000000' in site and 'stakingbonusreserve: 14400000' in sit
 check("salepda: ''" in site and "rlyamint: ''" in site and "saleprogramid: ''" in site and "treasurywallet: ''" in site, 'production addresses must remain blank before signed Mainnet evidence')
 check('https://x.com/ralyaai' in site and 'https://tiktok.com/@ralyaai' in site, 'official social links missing from config')
 
-# Owner console keeps production/Mainnet work deferred.
+# Owner console keeps production/Mainnet work deferred internally; public wording
+# is handled separately above and must remain progress-oriented.
 owner_html = read('web/owner/index.html').lower()
 check('ralya owner control center' in owner_html, 'owner control center heading missing')
 check('mainnet is deliberately deferred' in owner_html, 'owner console does not clearly defer Mainnet')
@@ -111,4 +137,5 @@ print('hard cap:', j['hard_cap_tokens'], 'RLYA')
 print('public base presale:', alloc['presale']['tokens'], 'RLYA')
 print('staking bonus reserve:', alloc['staking_bonus_reserve']['tokens'], 'RLYA')
 print('public release intent: standard T-1; Buy + Stake +5% unlock day 21')
+print('PUBLIC_UI_V2=PASS; tab navigation, visible socials/referrals and wallet chooser present')
 print('PRIVATE_TEST_GATE=ACTIVE; production Mainnet addresses remain blank')
