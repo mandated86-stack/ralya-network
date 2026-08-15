@@ -64,7 +64,6 @@ export default async (req: Request) => {
       const blockMs = Number(tx.blockTime || 0) * 1000;
       if (!blockMs || blockMs < Number(quote.createdAtMs) - 30_000 || blockMs > Number(quote.expiresAtMs) + 90_000) throw new Error('Transaction was not executed inside the locked quote window.');
 
-      // Confirm the quoted reservation still fits the final ledger before crediting it.
       const before = await computeState(s, false);
       const quoteRlya = BigInt(quote.rlyaBase);
       if (before.totalAllocatedBase + quoteRlya > PRESALE_CAP_BASE) throw new Error('Presale cap reconciliation failed. Do not credit this allocation automatically.');
@@ -97,7 +96,7 @@ export default async (req: Request) => {
           wallet: quote.buyer,
           stake,
           stakingBonusBps: stake ? 500 : 0,
-          deliveryPolicy: stake ? 'staked-36d' : 'standard-21d',
+          deliveryPolicy: stake ? 'staked-plus21d' : 'standard-tminus1',
           lockedAt: new Date().toISOString(),
           sourceSignature: signature,
         });
@@ -111,7 +110,7 @@ export default async (req: Request) => {
         stakingBonusBase: quoteBonus.toString(),
         expectedTotalRlyaBase: (quoteRlya + quoteBonus).toString(),
         stake,
-        deliveryPolicy: stake ? 'staked-36d' : 'standard-21d',
+        deliveryPolicy: stake ? 'staked-plus21d' : 'standard-tminus1',
         grossUsdcBase: quote.grossUsdcBase,
         referralUsdcBase: quote.referralUsdcBase,
         referrer: quote.referrer || null,
@@ -124,7 +123,7 @@ export default async (req: Request) => {
         signature,
         quoteId,
         status: 'allocation-confirmed',
-        distributionStatus: stake ? '36-days-after-public-launch' : '21-days-after-public-launch',
+        distributionStatus: stake ? '21-days-after-public-launch' : '1-day-before-public-launch',
       };
       await s.setJSON(`purchase/${signature}`, event);
       await s.setJSON(`quote/${quoteId}`, { ...quote, status: 'confirmed', signature, confirmedAt: event.confirmedAt });
