@@ -12,8 +12,8 @@ export const USDC_UNIT = 1_000_000n;
 export const PRESALE_CAP_BASE = 288_000_000n * RLYA_UNIT;
 export const STAKING_BONUS_RESERVE_BASE = 14_400_000n * RLYA_UNIT;
 export const STAKING_BONUS_BPS = 500n;
-export const STANDARD_RELEASE_DAYS = 21;
-export const STAKED_RELEASE_DAYS = 36;
+export const STANDARD_RELEASE_OFFSET_SECONDS = -24 * 60 * 60;
+export const STAKED_RELEASE_DAYS = 21;
 export const BASE_PRICE_MICRO_USDC = 3_000n;
 export const STEP_SIZE_BASE = 1_000_000n * RLYA_UNIT;
 export const STEP_INCREMENT_MICRO_USDC = 50n;
@@ -43,7 +43,7 @@ export type AllocationEvent = {
   note?: string;
   stake?: boolean;
   stakingBonusBase?: string;
-  deliveryPolicy?: 'standard-21d' | 'staked-36d';
+  deliveryPolicy?: 'standard-tminus1' | 'staked-plus21d';
 };
 
 export type PresaleControl = {
@@ -113,7 +113,7 @@ export function stakingBonus(rlyaBase: bigint) {
 }
 
 export function deliveryPolicy(stake: boolean) {
-  return stake ? 'staked-36d' as const : 'standard-21d' as const;
+  return stake ? 'staked-plus21d' as const : 'standard-tminus1' as const;
 }
 
 const ceilDiv = (n: bigint, d: bigint) => (n + d - 1n) / d;
@@ -270,7 +270,8 @@ export function publicState(state: Awaited<ReturnType<typeof computeState>>) {
     presaleCapBase: PRESALE_CAP_BASE.toString(),
     stakingBonusReserveBase: STAKING_BONUS_RESERVE_BASE.toString(),
     stakingBonusBps: STAKING_BONUS_BPS.toString(),
-    standardReleaseDays: STANDARD_RELEASE_DAYS,
+    standardReleaseTiming: '1-day-before-public-launch',
+    standardReleaseOffsetSeconds: STANDARD_RELEASE_OFFSET_SECONDS,
     stakedReleaseDays: STAKED_RELEASE_DAYS,
     basePriceMicroUsdc: BASE_PRICE_MICRO_USDC.toString(),
     stepSizeBase: STEP_SIZE_BASE.toString(),
@@ -278,7 +279,7 @@ export function publicState(state: Awaited<ReturnType<typeof computeState>>) {
     referralBps: REFERRAL_BPS.toString(),
     webPurchaseCount: state.webCount,
     manualAllocationCount: state.manualCount,
-    distributionStatus: 'standard-21d-or-staked-36d-after-public-launch',
+    distributionStatus: 'standard-one-day-before-or-staked-21-days-after-public-launch',
     updatedAt: state.control.updatedAt,
   };
 }
