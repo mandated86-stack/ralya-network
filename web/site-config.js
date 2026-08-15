@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.7.1-prelaunch-release',
+  build: '0.8.0-prelaunch-staking',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -14,7 +14,11 @@ window.RALYA_CONFIG = Object.freeze({
   prelaunchTreasuryWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
   hardCap: 839000000,
   decimals: 9,
-  presaleCap: 100680000,
+  presaleCap: 288000000,
+  stakingBonusReserve: 14400000,
+  stakingBonusBps: 500,
+  standardReleaseDaysAfterLaunch: 21,
+  stakedReleaseDaysAfterLaunch: 36,
   basePriceMicroUsdc: 3000,
   priceStepTokens: 1000000,
   priceStepIncrementMicroUsdc: 50,
@@ -26,6 +30,8 @@ window.RALYA_CONFIG = Object.freeze({
   salePda: '',
   treasuryWallet: '',
   githubUrl: 'https://github.com/mandated86-stack/ralya-network',
+  xUrl: 'https://x.com/Ralyaai',
+  tiktokUrl: 'https://tiktok.com/@ralyaai',
   whitepaperUrl: 'RALYA_Whitepaper_v1.2.html'
 });
 
