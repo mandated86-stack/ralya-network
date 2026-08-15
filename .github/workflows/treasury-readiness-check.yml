@@ -1,0 +1,43 @@
+name: Production treasury readiness check
+on:
+  push:
+    paths:
+      - '.github/workflows/treasury-readiness-check.yml'
+permissions:
+  contents: read
+jobs:
+  treasury:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify owner SOL and canonical USDC ATA through production RPC
+        run: |
+          node --input-type=module <<'NODE'
+          import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
+          import { getAssociatedTokenAddress } from '@solana/spl-token';
+          const rpc = new Connection('https://ralyaai.com/api/solana/rpc', 'confirmed');
+          const owner = new PublicKey('BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo');
+          const mint = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+          const ata = await getAssociatedTokenAddress(mint, owner);
+          const [lamports, info] = await Promise.all([
+            rpc.getBalance(owner, 'confirmed'),
+            rpc.getParsedAccountInfo(ata, 'confirmed'),
+          ]);
+          console.log('TREASURY_WALLET=' + owner.toBase58());
+          console.log('TREASURY_SOL=' + (lamports / LAMPORTS_PER_SOL).toFixed(9));
+          console.log('TREASURY_USDC_ATA=' + ata.toBase58());
+          if (!info.value) {
+            console.log('TREASURY_USDC_ATA_READY=NO');
+            process.exitCode = 2;
+          } else {
+            const parsed = info.value.data?.parsed?.info;
+            const ok = parsed?.owner === owner.toBase58() && parsed?.mint === mint.toBase58();
+            console.log('TREASURY_USDC_ATA_READY=' + (ok ? 'YES' : 'INVALID'));
+            if (!ok) process.exitCode = 3;
+          }
+          NODE
