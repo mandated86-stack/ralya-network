@@ -1,5 +1,8 @@
+import { Connection, PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
-  PRESALE_CAP_BASE, RLYA_UNIT, assertWallet, cleanText, computeState, decimalToBase,
+  PRESALE_CAP_BASE, PRESALE_TREASURY_WALLET, RLYA_UNIT, USDC_MINT,
+  assertWallet, cleanText, computeState, decimalToBase,
   getAllocationEvents, json, newId, priceAt, publicState, sha256Json, store,
   verifyOwnerAction, withMutationLock,
 } from './_shared/presale-core.mts';
@@ -22,6 +25,44 @@ function serializeEvent(event: any) {
     signature: event.signature || null,
     paymentReference: event.paymentReference || null,
     note: event.note || null,
+  };
+}
+
+function rpcEndpoint() {
+  return (globalThis as any).Netlify?.env?.get?.('RALYA_SOLANA_RPC') || 'https://api.mainnet-beta.solana.com';
+}
+
+async function prelaunchOpeningPreflight() {
+  const endpoint = rpcEndpoint();
+  const connection = new Connection(endpoint, 'confirmed');
+  const mint = new PublicKey(USDC_MINT);
+  const treasury = new PublicKey(PRESALE_TREASURY_WALLET);
+  const treasuryAta = await getAssociatedTokenAddress(mint, treasury);
+
+  let latestBlockhash: string;
+  try {
+    latestBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+  } catch {
+    throw new Error('Solana Mainnet RPC is not reachable. Keep allocation access CLOSED and retry the opening preflight.');
+  }
+
+  const info = await connection.getParsedAccountInfo(treasuryAta, 'confirmed');
+  if (!info.value) {
+    throw new Error('Pre-launch treasury USDC receiving account is not prepared. Use Prepare / verify USDC receiving account in the owner console before opening allocations.');
+  }
+  const parsed: any = (info.value.data as any)?.parsed?.info;
+  if (parsed?.mint !== USDC_MINT || parsed?.owner !== PRESALE_TREASURY_WALLET) {
+    throw new Error('Treasury USDC receiving account failed ownership/mint verification. Keep allocation access CLOSED.');
+  }
+
+  return {
+    rpc: 'reachable',
+    latestBlockhash,
+    cluster: 'mainnet-beta',
+    usdcMint: USDC_MINT,
+    treasuryWallet: PRESALE_TREASURY_WALLET,
+    treasuryUsdcAccount: treasuryAta.toBase58(),
+    treasuryUsdcAccountReady: true,
   };
 }
 
@@ -99,14 +140,21 @@ export default async (req: Request) => {
       return json({ ok: true, state: { ...publicState(state), reservedBase: state.reservedBase.toString() }, recent });
     }
 
+    if (op === 'preflight') {
+      const readiness = await prelaunchOpeningPreflight();
+      const state = await computeState(s, true);
+      return json({ ok: true, readiness, state: { ...publicState(state), reservedBase: state.reservedBase.toString() } });
+    }
+
     if (op === 'set_access') {
       const access = String(payload.access || '');
       if (!['closed', 'open', 'paused'].includes(access)) throw new Error('Unknown presale access state.');
+      const readiness = access === 'open' ? await prelaunchOpeningPreflight() : null;
       const state = await withMutationLock(s, async () => {
         await s.setJSON('control', { access, updatedAt: new Date().toISOString(), updatedBy: auth.wallet });
         return computeState(s, true);
       });
-      return json({ ok: true, state: { ...publicState(state), reservedBase: state.reservedBase.toString() } });
+      return json({ ok: true, readiness, state: { ...publicState(state), reservedBase: state.reservedBase.toString() } });
     }
 
     if (op === 'manual_allocate') {
