@@ -1,0 +1,44 @@
+name: Production presale smoke verification
+on:
+  push:
+    paths:
+      - '.github/workflows/production-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production presale state endpoint
+        run: |
+          curl -fsS --retry 3 --retry-delay 2 https://ralyaai.com/api/presale/state -o /tmp/state.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/state.json'))
+          assert d.get('backendReady') is not False, d
+          assert d.get('access') in {'closed','open','paused'}, d
+          assert str(d.get('presaleCapBase','')).isdigit(), d
+          print('PRESALE_STATE_PRODUCTION=PASS', d.get('access'), d.get('currentPriceMicroUsdc'))
+          PY
+      - name: Verify same-origin Helius-backed Solana RPC proxy
+        run: |
+          curl -fsS --retry 3 --retry-delay 2 \
+            -H 'Origin: https://ralyaai.com' \
+            -H 'Content-Type: application/json' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"getLatestBlockhash","params":[{"commitment":"confirmed"}]}' \
+            https://ralyaai.com/api/solana/rpc -o /tmp/rpc.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/rpc.json'))
+          blockhash=((d.get('result') or {}).get('value') or {}).get('blockhash')
+          assert isinstance(blockhash,str) and len(blockhash)>20, d
+          print('SOLANA_RPC_PROXY_PRODUCTION=PASS', blockhash[:8]+'…')
+          PY
+      - name: Verify clean public routes load directly
+        run: |
+          for route in / /rlya /technology /roadmap /docs /presale; do
+            code=$(curl -sS -L -o /tmp/page.html -w '%{http_code}' "https://ralyaai.com${route}")
+            test "$code" = "200"
+            grep -q 'RALYA' /tmp/page.html
+            echo "CLEAN_ROUTE_PASS ${route} ${code}"
+          done
