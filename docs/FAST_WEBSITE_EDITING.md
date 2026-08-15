@@ -39,7 +39,7 @@ It runs:
 
 - pre-launch financial/web audit;
 - live-copy audit;
-- cached pinned Node dependencies;
+- pinned Node dependency install;
 - pre-launch economic self-test;
 - Netlify function compilation;
 - production browser bundle build.
