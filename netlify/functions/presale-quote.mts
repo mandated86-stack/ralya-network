@@ -92,11 +92,17 @@ export default async (req: Request, context: any) => {
       const state = await computeState(s, true);
       if (state.control.access !== 'open') throw new Error(state.control.access === 'paused' ? 'Presale allocation access is temporarily paused.' : 'Presale allocation access is not open yet.');
 
-      const storedReferral: any = await s.get(`referral/${buyer}`, { type: 'json' });
+      const [storedReferral, storedStake]: any[] = await Promise.all([
+        s.get(`referral/${buyer}`, { type: 'json' }),
+        s.get(`stake/${buyer}`, { type: 'json' }),
+      ]);
       let referrer: string | null = requestedReferrer;
       if (storedReferral?.referrer) {
         if (referrer && referrer !== storedReferral.referrer) throw new Error('This wallet already has a different locked referrer.');
         referrer = storedReferral.referrer;
+      }
+      if (storedStake && Boolean(storedStake.stake) !== auth.stake) {
+        throw new Error(storedStake.stake ? 'This wallet already locked the 5% staking option for its presale purchases.' : 'This wallet already locked standard 21-day release for its presale purchases.');
       }
       if (referrer) {
         const reverse: any = await s.get(`referral/${referrer}`, { type: 'json' });
