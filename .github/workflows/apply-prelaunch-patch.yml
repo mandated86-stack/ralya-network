@@ -8,6 +8,7 @@ on:
       - 'scripts/apply_prelaunch_program_patch.py'
       - 'scripts/apply_prelaunch_receipt_patch.py'
       - 'scripts/apply_delivery_preflight_patch.py'
+      - 'scripts/apply_quote_grace_patch.py'
       - '.github/workflows/apply-prelaunch-patch.yml'
 
 permissions:
@@ -25,20 +26,23 @@ jobs:
           python3 scripts/apply_prelaunch_program_patch.py
           python3 scripts/apply_prelaunch_receipt_patch.py
           python3 scripts/apply_delivery_preflight_patch.py
+          python3 scripts/apply_quote_grace_patch.py
       - name: Format and validate Rust
         run: |
           cargo fmt --all
           cargo check --manifest-path programs/rlya_sale/Cargo.toml
-      - name: Validate patched browser tool
-        run: node --check web/owner/prelaunch-delivery.js
+      - name: Validate patched browser and server tools
+        run: |
+          node --check web/owner/prelaunch-delivery.js
+          grep -q 'QUOTE_CONFIRMATION_GRACE_MS' netlify/functions/_shared/presale-core.mts
       - name: Commit patched source
         run: |
-          if git diff --quiet -- programs/rlya_sale/src/lib.rs web/owner/prelaunch-delivery.js; then
+          if git diff --quiet -- programs/rlya_sale/src/lib.rs web/owner/prelaunch-delivery.js netlify/functions/_shared/presale-core.mts; then
             echo 'No patch diff to commit.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add programs/rlya_sale/src/lib.rs web/owner/prelaunch-delivery.js
-          git commit -m 'Harden idempotent prelaunch distribution'
+          git add programs/rlya_sale/src/lib.rs web/owner/prelaunch-delivery.js netlify/functions/_shared/presale-core.mts
+          git commit -m 'Harden prelaunch allocation reconciliation'
           git push origin HEAD:agent/prelaunch-presale
