@@ -14,6 +14,7 @@ on:
       - 'scripts/audit_prelaunch.py'
       - 'scripts/audit_checkout_release.py'
       - 'scripts/audit_site_copy.py'
+      - 'scripts/audit_presale_public.py'
       - 'scripts/prelaunch_selftest.mts'
 concurrency:
   group: rlya-web-${{ github.ref }}
@@ -34,6 +35,8 @@ jobs:
         run: python3 scripts/audit_checkout_release.py
       - name: Audit live-copy safety
         run: python3 scripts/audit_site_copy.py
+      - name: Audit presale public/runtime boundaries
+        run: python3 scripts/audit_presale_public.py
       - name: Install pinned web and function dependencies
         run: npm install --no-audit --no-fund
       - name: Test pre-launch economic invariants
