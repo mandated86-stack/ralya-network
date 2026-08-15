@@ -4,6 +4,7 @@ Updated: 2026-08-15
 CURRENT PHASE
 - RLYA 0.7.1 pre-launch release is the current production baseline.
 - Informational website is deployed through the Git-connected Netlify project `ralya-network`.
+- Public domain `ralyaai.com` has been purchased at Namecheap and is active; custom-domain connection to Netlify is the current infrastructure task.
 - Pre-launch allocation software is built.
 - Pre-launch allocation access remains CLOSED by default and owner controlled.
 - Solana production Mainnet program is deliberately NOT deployed yet.
@@ -12,14 +13,16 @@ CURRENT PHASE
 - Do NOT start the Mainnet deployment sequence now. Mainnet is intentionally postponed until sufficient pre-launch progress/funding and the owner chooses to proceed.
 
 WHAT COMES NEXT
-1) Finish buying the public domain. As of this update the owner is in the process of buying `ralyaa.com` at Namecheap; do not assume purchase is complete until the owner confirms it.
-2) Connect the purchased domain to the existing Netlify project `ralya-network` and make it the primary custom domain.
-3) Review/edit website wording and UI while the site stays live. Use `docs/FAST_WEBSITE_EDITING.md` so small copy edits do not trigger Solana/repository-wide CI.
-4) Keep allocation access CLOSED while website/domain review is happening.
-5) When the owner decides the presale should accept real money, prepare/verify the treasury's canonical Solana USDC receiving account.
-6) Run the owner-signed server readiness preflight. OPEN must refuse if Solana RPC or the treasury USDC receiving account is not ready.
-7) Only after that owner decision, switch pre-launch allocation access from CLOSED to OPEN.
-8) Operate website purchases and authorized private/off-site investor allocations against the same 100.68M RLYA presale pool and fixed dynamic price curve.
+1) Connect the purchased public domain `ralyaai.com` to the existing Netlify project `ralya-network`.
+2) Keep `ralyaai.com` as the preferred canonical public hostname once Netlify DNS verification and managed HTTPS/TLS are ready; `www.ralyaai.com` should redirect cleanly to the canonical hostname.
+3) Preserve unrelated Namecheap email-forwarding DNS records while replacing only parking/redirect records required for the Netlify connection.
+4) After HTTPS is ready, update only public/canonical website references that genuinely need to move from the Netlify fallback URL to `https://ralyaai.com`.
+5) Review/edit website wording and UI while the site stays live. Use `docs/FAST_WEBSITE_EDITING.md` so small copy edits do not trigger Solana/repository-wide CI.
+6) Keep allocation access CLOSED while website/domain review is happening.
+7) When the owner decides the presale should accept real money, prepare/verify the treasury's canonical Solana USDC receiving account.
+8) Run the owner-signed server readiness preflight. OPEN must refuse if Solana RPC or the treasury USDC receiving account is not ready.
+9) Only after that owner decision, switch pre-launch allocation access from CLOSED to OPEN.
+10) Operate website purchases and authorized private/off-site investor allocations against the same 100.68M RLYA presale pool and fixed dynamic price curve.
 
 PRE-LAUNCH BUYER MODEL
 - Buyer connects a Solana wallet.
@@ -50,12 +53,17 @@ FAST WEBSITE EDITING
 - Superseded web/copy workflow runs cancel automatically.
 
 DOMAIN / HOSTING
+- Purchased public domain: `ralyaai.com` (Namecheap, active).
+- DNS service at purchase: Namecheap BasicDNS.
+- Preferred canonical public URL after HTTPS is ready: https://ralyaai.com
+- `www.ralyaai.com` should redirect to the canonical apex hostname unless Netlify provides a site-specific reason to choose otherwise.
 - Netlify project: `ralya-network`.
 - Site ID: aeca50d3-428e-4300-9c7f-668d219dc0bc.
-- Existing Netlify URL: https://ralya-network.netlify.app
+- Existing Netlify fallback URL: https://ralya-network.netlify.app
 - GitHub repo: mandated86-stack/ralya-network, default branch `main`.
-- Namecheap hosting, SSL upsells, PremiumDNS, WordPress hosting and SiteLock are not required for the current Netlify architecture.
-- If `ralyaa.com` purchase completes, attach it to Netlify and then update public canonical project/domain metadata where appropriate.
+- Namecheap hosting, paid SSL upsells, PremiumDNS, WordPress hosting and SiteLock are not required for the current Netlify architecture.
+- Do not remove unrelated email-forwarding DNS records casually when connecting the domain.
+- Do not update `web/site-config.js` projectUrl to the custom domain until Netlify domain verification and HTTPS are actually ready.
 
 OWNER / SECURITY
 - Configured public owner wallet: BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo
