@@ -19,8 +19,8 @@
 
 [[redirects]]
   from = "/owner"
-  to = "/owner/index.html"
-  status = 200
+  to = "/owner/"
+  status = 301
   force = true
 
 [[redirects]]
