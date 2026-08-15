@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.7.0-prelaunch-presale',
+  build: '0.7.1-prelaunch-release',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -59,11 +59,19 @@ window.RALYA_CONFIG = Object.freeze({
 
   const loadScript = (src, marker) => {
     if (document.querySelector(`script[${marker}]`)) return;
-    const script = document.createElement('script'); script.src = src; script.defer = true; script.setAttribute(marker, '1'); document.body.appendChild(script);
+    const script = document.createElement('script');
+    script.src = src;
+    script.defer = true;
+    script.setAttribute(marker, '1');
+    document.body.appendChild(script);
   };
   const loadExtras = () => {
     if (cfg.presaleMode === 'prelaunch-allocation' && !document.querySelector('link[data-rlya-prelaunch-style]')) {
-      const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = '/prelaunch.css'; style.dataset.rlyaPrelaunchStyle = '1'; document.head.appendChild(style);
+      const style = document.createElement('link');
+      style.rel = 'stylesheet';
+      style.href = '/prelaunch.css';
+      style.dataset.rlyaPrelaunchStyle = '1';
+      document.head.appendChild(style);
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
@@ -71,7 +79,7 @@ window.RALYA_CONFIG = Object.freeze({
       loadScript('/owner/status-control.js', 'data-rlya-owner-status');
       loadScript('/owner/presale-control.js', 'data-rlya-owner-presale');
       loadScript('/owner/treasury-prep.js', 'data-rlya-owner-treasury');
-      loadScript('/owner/prelaunch-delivery.js', 'data-rlya-owner-delivery');
+      if (cfg.saleProgramId && cfg.rlyaMint && cfg.salePda) loadScript('/owner/prelaunch-delivery.js', 'data-rlya-owner-delivery');
     }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadExtras, { once: true }); else loadExtras();

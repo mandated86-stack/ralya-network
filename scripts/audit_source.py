@@ -65,13 +65,14 @@ web_files = list((ROOT / 'web').rglob('*.html')) + list((ROOT / 'web').rglob('*.
 public_text = '\n'.join(p.read_text(errors='ignore').lower() for p in web_files)
 for forbidden in ('simulate purchase', 'simulated allocation', 'preview checkout', 'browser simulation'):
     check(forbidden not in public_text, f'public release contains simulation language: {forbidden}')
-check('not another fake coin' in (ROOT/'web/index.html').read_text().lower(), 'requested public anti-fake-coin statement missing')
+index_text = (ROOT/'web/index.html').read_text().lower()
+check('built for a specific economic role' in index_text and 'ai-to-ai settlement' in index_text, 'public protocol-purpose positioning missing')
 check('getparsedtokenaccountsbyowner' in (ROOT/'web/app.js').read_text().lower(), 'real token balance query missing')
 check('manual_sale' in (ROOT/'web/admin/admin.js').read_text().lower(), 'owner off-site sale action missing')
 check('buy_with_referral' in (ROOT/'web/app.js').read_text().lower(), 'website referred purchase path missing')
-check('referral' in (ROOT/'web/index.html').read_text().lower() and '1%' in (ROOT/'web/index.html').read_text(), 'public 1% referral explanation missing')
+check('referral' in index_text and '1%' in (ROOT/'web/index.html').read_text(), 'public 1% referral explanation missing')
 owner_html = (ROOT/'web/owner/index.html').read_text().lower()
-check('rlya mainnet launch console' in owner_html and 'prepare rlya mainnet' in owner_html, 'owner staged mainnet launch console missing')
+check('ralya owner control center' in owner_html and 'prepare rlya mainnet' in owner_html and 'mainnet is deliberately deferred' in owner_html, 'owner staged/deferred mainnet controls missing')
 check('atomic activate + pause' in owner_html, 'owner launch does not expose atomic activate/pause checkpoint')
 check('run 1 usdc mainnet smoke test' in owner_html, 'owner mainnet smoke checkpoint missing')
 atomic_launch = (ROOT/'web/owner/atomic-launch.js').read_text()
@@ -91,9 +92,6 @@ check((ROOT/'scripts/verify_mainnet_public.mjs').exists(), 'public-only mainnet 
 check((ROOT/'web/owner/smoke.js').exists(), 'recoverable mainnet smoke verifier missing')
 check((ROOT/'web/owner/atomic-launch.js').exists(), 'atomic mainnet activation module missing')
 
-# Production deployment must not depend on a personal wallet key. Both owner
-# scripts create and configure a dedicated local fee payer, distinct from the
-# permanent Program ID and upgrade authority.
 for deploy_script in (ROOT/'scripts/mainnet_program_deploy.sh', ROOT/'scripts/mainnet_program_deploy.ps1'):
     body = deploy_script.read_text()
     body_lower = body.lower()
@@ -112,7 +110,6 @@ check((ROOT/'web/RALYA_Whitepaper_v1.1.pdf').exists(), 'whitepaper PDF missing')
 check((ROOT/'whitepaper/RALYA_Whitepaper_v1.1.md').exists(), 'whitepaper source missing')
 check((ROOT/'LICENSE').exists(), 'open-source license missing')
 
-# No private credentials in tracked source.
 secret_patterns = [
     r'(?i)-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',
     r'(?i)private[_-]?key\s*=\s*["\'][^"\']+["\']',
@@ -136,5 +133,5 @@ print('hard cap:', j['hard_cap_tokens'], 'RLYA')
 print('public sale:', alloc['presale']['tokens'], 'RLYA')
 print('founder initial lock:', alloc['founder']['initial_lock_days'], 'days')
 print('active program contains no RLYA mint/refund/claim instruction')
-print('website contains real wallet/balance/purchase/referral paths, enforced presale gate, atomic owner launch and atomic smoke tools')
+print('website contains real wallet/balance/purchase/referral paths, enforced presale gate, staged owner controls and deferred Mainnet tools')
 print('mainnet deployment uses isolated payer/program/upgrade identities and exact executable verification')

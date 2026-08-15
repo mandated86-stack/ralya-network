@@ -1,4 +1,4 @@
-# Build status — RLYA 0.7.0 pre-launch presale release candidate
+# Build status — RLYA 0.7.1 pre-launch release
 
 ## Product position
 
@@ -21,7 +21,7 @@ Website purchases and authorized private/off-site allocations consume the same 1
 
 ## Pre-launch allocation layer
 
-RLYA 0.7.0 adds a separate pre-launch allocation mode. It does not replace the already-built post-launch atomic sale path.
+RLYA 0.7.1 operates a separate pre-launch allocation mode. It does not replace the already-built post-launch atomic sale path.
 
 During pre-launch allocation mode:
 
@@ -34,7 +34,7 @@ During pre-launch allocation mode:
 7. reconnecting the same wallet shows its confirmed expected RLYA;
 8. actual RLYA distribution remains scheduled before public token launch.
 
-The public website never has to pretend pre-launch RLYA was already transferred.
+The public website does not represent pre-launch RLYA as already transferred.
 
 ### Pre-launch payment/referral protections
 
@@ -52,10 +52,11 @@ The public website never has to pretend pre-launch RLYA was already transferred.
 - first confirmed referral attribution is locked
 - self-referral and direct two-wallet circular referrals are blocked
 - confirmation-time presale cap guard remains authoritative
+- opening allocation access now requires a server-side Solana RPC + treasury USDC receiving-account preflight
 
 ## Owner pre-launch controls
 
-The private `/owner/` console now separates three different concepts:
+The private `/owner/` console separates three different concepts.
 
 ### Public reveal stage
 
@@ -74,7 +75,8 @@ Changing the public stage does **not** open presale/token trading or execute blo
 
 Separately owner-signed controls can:
 
-- open new pre-launch allocations;
+- run an opening readiness preflight;
+- open new pre-launch allocations only when the Solana payment rail is ready;
 - pause new allocations;
 - close new allocations;
 - inspect public totals;
@@ -101,7 +103,7 @@ Private owner reconciliation notes are not exposed through the public buyer wall
 
 The production sale program keeps the existing `Sale` account layout and adds separate pre-launch reconciliation accounts/instructions.
 
-The intended production migration is:
+The intended later production migration is:
 
 - `initialize_prelaunch_metrics` creates a separate reconciliation PDA;
 - `import_prelaunch_referral` recreates the buyer's locked pre-launch referral attribution on Mainnet;
@@ -127,8 +129,8 @@ This preserves the distinction between public website presale and private/off-si
 - protected post-launch atomic-sale master switch
 - pinned/self-hosted production browser blockchain dependencies
 - owner-controlled local Mainnet deployment scripts with exact executable byte/SHA verification
-- staged Mainnet 839M token-preparation console
-- atomic activate + pause founder-lock sequence
+- staged Mainnet 839M token-preparation console retained but deliberately deferred
+- atomic activate + pause founder-lock sequence retained for the later Mainnet checkpoint
 - legacy owner-funded 1 USDC atomic Mainnet smoke tool retained for later atomic-sale diagnostics; it is not part of the delayed-allocation pre-launch sequence because it would consume presale inventory
 - public-only Mainnet verifier
 
@@ -148,31 +150,26 @@ These are test-only assets and are never production addresses.
 
 - Localhost protocol: **VERIFIED**
 - Public Devnet core protocol: **VERIFIED**
-- Pre-launch allocation software: **0.7.0 RELEASE-CANDIDATE CODE**
-- Solana production Mainnet program: **NOT DEPLOYED**
-- Production RLYA mint: **NOT CREATED**
+- Pre-launch allocation software: **0.7.1 RELEASE READY**
+- Solana production Mainnet program: **NOT DEPLOYED — DELIBERATELY DEFERRED**
+- Production RLYA mint: **NOT CREATED — DELIBERATELY DEFERRED**
 - Pre-launch allocation access: **DEFAULT CLOSED; OWNER CONTROLLED**
 - Post-launch atomic RLYA sale: **DISABLED**
 - Public token launch: **NOT OPEN**
 
-The informational website can be public while allocation access remains closed. Technical Mainnet completion and public reveal timing are deliberately independent.
+The informational website can be public while allocation access remains closed. Mainnet token creation is not required for the current pre-launch allocation phase.
 
-## Remaining production checkpoints
+## Remaining operating checkpoints
 
-1. finish 0.7.0 release gates and deploy the hardened website with pre-launch allocation access closed;
-2. when the owner chooses, open pre-launch allocation access independently of token launch;
-3. later deploy the permanent Mainnet program from owner-controlled local keys;
-4. verify downloaded Mainnet executable matches the exact built binary;
-5. create exactly 839M production RLYA and all seven allocation accounts;
-6. permanently revoke mint authority and confirm freeze authority absent;
-7. start the 365-day founder lock while final sale state remains PAUSED;
-8. independently verify the clean PAUSED production state without consuming presale inventory;
-9. close pre-launch allocations, let in-flight quote windows clear and export the final hashed delivery manifest;
-10. commit the manifest hash and expected totals in the on-chain pre-launch metrics PDA;
-11. distribute confirmed pre-launch allocations from the official sale vault using idempotent receipt PDAs;
-12. verify the on-chain metrics exactly match the committed manifest and verify production supply/allocation evidence;
-13. update public production addresses;
-14. announce/publicly launch only when the owner chooses;
-15. later switch from pre-launch allocation mode to the already-built atomic USDC → RLYA settlement mode.
+1. deploy the hardened 0.7.1 website with pre-launch allocation access CLOSED;
+2. prepare/verify the configured treasury Solana USDC receiving account;
+3. run the owner-signed opening preflight;
+4. when the owner chooses, switch pre-launch allocation access to OPEN independently of token launch;
+5. operate website and authorized private/off-site allocations against the same fixed curve;
+6. later, after sufficient pre-launch progress and when the owner chooses, perform the separate permanent Mainnet deployment and fixed 839M token-creation sequence;
+7. close pre-launch allocations before final distribution, let in-flight quote windows clear and export the final hashed delivery manifest;
+8. distribute confirmed allocations before public launch using the already-built reconciliation/receipt path;
+9. announce/publicly launch only when the owner chooses;
+10. later switch from pre-launch allocation mode to the already-built atomic USDC → RLYA settlement mode.
 
 No production Mainnet address is to be claimed until signed on-chain evidence exists.
