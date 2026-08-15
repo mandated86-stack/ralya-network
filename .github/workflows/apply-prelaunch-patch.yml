@@ -11,6 +11,13 @@ on:
       - 'scripts/apply_quote_grace_patch.py'
       - 'scripts/apply_owner_reconciliation_patch.py'
       - 'scripts/apply_whitepaper_links_patch.py'
+      - 'scripts/apply_manifest_commitment_patch.py'
+      - 'scripts/apply_manifest_delivery_tool_patch.py'
+      - 'scripts/apply_owner_ui_patch.py'
+      - 'scripts/apply_smoke_docs_patch.py'
+      - 'scripts/apply_local_prelaunch_test_patch.py'
+      - 'scripts/apply_usdc_account_patch.py'
+      - 'scripts/apply_treasury_wiring_patch.py'
       - '.github/workflows/apply-prelaunch-patch.yml'
 
 permissions:
@@ -31,16 +38,30 @@ jobs:
           python3 scripts/apply_quote_grace_patch.py
           python3 scripts/apply_owner_reconciliation_patch.py
           python3 scripts/apply_whitepaper_links_patch.py
+          python3 scripts/apply_manifest_commitment_patch.py
+          python3 scripts/apply_manifest_delivery_tool_patch.py
+          python3 scripts/apply_owner_ui_patch.py
+          python3 scripts/apply_smoke_docs_patch.py
+          python3 scripts/apply_local_prelaunch_test_patch.py
+          python3 scripts/apply_usdc_account_patch.py
+          python3 scripts/apply_treasury_wiring_patch.py
       - name: Format and validate Rust
         run: |
           cargo fmt --all
           cargo check --manifest-path programs/rlya_sale/Cargo.toml
       - name: Validate patched browser and server tools
         run: |
+          node --check web/prelaunch.js
+          node --check web/owner/presale-control.js
           node --check web/owner/prelaunch-delivery.js
+          node --check web/owner/treasury-prep.js
           node --check web/site-config.js
+          bash -n scripts/local_validator_smoke.sh
           grep -q 'QUOTE_CONFIRMATION_GRACE_MS' netlify/functions/_shared/presale-core.mts
           grep -q 'Wait for active buyer quotes to clear' netlify/functions/presale-owner.mts
+          grep -q 'manifest_sha256' programs/rlya_sale/src/lib.rs
+          grep -q 'manifest commitment verified on-chain' web/owner/prelaunch-delivery.js
+          grep -q 'RALYA_LOCAL_PRELAUNCH_INTEGRATION=PASS' scripts/local_validator_smoke.sh
           grep -q 'RALYA_Whitepaper_v1.2.html' web/index.html
       - name: Commit patched source
         run: |
@@ -50,6 +71,6 @@ jobs:
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add programs/rlya_sale/src/lib.rs web netlify/functions/_shared/presale-core.mts netlify/functions/presale-owner.mts
+          git add programs/rlya_sale/src/lib.rs web netlify/functions/_shared/presale-core.mts netlify/functions/presale-owner.mts scripts/local_validator_smoke.sh scripts/build_web_prod.sh Makefile docs
           git commit -m 'Finalize prelaunch allocation release hardening'
           git push origin HEAD:agent/prelaunch-presale
