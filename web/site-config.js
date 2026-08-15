@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '0.8.1-prelaunch-staking',
+  build: '0.9.0-public-ui-v2',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -77,15 +77,21 @@ window.RALYA_CONFIG = Object.freeze({
     script.setAttribute(marker, '1');
     document.body.appendChild(script);
   };
+  const loadStyle = (href, marker) => {
+    if (document.querySelector(`link[${marker}]`)) return;
+    const style = document.createElement('link');
+    style.rel = 'stylesheet';
+    style.href = href;
+    style.setAttribute(marker, '1');
+    document.head.appendChild(style);
+  };
   const loadExtras = () => {
-    if (cfg.presaleMode === 'prelaunch-allocation' && !document.querySelector('link[data-rlya-prelaunch-style]')) {
-      const style = document.createElement('link');
-      style.rel = 'stylesheet';
-      style.href = '/prelaunch.css';
-      style.dataset.rlyaPrelaunchStyle = '1';
-      document.head.appendChild(style);
+    if (cfg.presaleMode === 'prelaunch-allocation') loadStyle('/prelaunch.css', 'data-rlya-prelaunch-style');
+    if (!location.pathname.includes('/owner/')) {
+      loadStyle('/site-v2.css', 'data-rlya-site-v2-style');
+      loadScript('/site-ui.js', 'data-rlya-site-v2');
+      loadScript('/site-content.js', 'data-rlya-site-content');
     }
-    if (!location.pathname.includes('/owner/')) loadScript('/site-content.js', 'data-rlya-site-content');
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
     if (location.pathname.includes('/owner/')) {
