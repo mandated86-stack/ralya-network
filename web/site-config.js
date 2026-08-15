@@ -60,6 +60,11 @@ window.RALYA_CONFIG = Object.freeze({
     }, true);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enforce, { once: true });
     else enforce();
+    const observer = new MutationObserver(() => {
+      const button = document.getElementById('buyRlya');
+      if (button && !button.disabled) enforce();
+    });
+    observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
   const loadExtras = () => {
@@ -70,7 +75,6 @@ window.RALYA_CONFIG = Object.freeze({
       style.dataset.rlyaPrelaunchStyle = '1';
       document.head.appendChild(style);
     }
-
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
       const transparency = document.createElement('script');
       transparency.src = 'distribution-transparency.js';
@@ -78,7 +82,6 @@ window.RALYA_CONFIG = Object.freeze({
       transparency.dataset.rlyaTransparency = '1';
       document.body.appendChild(transparency);
     }
-
     if ((document.getElementById('networkStatus') || document.getElementById('programTag')) && !document.querySelector('script[data-rlya-launch-status]')) {
       const status = document.createElement('script');
       status.src = '/launch-status.js';
@@ -86,7 +89,6 @@ window.RALYA_CONFIG = Object.freeze({
       status.dataset.rlyaLaunchStatus = '1';
       document.body.appendChild(status);
     }
-
     if (location.pathname.includes('/owner/')) {
       if (!document.querySelector('script[data-rlya-owner-status]')) {
         const ownerStatus = document.createElement('script');
