@@ -7,7 +7,7 @@ window.RALYA_CONFIG = Object.freeze({
   presaleEnabled: false,
   prelaunchCheckoutEnabled: true,
   network: 'mainnet-beta',
-  rpcEndpoint: '/api/solana/rpc',
+  rpcEndpoint: 'https://ralyaai.com/api/solana/rpc',
   explorerBase: 'https://explorer.solana.com',
   projectUrl: 'https://ralyaai.com',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
