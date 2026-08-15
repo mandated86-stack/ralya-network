@@ -18,6 +18,18 @@
   force = true
 
 [[redirects]]
+  from = "/owner"
+  to = "/owner/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/owner/"
+  to = "/owner/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/rlya"
   to = "/index.html"
   status = 200
