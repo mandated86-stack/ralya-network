@@ -1,0 +1,37 @@
+name: Apply Prelaunch Program Patch
+
+on:
+  push:
+    branches:
+      - agent/prelaunch-presale
+    paths:
+      - 'scripts/apply_prelaunch_program_patch.py'
+      - '.github/workflows/apply-prelaunch-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/prelaunch-presale
+      - name: Apply deterministic source patch
+        run: python3 scripts/apply_prelaunch_program_patch.py
+      - name: Format and validate Rust
+        run: |
+          cargo fmt --all
+          cargo check --manifest-path programs/rlya_sale/Cargo.toml
+      - name: Commit patched source
+        run: |
+          if git diff --quiet -- programs/rlya_sale/src/lib.rs; then
+            echo 'No program patch diff to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add programs/rlya_sale/src/lib.rs
+          git commit -m 'Add on-chain prelaunch allocation reconciliation'
+          git push origin HEAD:agent/prelaunch-presale
