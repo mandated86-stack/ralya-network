@@ -1,0 +1,77 @@
+name: Production web smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'netlify/functions/**'
+      - 'netlify.toml'
+      - '.github/workflows/production-web-smoke.yml'
+
+concurrency:
+  group: ralya-production-web-smoke
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Allow Netlify production rollout
+        run: sleep 45
+
+      - name: Verify owner control center route
+        run: |
+          body="$(curl --fail --silent --show-error --location --max-time 20 https://ralyaai.com/owner/)"
+          grep -Fq 'RALYA Owner Control Center' <<<"$body"
+
+      - name: Verify public presale state endpoint
+        run: |
+          curl --fail --silent --show-error --max-time 20 https://ralyaai.com/api/presale/state -o /tmp/presale-state.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/presale-state.json', 'utf8'));
+          if (!['closed', 'open', 'paused'].includes(data.access)) throw new Error('Invalid presale access state');
+          if (!data.currentPriceMicroUsdc) throw new Error('Missing current price');
+          console.log(`PRESALE_STATE=${data.access}`);
+          console.log(`BACKEND_READY=${data.backendReady}`);
+          NODE
+
+      - name: Verify wallet allocation endpoint returns controlled JSON
+        run: |
+          code="$(curl --silent --show-error --max-time 20 \
+            -o /tmp/wallet-response.json -w '%{http_code}' \
+            -X POST -H 'content-type: application/json' -d '{}' \
+            https://ralyaai.com/api/presale/wallet/BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo)"
+          test "$code" = "400"
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/wallet-response.json', 'utf8'));
+          if (!data.error) throw new Error('Expected controlled JSON error');
+          console.log('WALLET_ENDPOINT_JSON=PASS');
+          NODE
+
+      - name: Verify same-origin Solana RPC proxy
+        run: |
+          curl --fail --silent --show-error --max-time 20 \
+            -X POST -H 'content-type: application/json' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"getHealth"}' \
+            https://ralyaai.com/api/solana/rpc -o /tmp/rpc.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/rpc.json', 'utf8'));
+          if (data.result !== 'ok') throw new Error(`Unexpected RPC health response: ${JSON.stringify(data)}`);
+          console.log('SOLANA_RPC=PASS');
+          NODE
+
+      - name: Verify clean public routes
+        run: |
+          for path in / /rlya /technology /roadmap /docs /presale; do
+            body="$(curl --fail --silent --show-error --location --max-time 20 "https://ralyaai.com${path}")"
+            grep -Fq 'RALYA' <<<"$body"
+          done
