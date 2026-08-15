@@ -6,6 +6,10 @@ from model.ralya_core.config import (
     RLYA_MAX_SUPPLY,
     RLYA_MAX_SUPPLY_TOKENS,
     RLYA_UNIT,
+    STAKING_BONUS_BPS,
+    STAKING_BONUS_RESERVE,
+    STANDARD_PRESALE_RELEASE_SECONDS,
+    STAKED_PRESALE_RELEASE_SECONDS,
 )
 from model.ralya_core.tokenomics import allocation_table, validate_tokenomics
 
@@ -22,8 +26,17 @@ class TokenomicsTests(unittest.TestCase):
         validate_tokenomics()
         self.assertEqual(sum(allocation_table().values()), RLYA_MAX_SUPPLY)
 
-    def test_presale_is_twelve_percent_in_working_model(self):
-        self.assertEqual(PRESALE_ALLOCATION, 100_680_000 * RLYA_UNIT)
+    def test_public_presale_is_288_million(self):
+        self.assertEqual(PRESALE_ALLOCATION, 288_000_000 * RLYA_UNIT)
+
+    def test_staking_bonus_is_fixed_five_percent_with_full_reserve(self):
+        self.assertEqual(STAKING_BONUS_BPS, 500)
+        self.assertEqual(STAKING_BONUS_RESERVE, 14_400_000 * RLYA_UNIT)
+        self.assertEqual(PRESALE_ALLOCATION * STAKING_BONUS_BPS // 10_000, STAKING_BONUS_RESERVE)
+
+    def test_presale_release_windows(self):
+        self.assertEqual(STANDARD_PRESALE_RELEASE_SECONDS, 21 * 24 * 60 * 60)
+        self.assertEqual(STAKED_PRESALE_RELEASE_SECONDS, 36 * 24 * 60 * 60)
 
 
 if __name__ == "__main__":
