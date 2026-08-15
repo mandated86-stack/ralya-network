@@ -39,7 +39,7 @@ The design avoids forcing a customer who wants to pay 100 USDC for a service to 
 
 RALYA begins as a Solana-based protocol and SPL token. Solana provides the ledger, transaction ordering and validator infrastructure while RALYA establishes real usage.
 
-The release architecture includes a dedicated RLYA sale / founder-lock program designed to verify the fixed supply and required vault balances, control official sale inventory, maintain deterministic presale pricing, enforce fixed referral accounting, reconcile pre-launch allocations into production records, enforce delayed presale delivery and protect the founder time lock.
+The release architecture includes a dedicated RLYA sale / founder-lock program designed to verify the fixed supply and required vault balances, control official sale inventory, maintain deterministic presale pricing, enforce fixed referral accounting, reconcile pre-launch allocations into production records, enforce presale release policies and protect the founder time lock.
 
 ## 5. Fixed supply
 
@@ -63,11 +63,11 @@ Exact token quantities are the source of truth. Percentage figures below are des
 | Liquidity | 5.534061% | 46,430,769 |
 | **Total** | **100%** | **839,000,000** |
 
-The founder allocation is exactly 83,900,000 RLYA (10% of the lifetime supply) and is subject to a 365-day protocol-controlled production lock beginning from the deliberately marked public RLYA launch DAY 0.
+The founder allocation is exactly 83,900,000 RLYA (10% of the lifetime supply) and is subject to a 365-day protocol-controlled production lock beginning from the deliberately scheduled public RLYA launch DAY 0.
 
 The 14,400,000 RLYA staking-bonus reserve is sufficient to pay a fixed 5% bonus if the full 288,000,000 RLYA public base allocation chooses the presale staking option. It is part of the existing 839M supply; staking does not mint additional RLYA.
 
-## 7. Pre-launch allocation and delayed delivery
+## 7. Pre-launch allocation and release policy
 
 Before public token launch, a buyer can use Solana USDC to secure an expected RLYA allocation at the confirmed presale price position.
 
@@ -87,11 +87,11 @@ A confirmed pre-launch allocation is not presented as an already-delivered token
 
 ### Standard release
 
-A standard presale allocation is scheduled for distribution **21 days after the public RLYA launch**.
+A standard presale buyer is scheduled to receive the purchased RLYA **1 day before the public RLYA launch**. This is the early-buyer release advantage.
 
 ### Buy + Stake release
 
-A buyer who selects **Buy + Stake** receives a fixed **5% additional RLYA** relative to the base RLYA purchased. The base allocation and bonus are scheduled together **36 days after the public RLYA launch**, which is 15 days later than the standard release.
+A buyer who selects **Buy + Stake** receives a fixed **5% additional RLYA** relative to the base RLYA purchased. The purchased allocation and the 5% bonus remain locked through launch and are scheduled to unlock together **21 days after the public RLYA launch**.
 
 The first confirmed presale purchase locks that wallet to its selected release policy for later presale purchases. This prevents one wallet from accumulating incompatible delivery schedules under a single delivery identity.
 
@@ -105,7 +105,7 @@ The pricing curve is a launch-distribution mechanism, not a promise of future ex
 
 ## 9. One base-allocation curve for website and private/off-site allocations
 
-Authorized private/off-site investor base allocations consume the same 288,000,000 RLYA public allocation cap and advance the same deterministic price curve. The owner control does not provide an arbitrary replacement public price.
+Authorized private/off-site base allocations consume the same 288,000,000 RLYA public allocation cap and advance the same deterministic price curve. The owner control does not provide an arbitrary replacement public price.
 
 Presale staking bonuses are separately accounted against the fixed 14,400,000 RLYA bonus reserve so that bonus tokens cannot silently expand the 288M base sale cap or the 839M lifetime supply.
 
@@ -128,27 +128,27 @@ The first confirmed referrer for a buyer wallet is locked. Self-referrals and di
 
 The pre-launch ledger distinguishes verified website USDC allocations, authorized private/off-site allocations, gross website USDC, referral USDC, buyer wallet, locked referrer, exact base RLYA allocation, staking choice, staking bonus and source transaction identifiers.
 
-Before distribution, the owner closes new allocation access and exports a hashed final delivery manifest. The manifest separately commits purchased base RLYA and staking-bonus RLYA so both can be reconciled without changing the fixed supply or base price curve.
+Before token distribution, the owner closes new allocation access and exports a hashed final delivery manifest. The manifest separately commits purchased base RLYA and staking-bonus RLYA so both can be reconciled without changing the fixed supply or base price curve.
 
-Deterministic per-wallet delivery receipt accounts are intended to make distribution idempotent: if a distribution session is interrupted, rerunning it can skip allocations already completed on-chain rather than transferring them twice.
+Deterministic per-wallet delivery receipts are intended to make distribution idempotent: if a distribution session is interrupted, rerunning it can skip allocations already completed on-chain rather than transferring them twice.
 
 ## 12. Public launch and release timing
 
 Technical readiness does not force a public launch date. The public launch is a deliberate owner-controlled milestone after production contracts, mint, fixed-supply authority removal and required launch checks are complete.
 
-The presale delivery clock is tied to that public launch milestone:
+The intended presale release sequence is:
 
+- **T-1 day:** standard presale buyers receive their purchased RLYA;
 - **Day 0:** public RLYA launch;
-- **Day 21:** standard presale allocations become distributable;
-- **Day 36:** Buy + Stake allocations plus their fixed 5% RLYA bonus become distributable.
+- **Day 21:** Buy + Stake allocations and their fixed 5% RLYA bonus unlock.
 
-These dates do not permit additional minting. Public launch DAY 0 also starts the founder 365-day lock.
+The launch schedule does not permit additional minting. Public launch DAY 0 starts the founder 365-day lock.
 
 ## 13. Founder lock
 
-The founder allocation is **83,900,000 RLYA (10%)** and is part of the fixed 839M supply. The production program is designed to hold that allocation under a **365-day founder lock beginning from public RLYA launch DAY 0**.
+The founder allocation is **83,900,000 RLYA (10%)** and is part of the fixed 839M supply. The production design holds that allocation under a **365-day founder lock beginning from public RLYA launch DAY 0**.
 
-The founder lock is independent of the 21-day and 36-day presale buyer release schedules.
+The founder lock is independent of the presale buyer release policies.
 
 ## 14. Narrow token rules
 
@@ -174,14 +174,15 @@ The staged path is:
 2. pre-launch allocation and USDC verification infrastructure;
 3. production Solana Mainnet deployment;
 4. exact 839M production RLYA creation and authority removal;
-5. production vault funding and verification while public-launch clocks remain unset;
-6. deliberate public token launch DAY 0, starting the founder 365-day clock;
-7. standard presale distribution beginning at day 21 after public launch;
-8. Buy + Stake distribution plus fixed 5% bonus beginning at day 36 after public launch;
-9. Jobs v1 public testing;
-10. AI SDK/API integrations;
-11. real AI-to-AI work and settlement demonstrations;
-12. broader autonomous-work settlement network.
+5. production vault funding and verification while the public-launch date remains owner-controlled;
+6. deliberate public token launch scheduling;
+7. standard presale distribution 1 day before public launch;
+8. public RLYA launch DAY 0, starting the founder 365-day clock;
+9. Buy + Stake unlock plus fixed 5% bonus on day 21 after public launch;
+10. Jobs v1 public testing;
+11. AI SDK/API integrations;
+12. real AI-to-AI work and settlement demonstrations;
+13. broader autonomous-work settlement network.
 
 A sovereign RALYA chain remains a future option only if usage and decentralized infrastructure justify it.
 
@@ -193,6 +194,6 @@ Open source is not presented as proof of safety by itself. Its purpose is to mak
 
 ## 18. Current status
 
-As of this whitepaper version, the revised 288M public allocation, fixed 14.4M staking-bonus reserve, 5% Buy + Stake rule and delayed buyer release schedules are being integrated into the release candidate. Production Solana Mainnet deployment, a production RLYA mint and public token launch are not claimed until their corresponding owner-signed evidence exists.
+As of this whitepaper version, the revised 288M public allocation, fixed 14.4M staking-bonus reserve, 5% Buy + Stake rule and presale release policies are being integrated into the release candidate. Production Solana Mainnet deployment, a production RLYA mint and public token launch are not claimed until their corresponding owner-signed evidence exists.
 
-Production addresses and live claims should only be published after corresponding owner-signed on-chain evidence exists.
+Production addresses and live token-launch claims should only be published after corresponding owner-signed on-chain evidence exists.
