@@ -28,19 +28,13 @@ function toast(msg) {
   clearTimeout(window.__ralyaToast);
   window.__ralyaToast = setTimeout(() => el.classList.remove('show'), 3600);
 }
-
 function getProvider() {
   if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
   if (window.solflare?.isSolflare) return window.solflare;
   if (window.solana?.connect) return window.solana;
   return null;
 }
-
-function shorten(value) {
-  const s = String(value || '');
-  return s.length > 16 ? `${s.slice(0, 7)}…${s.slice(-6)}` : s;
-}
-
+function shorten(value) { const s = String(value || ''); return s.length > 16 ? `${s.slice(0, 7)}…${s.slice(-6)}` : s; }
 function decimalToBase(value, decimals) {
   const raw = String(value ?? '').trim();
   if (!/^\d+(\.\d+)?$/.test(raw)) throw new Error('Enter a valid amount.');
@@ -48,38 +42,31 @@ function decimalToBase(value, decimals) {
   if (frac.length > decimals) throw new Error(`Use no more than ${decimals} decimal places.`);
   return BigInt(whole) * (10n ** BigInt(decimals)) + BigInt((frac + '0'.repeat(decimals)).slice(0, decimals));
 }
-
 function formatBase(base, decimals = 9, maxFraction = 4) {
-  const n = BigInt(base || 0);
-  const unit = 10n ** BigInt(decimals);
-  const whole = n / unit;
+  const n = BigInt(base || 0); const unit = 10n ** BigInt(decimals); const whole = n / unit;
   let frac = (n % unit).toString().padStart(decimals, '0').slice(0, maxFraction).replace(/0+$/, '');
   return `${Number(whole).toLocaleString()}${frac ? `.${frac}` : ''}`;
 }
-
-function formatUsdc(base) {
-  return `${(Number(BigInt(base || 0)) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`;
-}
-
-function formatPrice(micro) {
-  return `$${(Number(BigInt(micro || 0)) / 1_000_000).toFixed(6)}`;
-}
-
-function referralLinkFor(address) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('ref', address);
-  url.hash = 'presale';
-  return url.toString();
+function formatPrice(micro) { return `$${(Number(BigInt(micro || 0)) / 1_000_000).toFixed(6)}`; }
+function referralLinkFor(address) { const url = new URL(window.location.href); url.searchParams.set('ref', address); url.hash = 'presale'; return url.toString(); }
+function nonceHex() { const bytes = crypto.getRandomValues(new Uint8Array(20)); return [...bytes].map(v => v.toString(16).padStart(2, '0')).join(''); }
+function toBase64(bytes) { let binary = ''; const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes); for (const b of arr) binary += String.fromCharCode(b); return btoa(binary); }
+function quoteAuthMessage(walletAddress, usdcAmount, referrer, timestamp, nonce) {
+  return [
+    'RALYA prelaunch allocation quote',
+    `Wallet: ${walletAddress}`,
+    `USDC: ${usdcAmount}`,
+    `Referrer: ${referrer || '-'}`,
+    `Timestamp: ${timestamp}`,
+    `Nonce: ${nonce}`,
+  ].join('\n');
 }
 
 function setReferral(raw, quiet = false) {
   const input = $('#referralInput');
   if (lockedReferrer) {
     referralWallet = new PublicKey(lockedReferrer);
-    if (input) {
-      input.value = lockedReferrer;
-      input.disabled = true;
-    }
+    if (input) { input.value = lockedReferrer; input.disabled = true; }
     if ($('#referralStatus')) $('#referralStatus').textContent = `Locked referral: ${shorten(lockedReferrer)} · receives 1% of referred USDC purchases`;
     return referralWallet;
   }
@@ -104,67 +91,34 @@ function setReferral(raw, quiet = false) {
     return null;
   }
 }
-
-function loadReferralFromUrl() {
-  const value = new URL(window.location.href).searchParams.get('ref');
-  if (value) setReferral(value, true);
-}
-
+function loadReferralFromUrl() { const value = new URL(window.location.href).searchParams.get('ref'); if (value) setReferral(value, true); }
 function updateReferralLink() {
-  const input = $('#myReferralLink');
-  const button = $('#copyReferralLink');
-  if (!input || !button) return;
-  if (!wallet) {
-    input.value = 'Connect wallet to create your referral link';
-    button.disabled = true;
-  } else {
-    input.value = referralLinkFor(wallet.toBase58());
-    button.disabled = false;
-  }
+  const input = $('#myReferralLink'); const button = $('#copyReferralLink'); if (!input || !button) return;
+  if (!wallet) { input.value = 'Connect wallet to create your referral link'; button.disabled = true; }
+  else { input.value = referralLinkFor(wallet.toBase58()); button.disabled = false; }
 }
-
-function minBig(a, b) { return a < b ? a : b; }
-function ceilDiv(n, d) { return (n + d - 1n) / d; }
-
+const minBig = (a, b) => a < b ? a : b;
+const ceilDiv = (n, d) => (n + d - 1n) / d;
 function previewQuote(usdcBase) {
   if (!state) throw new Error('Live presale state is loading.');
-  const cap = BigInt(state.presaleCapBase);
-  const step = BigInt(state.stepSizeBase);
-  const base = BigInt(state.basePriceMicroUsdc);
-  const increment = BigInt(state.stepIncrementMicroUsdc);
-  let progress = BigInt(state.totalAllocatedBase);
-  let remaining = usdcBase;
-  let allocation = 0n;
-  let loops = 0;
+  const cap = BigInt(state.presaleCapBase), step = BigInt(state.stepSizeBase), base = BigInt(state.basePriceMicroUsdc), increment = BigInt(state.stepIncrementMicroUsdc);
+  let progress = BigInt(state.totalAllocatedBase), remaining = usdcBase, allocation = 0n, loops = 0;
   while (remaining > 0n) {
     if (progress >= cap) throw new Error('Presale allocation is fully reserved.');
     if (++loops > 256) throw new Error('Order crosses too many price steps.');
-    const idx = progress / step;
-    const price = base + idx * increment;
-    const boundary = minBig((idx + 1n) * step, cap);
-    const available = boundary - progress;
+    const idx = progress / step, price = base + idx * increment, boundary = minBig((idx + 1n) * step, cap), available = boundary - progress;
     const fillCost = ceilDiv(available * price, RLYA_UNIT);
-    if (remaining >= fillCost) {
-      allocation += available;
-      progress += available;
-      remaining -= fillCost;
-    } else {
-      const part = remaining * RLYA_UNIT / price;
-      if (part <= 0n || part > available) throw new Error('Purchase amount is too small at the current price.');
-      allocation += part;
-      remaining = 0n;
-    }
+    if (remaining >= fillCost) { allocation += available; progress += available; remaining -= fillCost; }
+    else { const part = remaining * RLYA_UNIT / price; if (part <= 0n || part > available) throw new Error('Purchase amount is too small at the current price.'); allocation += part; remaining = 0n; }
   }
   return allocation;
 }
-
 async function fetchJson(url, options) {
   const response = await fetch(url, { cache: 'no-store', ...options });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data?.error || `Request failed (${response.status}).`);
   return data;
 }
-
 async function refreshState() {
   try {
     state = await fetchJson('/api/presale/state');
@@ -174,201 +128,105 @@ async function refreshState() {
     $('#saleState').textContent = state.access === 'open' ? 'ALLOCATION OPEN' : state.access === 'paused' ? 'PAUSED' : 'PRE-LAUNCH';
     $('#nextStepText').textContent = `${formatBase(state.toNextStepBase, 9, 2)} RLYA until next step`;
     $('#saleDot')?.classList.toggle('amber', state.access !== 'open');
-    updatePreview();
-    updateBuyAvailability();
-  } catch (err) {
-    $('#saleState').textContent = 'STATUS UPDATING';
-    toast(err.message || 'Could not load presale state.');
-  }
+    updatePreview(); updateBuyAvailability();
+  } catch (err) { $('#saleState').textContent = 'STATUS UPDATING'; toast(err.message || 'Could not load presale state.'); }
 }
-
 async function fetchUsdcBalance(owner) {
-  const mint = new PublicKey(cfg.usdcMint);
-  const accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint });
-  let total = 0;
+  const mint = new PublicKey(cfg.usdcMint); const accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint }); let total = 0;
   for (const row of accounts.value) total += Number(row.account.data?.parsed?.info?.tokenAmount?.uiAmountString || 0);
   return total;
 }
-
 async function refreshWallet() {
   if (!wallet) return;
   try {
-    const [usdc, allocation] = await Promise.all([
-      fetchUsdcBalance(wallet),
-      fetchJson(`/api/presale/wallet/${wallet.toBase58()}`),
-    ]);
+    const [usdc, allocation] = await Promise.all([fetchUsdcBalance(wallet), fetchJson(`/api/presale/wallet/${wallet.toBase58()}`)]);
     $('#usdcBalance').textContent = `${usdc.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDC`;
     $('#rlyaBalance').textContent = `${formatBase(allocation.totalRlyaBase, 9, 4)} RLYA`;
-    const status = $('#allocationStatus');
-    if (status) status.textContent = allocation.status === 'allocation-confirmed' ? 'ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
-    const delivery = $('#allocationDelivery');
-    if (delivery) delivery.textContent = allocation.status === 'allocation-confirmed' ? 'Distribution scheduled before public launch' : 'Your confirmed allocation will appear here';
-    if (allocation.lockedReferrer) {
-      lockedReferrer = allocation.lockedReferrer;
-      setReferral(lockedReferrer, true);
-    }
-  } catch (err) {
-    toast(err.message || 'Could not refresh wallet allocation.');
-  }
+    if ($('#allocationStatus')) $('#allocationStatus').textContent = allocation.status === 'allocation-confirmed' ? 'ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
+    if ($('#allocationDelivery')) $('#allocationDelivery').textContent = allocation.status === 'allocation-confirmed' ? 'Distribution scheduled before public launch' : 'Your confirmed allocation will appear here';
+    if (allocation.lockedReferrer) { lockedReferrer = allocation.lockedReferrer; setReferral(lockedReferrer, true); }
+  } catch (err) { toast(err.message || 'Could not refresh wallet allocation.'); }
 }
-
 async function connectWallet() {
-  provider = getProvider();
-  if (!provider) return toast('Install a Solana wallet such as Phantom or Solflare.');
+  provider = getProvider(); if (!provider) return toast('Install a Solana wallet such as Phantom or Solflare.');
   try {
-    const result = await provider.connect();
-    wallet = new PublicKey(result?.publicKey || provider.publicKey);
-    $$('.wallet-button').forEach(btn => btn.textContent = shorten(wallet.toBase58()));
-    if ($('#walletLabel')) $('#walletLabel').textContent = shorten(wallet.toBase58());
-    if (referralWallet && referralWallet.equals(wallet)) setReferral('', true);
-    updateReferralLink();
-    await refreshWallet();
-    updateBuyAvailability();
-  } catch (err) {
-    toast(err.message || 'Wallet connection cancelled.');
-  }
+    const result = await provider.connect(); wallet = new PublicKey(result?.publicKey || provider.publicKey);
+    $$('.wallet-button').forEach(btn => btn.textContent = shorten(wallet.toBase58())); if ($('#walletLabel')) $('#walletLabel').textContent = shorten(wallet.toBase58());
+    if (referralWallet && referralWallet.equals(wallet)) setReferral('', true); updateReferralLink(); await refreshWallet(); updateBuyAvailability();
+  } catch (err) { toast(err.message || 'Wallet connection cancelled.'); }
 }
-
 function updatePreview() {
-  const out = $('#quoteValue');
-  const avg = $('#averagePrice');
-  if (!out || !avg) return;
+  const out = $('#quoteValue'), avg = $('#averagePrice'); if (!out || !avg) return;
   try {
-    const gross = decimalToBase($('#usdcInput')?.value, 6);
-    if (gross < USDC_UNIT) throw new Error('Minimum purchase is 1 USDC.');
-    const rlya = previewQuote(gross);
-    out.textContent = `${formatBase(rlya, 9, 4)} RLYA`;
-    const avgMicro = rlya > 0n ? gross * RLYA_UNIT / rlya : 0n;
-    avg.textContent = `Estimated average price: ${formatPrice(avgMicro)} per RLYA · final amount locks at checkout`;
-  } catch (err) {
-    out.textContent = '-- RLYA';
-    avg.textContent = err.message;
-  }
+    const gross = decimalToBase($('#usdcInput')?.value, 6); if (gross < USDC_UNIT) throw new Error('Minimum purchase is 1 USDC.');
+    const rlya = previewQuote(gross); out.textContent = `${formatBase(rlya, 9, 4)} RLYA`;
+    const avgMicro = rlya > 0n ? gross * RLYA_UNIT / rlya : 0n; avg.textContent = `Estimated average price: ${formatPrice(avgMicro)} per RLYA · final amount locks at checkout`;
+  } catch (err) { out.textContent = '-- RLYA'; avg.textContent = err.message; }
 }
-
 function updateBuyAvailability() {
-  const button = $('#buyRlya');
-  const msg = $('#buyMessage');
-  if (!button || !msg) return;
-  const open = state?.access === 'open';
-  button.disabled = !(wallet && open);
-  button.textContent = 'Secure RLYA allocation';
+  const button = $('#buyRlya'), msg = $('#buyMessage'); if (!button || !msg) return; const open = state?.access === 'open';
+  button.disabled = !(wallet && open); button.textContent = 'Secure RLYA allocation';
   if (!open) msg.textContent = state?.access === 'paused' ? 'Allocation access is temporarily paused.' : 'Pre-launch allocation access will open when announced.';
   else if (!wallet) msg.textContent = 'Connect a Solana wallet to continue.';
-  else msg.textContent = 'Your final RLYA allocation is locked before the USDC transaction is requested. Distribution is scheduled before public launch.';
+  else msg.textContent = 'Checkout first authenticates your wallet and locks the exact curve position, then requests the USDC transaction. Distribution is scheduled before public launch.';
 }
-
 async function sendTransaction(tx) {
-  const latest = await connection.getLatestBlockhash('confirmed');
-  tx.feePayer = wallet;
-  tx.recentBlockhash = latest.blockhash;
-  let signature;
-  if (provider.signAndSendTransaction) {
-    const result = await provider.signAndSendTransaction(tx);
-    signature = typeof result === 'string' ? result : result?.signature;
-  } else if (provider.signTransaction) {
-    const signed = await provider.signTransaction(tx);
-    signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 4 });
-  } else throw new Error('Connected wallet does not support transaction signing.');
+  const latest = await connection.getLatestBlockhash('confirmed'); tx.feePayer = wallet; tx.recentBlockhash = latest.blockhash; let signature;
+  if (provider.signAndSendTransaction) { const result = await provider.signAndSendTransaction(tx); signature = typeof result === 'string' ? result : result?.signature; }
+  else if (provider.signTransaction) { const signed = await provider.signTransaction(tx); signature = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: false, maxRetries: 4 }); }
+  else throw new Error('Connected wallet does not support transaction signing.');
   if (!signature) throw new Error('Wallet returned no transaction signature.');
-  await connection.confirmTransaction({ signature, ...latest }, 'confirmed');
-  return signature;
+  await connection.confirmTransaction({ signature, ...latest }, 'confirmed'); return signature;
 }
-
 async function ensureAta(tx, payer, owner, mint) {
-  const ata = await getAssociatedTokenAddress(mint, owner);
-  if (!await connection.getAccountInfo(ata, 'confirmed')) tx.add(createAssociatedTokenAccountInstruction(payer, ata, owner, mint));
-  return ata;
+  const ata = await getAssociatedTokenAddress(mint, owner); if (!await connection.getAccountInfo(ata, 'confirmed')) tx.add(createAssociatedTokenAccountInstruction(payer, ata, owner, mint)); return ata;
 }
-
+async function signedQuoteBody(usdcAmount) {
+  if (!provider?.signMessage) throw new Error('This wallet must support message signing to lock a presale quote.');
+  const walletAddress = wallet.toBase58(); const referrer = referralWallet?.toBase58() || null; const timestamp = new Date().toISOString(); const nonce = nonceHex();
+  const message = quoteAuthMessage(walletAddress, usdcAmount, referrer, timestamp, nonce);
+  $('#buyMessage').textContent = 'Approve the allocation quote in your wallet. This message does not move funds.';
+  const signed = await provider.signMessage(new TextEncoder().encode(message), 'utf8'); const signature = signed?.signature || signed;
+  return { wallet: walletAddress, usdcAmount, referrer, timestamp, nonce, message, signature: toBase64(signature) };
+}
 async function secureAllocation() {
   if (!wallet || !provider) return connectWallet();
   if (state?.access !== 'open') throw new Error('Pre-launch allocation access is not open.');
-  const usdcAmount = String($('#usdcInput')?.value || '').trim();
-  const typedReferral = String($('#referralInput')?.value || '').trim();
-  if (typedReferral) setReferral(typedReferral);
-  const quoteResult = await fetchJson('/api/presale/quote', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      wallet: wallet.toBase58(),
-      usdcAmount,
-      referrer: referralWallet?.toBase58() || null,
-    }),
-  });
+  const usdcAmount = String($('#usdcInput')?.value || '').trim(); decimalToBase(usdcAmount, 6);
+  const typedReferral = String($('#referralInput')?.value || '').trim(); if (typedReferral) setReferral(typedReferral);
+  const signedRequest = await signedQuoteBody(usdcAmount);
+  const quoteResult = await fetchJson('/api/presale/quote', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(signedRequest) });
   const quote = quoteResult.quote;
   $('#quoteValue').textContent = `${formatBase(quote.rlyaBase, 9, 4)} RLYA`;
   $('#averagePrice').textContent = `Locked allocation · quote valid until ${new Date(quote.expiresAt).toLocaleTimeString()}`;
 
-  const mint = new PublicKey(quote.usdcMint);
-  const treasury = new PublicKey(quote.treasuryWallet);
+  const mint = new PublicKey(quote.usdcMint), treasury = new PublicKey(quote.treasuryWallet);
   const buyerUsdcAta = await getAssociatedTokenAddress(mint, wallet);
   if (!await connection.getAccountInfo(buyerUsdcAta, 'confirmed')) throw new Error('Your wallet has no USDC token account on Solana.');
-
-  const tx = new Transaction();
-  const treasuryAta = await ensureAta(tx, wallet, treasury, mint);
-  const treasuryAmount = BigInt(quote.treasuryUsdcBase);
+  const tx = new Transaction(); const treasuryAta = await ensureAta(tx, wallet, treasury, mint); const treasuryAmount = BigInt(quote.treasuryUsdcBase);
   if (treasuryAmount > 0n) tx.add(createTransferCheckedInstruction(buyerUsdcAta, mint, treasuryAta, wallet, treasuryAmount, 6));
   if (quote.referrer) {
-    const referrer = new PublicKey(quote.referrer);
-    const referrerAta = await ensureAta(tx, wallet, referrer, mint);
-    const referralAmount = BigInt(quote.referralUsdcBase);
+    const referrer = new PublicKey(quote.referrer); const referrerAta = await ensureAta(tx, wallet, referrer, mint); const referralAmount = BigInt(quote.referralUsdcBase);
     if (referralAmount > 0n) tx.add(createTransferCheckedInstruction(buyerUsdcAta, mint, referrerAta, wallet, referralAmount, 6));
   }
   tx.add(new TransactionInstruction({ programId: MEMO_PROGRAM, keys: [], data: new TextEncoder().encode(quote.memo) }));
-
-  $('#buyRlya').disabled = true;
-  $('#buyMessage').textContent = 'Confirm the USDC transaction in your wallet…';
-  const signature = await sendTransaction(tx);
-  $('#buyMessage').textContent = 'USDC confirmed. Verifying your locked RLYA allocation…';
-  const confirmed = await fetchJson('/api/presale/confirm', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ quoteId: quote.quoteId, signature }),
-  });
-
-  const receipt = confirmed.receipt;
-  const explorer = `${cfg.explorerBase}/tx/${signature}`;
-  const box = $('#txResult');
-  if (box) {
-    box.hidden = false;
-    box.innerHTML = `<strong>Allocation Confirmed.</strong> ${formatBase(receipt.rlyaBase, 9, 4)} RLYA is allocated to ${shorten(receipt.wallet)} at the confirmed presale curve position. Distribution is scheduled before public launch. <a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`;
-  }
-  toast('RLYA allocation confirmed.');
-  await Promise.all([refreshState(), refreshWallet()]);
+  $('#buyRlya').disabled = true; $('#buyMessage').textContent = 'Confirm the USDC transaction in your wallet…';
+  const signature = await sendTransaction(tx); $('#buyMessage').textContent = 'USDC confirmed. Verifying your locked RLYA allocation…';
+  const confirmed = await fetchJson('/api/presale/confirm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId: quote.quoteId, signature }) });
+  const receipt = confirmed.receipt, explorer = `${cfg.explorerBase}/tx/${signature}`, box = $('#txResult');
+  if (box) { box.hidden = false; box.innerHTML = `<strong>Allocation Confirmed.</strong> ${formatBase(receipt.rlyaBase, 9, 4)} RLYA is allocated to ${shorten(receipt.wallet)} at the confirmed presale curve position. Distribution is scheduled before public launch. <a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`; }
+  toast('RLYA allocation confirmed.'); await Promise.all([refreshState(), refreshWallet()]);
 }
-
-function wireGithub() {
-  const link = $('#githubLink');
-  if (!cfg.githubUrl || !link) return;
-  link.href = cfg.githubUrl;
-  link.removeAttribute('aria-disabled');
-  if ($('#githubLabel')) $('#githubLabel').textContent = 'View the public RALYA source →';
-}
+function wireGithub() { const link = $('#githubLink'); if (!cfg.githubUrl || !link) return; link.href = cfg.githubUrl; link.removeAttribute('aria-disabled'); if ($('#githubLabel')) $('#githubLabel').textContent = 'View the public RALYA source →'; }
 
 $('#menuButton')?.addEventListener('click', () => $('#mobileMenu')?.classList.toggle('open'));
 $$('#mobileMenu a').forEach(a => a.addEventListener('click', () => $('#mobileMenu')?.classList.remove('open')));
 $$('[data-wallet-connect]').forEach(btn => btn.addEventListener('click', connectWallet));
 $('#usdcInput')?.addEventListener('input', updatePreview);
 $('#referralInput')?.addEventListener('change', e => setReferral(e.target.value));
-$('#copyReferralLink')?.addEventListener('click', async () => {
-  if (!wallet) return connectWallet();
-  await navigator.clipboard.writeText(referralLinkFor(wallet.toBase58()));
-  toast('Referral link copied.');
-});
-$('#buyRlya')?.addEventListener('click', () => secureAllocation().catch(err => {
-  toast(err.message || 'Allocation purchase failed.');
-  updateBuyAvailability();
-}));
+$('#copyReferralLink')?.addEventListener('click', async () => { if (!wallet) return connectWallet(); await navigator.clipboard.writeText(referralLinkFor(wallet.toBase58())); toast('Referral link copied.'); });
+$('#buyRlya')?.addEventListener('click', () => secureAllocation().catch(err => { toast(err.message || 'Allocation purchase failed.'); updateBuyAvailability(); }));
 
-wireGithub();
-loadReferralFromUrl();
-updateReferralLink();
-refreshState();
-updatePreview();
-updateBuyAvailability();
-refreshTimer = setInterval(() => {
-  refreshState();
-  if (wallet) refreshWallet();
-}, 15_000);
+wireGithub(); loadReferralFromUrl(); updateReferralLink(); refreshState(); updatePreview(); updateBuyAvailability();
+refreshTimer = setInterval(() => { refreshState(); if (wallet) refreshWallet(); }, 15_000);
 window.addEventListener('beforeunload', () => clearInterval(refreshTimer));
