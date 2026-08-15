@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "status": "LAUNCH_ALLOCATION",
+  "version": "1.1",
+  "status": "LAUNCH_ALLOCATION_REVISED",
   "symbol": "RLYA",
   "decimals": 9,
   "hard_cap_tokens": 839000000,
@@ -11,46 +11,60 @@
     "start_price_usdc": "0.003000",
     "step_tokens": 1000000,
     "step_increase_usdc": "0.000050",
-    "delivery": "atomic USDC-to-RLYA",
+    "public_purchase_cap_tokens": 288000000,
     "refund_state": false,
     "claim_state": false
   },
+  "presale_delivery": {
+    "standard_release_days_after_public_launch": 21,
+    "staking_lock_extra_days": 15,
+    "staked_release_days_after_public_launch": 36,
+    "staking_bonus_bps": 500,
+    "staking_bonus_percent": "5.00",
+    "staking_bonus_reserve_tokens": 14400000,
+    "staking_choice_is_final_for_each_purchase": true
+  },
   "allocations": {
     "provider_security_incentives": {
-      "bps": 2500,
-      "tokens": 209750000,
-      "base_units": 209750000000000000
+      "share_percent": "17.293940",
+      "tokens": 145096154,
+      "base_units": 145096154000000000
     },
     "ecosystem_community": {
-      "bps": 2000,
-      "tokens": 167800000,
-      "base_units": 167800000000000000
+      "share_percent": "13.835152",
+      "tokens": 116076923,
+      "base_units": 116076923000000000
     },
     "protocol_treasury": {
-      "bps": 1500,
-      "tokens": 125850000,
-      "base_units": 125850000000000000
+      "share_percent": "10.376364",
+      "tokens": 87057692,
+      "base_units": 87057692000000000
     },
     "presale": {
-      "bps": 1200,
-      "tokens": 100680000,
-      "base_units": 100680000000000000
+      "share_percent": "34.326579",
+      "tokens": 288000000,
+      "base_units": 288000000000000000
+    },
+    "staking_bonus_reserve": {
+      "share_percent": "1.716329",
+      "tokens": 14400000,
+      "base_units": 14400000000000000
     },
     "founder": {
-      "bps": 1000,
+      "share_percent": "10.000000",
       "tokens": 83900000,
       "base_units": 83900000000000000,
       "initial_lock_days": 365
     },
     "future_chain_security": {
-      "bps": 1000,
-      "tokens": 83900000,
-      "base_units": 83900000000000000
+      "share_percent": "6.917576",
+      "tokens": 58038462,
+      "base_units": 58038462000000000
     },
     "liquidity": {
-      "bps": 800,
-      "tokens": 67120000,
-      "base_units": 67120000000000000
+      "share_percent": "5.534061",
+      "tokens": 46430769,
+      "base_units": 46430769000000000
     }
   }
 }
