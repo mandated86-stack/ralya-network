@@ -27,13 +27,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
       - name: Audit pre-launch financial/web invariants
         run: python3 scripts/audit_prelaunch.py
       - name: Audit live-copy safety
         run: python3 scripts/audit_site_copy.py
       - name: Install pinned web and function dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Test pre-launch economic invariants
         run: npm run test:prelaunch
       - name: Compile Netlify functions
