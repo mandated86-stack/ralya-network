@@ -1,8 +1,31 @@
 import bs58 from 'bs58';
 import { createPublicKey, verify as verifySignature } from 'node:crypto';
-import { RLYA_UNIT, assertWallet, getAllocationEvents, json, store } from './_shared/presale-core.mts';
 
+const PRESALE_STORE = 'ralya-prelaunch-presale';
+const RLYA_UNIT = 1_000_000_000n;
 const VIEW_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store, max-age=0',
+      'x-content-type-options': 'nosniff',
+    },
+  });
+}
+
+function assertWallet(value: unknown, label = 'wallet') {
+  const text = String(value || '').trim();
+  try {
+    const raw = bs58.decode(text);
+    if (raw.length !== 32) throw new Error('length');
+    return bs58.encode(raw);
+  } catch {
+    throw new Error(`${label} is not a valid Solana public address.`);
+  }
+}
 
 function walletKey(wallet: string) {
   const raw = bs58.decode(wallet);
@@ -37,28 +60,57 @@ function verifyView(body: any, wallet: string) {
   if (!verifySignature(null, Buffer.from(message, 'utf8'), walletKey(wallet), signature)) throw new Error('Allocation-view wallet signature verification failed.');
 }
 
+async function readPrefix(store: any, prefix: string) {
+  const listed = await store.list({ prefix });
+  if (!listed?.blobs?.length) return [];
+  const values = await Promise.all(listed.blobs.map(async (row: any) => {
+    try { return await store.get(row.key, { type: 'json' }); }
+    catch { return null; }
+  }));
+  return values.filter(Boolean);
+}
+
 export default async (req: Request, context: any) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
+
+  let wallet: string;
+  let body: any;
   try {
-    const wallet = assertWallet(context?.params?.wallet, 'Wallet');
-    let body: any;
+    wallet = assertWallet(context?.params?.wallet, 'Wallet');
     try { body = await req.json(); } catch { throw new Error('Invalid allocation-view authorization.'); }
     verifyView(body, wallet);
-    const s = store();
-    const [events, referral] = await Promise.all([
-      getAllocationEvents(s),
-      s.get(`referral/${wallet}`, { type: 'json' }),
+  } catch (err: any) {
+    return json({ error: err?.message || 'Could not verify wallet authorization.' }, 400);
+  }
+
+  try {
+    // Import Netlify Blobs only after the signed wallet request is validated. This keeps any
+    // storage/runtime initialization problem inside the handler so the buyer receives a normal
+    // JSON error instead of a platform-level 502 page.
+    const { getStore } = await import('@netlify/blobs');
+    const store = getStore({ name: PRESALE_STORE, consistency: 'strong' });
+    const [web, manual, referral] = await Promise.all([
+      readPrefix(store, 'purchase/'),
+      readPrefix(store, 'manual/'),
+      store.get(`referral/${wallet}`, { type: 'json' }).catch(() => null),
     ]);
-    const mine = events.filter(event => event.wallet === wallet).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-    let purchasedRlya = 0n, stakingBonus = 0n, totalUsdc = 0n, totalReferral = 0n;
-    let hasStandard = false, hasStaked = false;
-    for (const event of mine) {
+    const events = [...web, ...manual];
+    const mine = events.filter((event: any) => event?.wallet === wallet).sort((a: any, b: any) => String(a.createdAt).localeCompare(String(b.createdAt)));
+
+    let purchasedRlya = 0n;
+    let stakingBonus = 0n;
+    let totalUsdc = 0n;
+    let totalReferral = 0n;
+    let hasStandard = false;
+    let hasStaked = false;
+    for (const event of mine as any[]) {
       purchasedRlya += BigInt(event.rlyaBase || 0);
       stakingBonus += BigInt(event.stakingBonusBase || 0);
       totalUsdc += BigInt(event.grossUsdcBase || 0);
       totalReferral += BigInt(event.referralUsdcBase || 0);
       if (event.stake) hasStaked = true; else hasStandard = true;
     }
+
     const expectedTotal = purchasedRlya + stakingBonus;
     const averagePriceMicroUsdc = purchasedRlya > 0n && totalUsdc > 0n ? totalUsdc * RLYA_UNIT / purchasedRlya : 0n;
     const distributionStatus = purchasedRlya <= 0n
@@ -68,6 +120,7 @@ export default async (req: Request, context: any) => {
         : hasStaked
           ? '21-days-after-public-launch'
           : '1-day-before-public-launch';
+
     return json({
       wallet,
       status: purchasedRlya > 0n ? 'allocation-confirmed' : 'no-allocation',
@@ -80,7 +133,7 @@ export default async (req: Request, context: any) => {
       totalReferralUsdcBase: totalReferral.toString(),
       averagePriceMicroUsdc: averagePriceMicroUsdc.toString(),
       lockedReferrer: (referral as any)?.referrer || null,
-      allocations: mine.map(event => {
+      allocations: mine.map((event: any) => {
         const base = BigInt(event.rlyaBase || 0);
         const bonus = BigInt(event.stakingBonusBase || 0);
         return {
@@ -103,7 +156,8 @@ export default async (req: Request, context: any) => {
       }),
     });
   } catch (err: any) {
-    return json({ error: err?.message || 'Could not load wallet allocation.' }, 400);
+    console.error('RALYA presale wallet allocation backend unavailable:', err?.message || err);
+    return json({ error: 'Allocation service is temporarily reconnecting. Your wallet is connected; try the allocation check again shortly.' }, 503);
   }
 };
 

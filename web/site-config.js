@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.0-presale-stability-wallet',
+  build: '1.0.1-owner-wallet-ux',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -31,6 +31,7 @@ window.RALYA_CONFIG = Object.freeze({
   saleProgramId: '',
   salePda: '',
   treasuryWallet: '',
+  walletConnectProjectId: '',
   githubUrl: 'https://github.com/mandated86-stack/ralya-network',
   xUrl: 'https://x.com/Ralyaai',
   tiktokUrl: 'https://tiktok.com/@ralyaai',
@@ -40,6 +41,13 @@ window.RALYA_CONFIG = Object.freeze({
 (() => {
   const cfg = window.RALYA_CONFIG;
   const canonicalOrigin = new URL(cfg.projectUrl).origin;
+  const isOwnerPath = /^\/owner(?:\/|$)/.test(location.pathname);
+
+  // Trust Wallet exposes its Solana provider under window.trustwallet.solana. The private
+  // owner tools historically consume window.solana, so bridge the same provider locally.
+  if (isOwnerPath && window.trustwallet?.solana && !window.solana) {
+    try { window.solana = window.trustwallet.solana; } catch {}
+  }
 
   // Never let public traffic or wallet deep-links settle on the Netlify fallback hostname.
   if (/\.netlify\.app$/i.test(location.hostname) && location.origin !== canonicalOrigin) {
@@ -104,7 +112,7 @@ window.RALYA_CONFIG = Object.freeze({
   };
   const loadExtras = () => {
     if (cfg.presaleMode === 'prelaunch-allocation') loadStyle('/prelaunch.css', 'data-rlya-prelaunch-style');
-    if (!location.pathname.includes('/owner/')) {
+    if (!isOwnerPath) {
       loadStyle('/site-v2.css', 'data-rlya-site-v2-style');
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
       loadStyle('/presale-next.css', 'data-rlya-presale-next-style');
@@ -114,7 +122,7 @@ window.RALYA_CONFIG = Object.freeze({
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
-    if (location.pathname.includes('/owner/')) {
+    if (isOwnerPath) {
       loadScript('/owner/status-control.js', 'data-rlya-owner-status');
       loadScript('/owner/presale-control.js', 'data-rlya-owner-presale');
       loadScript('/owner/treasury-prep.js', 'data-rlya-owner-treasury');

@@ -9,6 +9,7 @@ import {
 const REQUEST_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const RATE_WINDOW_MS = 5 * 60 * 1000;
 const RATE_LIMIT = 12;
+const MAX_SLIPPAGE_BPS = 500;
 
 function buyerKey(wallet: string) {
   const raw = bs58.decode(wallet);
@@ -48,6 +49,21 @@ function verifyBuyerRequest(body: any, buyer: string, referrer: string | null) {
   return { usdcAmount, stake, nonce };
 }
 
+function parseSlippageProtection(body: any) {
+  const hasBps = body?.slippageBps !== undefined && body?.slippageBps !== null && body?.slippageBps !== '';
+  const hasMinimum = body?.minRlyaBase !== undefined && body?.minRlyaBase !== null && body?.minRlyaBase !== '';
+  if (!hasBps && !hasMinimum) return null;
+  if (!hasBps || !hasMinimum) throw new Error('Incomplete slippage protection. Refresh the presale and try again.');
+
+  const bps = Number(body.slippageBps);
+  if (!Number.isInteger(bps) || bps < 0 || bps > MAX_SLIPPAGE_BPS) throw new Error('Slippage must be between 0% and 5%.');
+  const minimumText = String(body.minRlyaBase).trim();
+  if (!/^\d+$/.test(minimumText)) throw new Error('Invalid minimum RLYA output.');
+  const minRlyaBase = BigInt(minimumText);
+  if (minRlyaBase <= 0n) throw new Error('Minimum RLYA output must be greater than zero.');
+  return { bps, minRlyaBase };
+}
+
 function ipKey(context: any) {
   const source = String(context?.ip || 'unknown');
   return createHash('sha256').update(`ralya:${source}`).digest('hex').slice(0, 32);
@@ -62,6 +78,7 @@ export default async (req: Request, context: any) => {
     const buyer = assertWallet(body?.wallet, 'Buyer wallet');
     const requestedReferrer = body?.referrer ? assertWallet(body.referrer, 'Referral wallet') : null;
     const auth = verifyBuyerRequest(body, buyer, requestedReferrer);
+    const slippage = parseSlippageProtection(body);
     const grossUsdcBase = decimalToBase(auth.usdcAmount, 6, 'USDC amount');
     if (buyer === PRESALE_TREASURY_WALLET) throw new Error('Treasury wallet cannot create a public presale order.');
     if (requestedReferrer === buyer) throw new Error('You cannot refer your own wallet.');
@@ -110,6 +127,9 @@ export default async (req: Request, context: any) => {
       const progress = state.effectiveProgressBase;
       const quoted = quoteAllocation(progress, grossUsdcBase);
       if (quoted.rlyaBase > state.availableForNewQuotesBase) throw new Error('This order exceeds the remaining presale allocation.');
+      if (slippage && quoted.rlyaBase < slippage.minRlyaBase) {
+        throw new Error(`Price moved beyond your ${(slippage.bps / 100).toFixed(2)}% slippage limit. Refresh the quote and try again.`);
+      }
 
       const stakingBonusBase = auth.stake ? stakingBonus(quoted.rlyaBase) : 0n;
       if (stakingBonusBase > state.availableStakingBonusBase) throw new Error('The fixed RLYA staking bonus reserve is fully committed.');
@@ -136,6 +156,8 @@ export default async (req: Request, context: any) => {
         curveEndBase: quoted.curveEndBase.toString(),
         priceBeforeMicroUsdc: quoted.priceBeforeMicroUsdc.toString(),
         priceAfterMicroUsdc: quoted.priceAfterMicroUsdc.toString(),
+        slippageBps: slippage?.bps ?? null,
+        minimumRlyaBase: slippage?.minRlyaBase?.toString() ?? null,
         treasuryWallet: PRESALE_TREASURY_WALLET,
         usdcMint: USDC_MINT,
         memo: `RALYA-PRELAUNCH:${quoteId}`,
