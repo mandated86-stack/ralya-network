@@ -10,6 +10,8 @@ const FOUNDER_LOCK_SEED: &[u8] = b"founder_lock";
 const FOUNDER_VAULT_SEED: &[u8] = b"founder_vault";
 const REFERRAL_SEED: &[u8] = b"referral";
 const PRELAUNCH_METRICS_SEED: &[u8] = b"prelaunch_metrics";
+const PRELAUNCH_DELIVERY_SEED: &[u8] = b"prelaunch_delivery";
+const PRELAUNCH_MANUAL_DELIVERY_SEED: &[u8] = b"prelaunch_manual_delivery";
 
 const RLYA_DECIMALS: u8 = 9;
 const USDC_DECIMALS: u8 = 6;
@@ -584,6 +586,14 @@ pub mod rlya_sale {
             .checked_add(referral_usdc_amount)
             .ok_or(SaleError::MathOverflow)?;
 
+        let receipt = &mut ctx.accounts.delivery_receipt;
+        receipt.recipient = ctx.accounts.recipient.key();
+        receipt.rlya_amount = rlya_amount;
+        receipt.gross_usdc_amount = gross_usdc_amount;
+        receipt.referral_usdc_amount = referral_usdc_amount;
+        receipt.delivered_at = Clock::get()?.unix_timestamp;
+        receipt.bump = ctx.bumps.delivery_receipt;
+
         let price_after = current_price(sale)?;
         emit!(PrelaunchDelivered {
             recipient: ctx.accounts.recipient.key(),
@@ -592,6 +602,73 @@ pub mod rlya_sale {
             referral_usdc_amount,
             total_sold: sale.total_sold,
             web_rlya_delivered: metrics.web_rlya_delivered,
+            price_before_micro_usdc: price_before,
+            price_after_micro_usdc: price_after,
+        });
+        Ok(())
+    }
+
+    /// Idempotent delivery for genuine private/off-site allocations recorded
+    /// before public launch. It advances the existing manual_sold counter, but a
+    /// deterministic receipt PDA prevents the same wallet allocation from being
+    /// delivered twice by the distribution tool.
+    pub fn deliver_prelaunch_manual(
+        ctx: Context<DeliverPrelaunchManual>,
+        rlya_amount: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.sale.status == SaleStatus::Paused as u8,
+            SaleError::InvalidState
+        );
+        require!(rlya_amount > 0, SaleError::InvalidAmount);
+        let price_before = current_price(&ctx.accounts.sale)?;
+        let new_total = ctx
+            .accounts
+            .sale
+            .total_sold
+            .checked_add(rlya_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        require!(
+            new_total <= ctx.accounts.sale.presale_cap,
+            SaleError::PresaleSoldOut
+        );
+        require!(
+            ctx.accounts.sale_vault.amount >= rlya_amount,
+            SaleError::SaleVaultUnderfunded
+        );
+
+        let mint_key = ctx.accounts.rlya_mint.key();
+        let bump = [ctx.accounts.sale.bump];
+        let seeds: &[&[u8]] = &[SALE_SEED, mint_key.as_ref(), &bump];
+        transfer_checked(
+            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.sale_vault.to_account_info(),
+            ctx.accounts.rlya_mint.to_account_info(),
+            ctx.accounts.recipient_rlya_account.to_account_info(),
+            ctx.accounts.sale.to_account_info(),
+            rlya_amount,
+            RLYA_DECIMALS,
+            Some(&[seeds]),
+        )?;
+
+        let sale = &mut ctx.accounts.sale;
+        sale.total_sold = new_total;
+        sale.manual_sold = sale
+            .manual_sold
+            .checked_add(rlya_amount)
+            .ok_or(SaleError::MathOverflow)?;
+        let receipt = &mut ctx.accounts.delivery_receipt;
+        receipt.recipient = ctx.accounts.recipient.key();
+        receipt.rlya_amount = rlya_amount;
+        receipt.gross_usdc_amount = 0;
+        receipt.referral_usdc_amount = 0;
+        receipt.delivered_at = Clock::get()?.unix_timestamp;
+        receipt.bump = ctx.bumps.delivery_receipt;
+        let price_after = current_price(sale)?;
+        emit!(ManualSaleRecorded {
+            recipient: ctx.accounts.recipient.key(),
+            rlya_amount,
+            total_sold: sale.total_sold,
             price_before_micro_usdc: price_before,
             price_after_micro_usdc: price_after,
         });
@@ -1069,6 +1146,7 @@ pub struct ImportPrelaunchReferral<'info> {
 
 #[derive(Accounts)]
 pub struct DeliverPrelaunch<'info> {
+    #[account(mut)]
     pub admin: Signer<'info>,
     /// CHECK: owner of the destination RLYA token account.
     pub recipient: UncheckedAccount<'info>,
@@ -1098,7 +1176,53 @@ pub struct DeliverPrelaunch<'info> {
     pub sale_vault: Account<'info, TokenAccount>,
     #[account(mut, constraint = recipient_rlya_account.mint == rlya_mint.key(), constraint = recipient_rlya_account.owner == recipient.key())]
     pub recipient_rlya_account: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = admin,
+        space = PrelaunchDeliveryReceipt::SPACE,
+        seeds = [PRELAUNCH_DELIVERY_SEED, rlya_mint.key().as_ref(), recipient.key().as_ref()],
+        bump
+    )]
+    pub delivery_receipt: Account<'info, PrelaunchDeliveryReceipt>,
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct DeliverPrelaunchManual<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    /// CHECK: owner of the destination RLYA account.
+    pub recipient: UncheckedAccount<'info>,
+    pub rlya_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        seeds = [SALE_SEED, rlya_mint.key().as_ref()],
+        bump = sale.bump,
+        has_one = admin,
+        has_one = rlya_mint
+    )]
+    pub sale: Account<'info, Sale>,
+    #[account(
+        mut,
+        token::mint = rlya_mint,
+        token::authority = sale,
+        seeds = [SALE_VAULT_SEED, rlya_mint.key().as_ref()],
+        bump
+    )]
+    pub sale_vault: Account<'info, TokenAccount>,
+    #[account(mut, constraint = recipient_rlya_account.mint == rlya_mint.key(), constraint = recipient_rlya_account.owner == recipient.key())]
+    pub recipient_rlya_account: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = admin,
+        space = PrelaunchDeliveryReceipt::SPACE,
+        seeds = [PRELAUNCH_MANUAL_DELIVERY_SEED, rlya_mint.key().as_ref(), recipient.key().as_ref()],
+        bump
+    )]
+    pub delivery_receipt: Account<'info, PrelaunchDeliveryReceipt>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -1198,6 +1322,19 @@ pub struct PrelaunchMetrics {
 }
 impl PrelaunchMetrics {
     pub const SPACE: usize = 8 + 32 + (8 * 3) + 1 + 16;
+}
+
+#[account]
+pub struct PrelaunchDeliveryReceipt {
+    pub recipient: Pubkey,
+    pub rlya_amount: u64,
+    pub gross_usdc_amount: u64,
+    pub referral_usdc_amount: u64,
+    pub delivered_at: i64,
+    pub bump: u8,
+}
+impl PrelaunchDeliveryReceipt {
+    pub const SPACE: usize = 8 + 32 + (8 * 4) + 1 + 16;
 }
 
 #[account]
