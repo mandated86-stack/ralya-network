@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+from pathlib import Path
+
+
+def replace(path: str, old: str, new: str):
+    p = Path(path)
+    text = p.read_text(encoding='utf-8')
+    if old not in text:
+        raise SystemExit(f'expected text not found in {path}: {old[:120]!r}')
+    p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+
+# Site tabs: keep the same UI, but use real clean paths instead of #home/#rlya/etc.
+p = Path('web/site-ui-hotfix.js')
+text = p.read_text(encoding='utf-8')
+text = text.replace(
+    '  const tabMap = {};\n  const register = (name, nodes) => { tabMap[name] = nodes.filter(Boolean); };',
+    "  const tabMap = {};\n  const ROUTE_PATHS = Object.freeze({ home: '/', rlya: '/rlya', technology: '/technology', roadmap: '/roadmap', docs: '/docs', presale: '/presale' });\n  const register = (name, nodes) => { tabMap[name] = nodes.filter(Boolean); };"
+)
+text = text.replace(
+    '      mobile.innerHTML = `<a href="#home" data-mobile-tab="home">Home</a><a href="#rlya" data-mobile-tab="rlya">RLYA</a><a href="#technology" data-mobile-tab="technology">Technology</a><a href="#roadmap" data-mobile-tab="roadmap">Roadmap</a><a href="#docs" data-mobile-tab="docs">Docs</a><a href="#presale" data-mobile-presale>Presale</a><a href="RALYA_Whitepaper_v1.2.html">Whitepaper v1.2</a><a href="https://x.com/Ralyaai" target="_blank" rel="noopener noreferrer">X / @Ralyaai</a><a href="https://tiktok.com/@ralyaai" target="_blank" rel="noopener noreferrer">TikTok / @ralyaai</a><a href="https://github.com/mandated86-stack/ralya-network" target="_blank" rel="noopener noreferrer">GitHub source</a>`;',
+    '      mobile.innerHTML = `<a href="/" data-mobile-tab="home">Home</a><a href="/rlya" data-mobile-tab="rlya">RLYA</a><a href="/technology" data-mobile-tab="technology">Technology</a><a href="/roadmap" data-mobile-tab="roadmap">Roadmap</a><a href="/docs" data-mobile-tab="docs">Docs</a><a href="/presale" data-mobile-presale>Presale</a><a href="RALYA_Whitepaper_v1.2.html">Whitepaper v1.2</a><a href="https://x.com/Ralyaai" target="_blank" rel="noopener noreferrer">X / @Ralyaai</a><a href="https://tiktok.com/@ralyaai" target="_blank" rel="noopener noreferrer">TikTok / @ralyaai</a><a href="https://github.com/mandated86-stack/ralya-network" target="_blank" rel="noopener noreferrer">GitHub source</a>`;'
+)
+old_route = """  function routeHash() {
+    const hash = location.hash.toLowerCase();
+    if (hash === '#rlya') return setTab('rlya', { scroll: false });
+    if (hash === '#technology') return setTab('technology', { scroll: false });
+    if (hash === '#build' || hash === '#roadmap') return setTab('roadmap', { scroll: false });
+    if (hash === '#open-source' || hash === '#docs') return setTab('docs', { scroll: false });
+    setTab('home', { scroll: false });
+    if (hash === '#presale') requestAnimationFrame(() => setTab('home', { anchor: '#presale' }));
+  }
+"""
+new_route = """  function cleanRoutePath(value = location.pathname) {
+    const path = String(value || '/').replace(/\\/+$/, '') || '/';
+    return Object.values(ROUTE_PATHS).includes(path) ? path : '/';
+  }
+
+  function routeMeta(routeName) {
+    const route = routeName === 'presale' ? 'presale' : (ROUTE_PATHS[routeName] ? routeName : 'home');
+    const titles = {
+      home: 'RALYA — Economic trust for autonomous work',
+      rlya: 'RLYA — Token & Economics | RALYA',
+      technology: 'Technology | RALYA',
+      roadmap: 'Roadmap | RALYA',
+      docs: 'Docs & Open Source | RALYA',
+      presale: 'RLYA Presale | RALYA',
+    };
+    document.title = titles[route];
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    const base = new URL(cfg.projectUrl || location.origin);
+    base.pathname = ROUTE_PATHS[route];
+    base.search = '';
+    base.hash = '';
+    if (canonical) canonical.href = base.href;
+    if (ogUrl) ogUrl.content = base.href;
+  }
+
+  function writeRoute(path, { replace = false } = {}) {
+    const clean = cleanRoutePath(path);
+    history[replace ? 'replaceState' : 'pushState'](null, '', `${clean}${location.search}`);
+  }
+
+  function routeLocation({ normalizeLegacy = true } = {}) {
+    const legacy = {
+      '#home': '/', '#top': '/', '#purpose': '/',
+      '#rlya': '/rlya', '#technology': '/technology',
+      '#build': '/roadmap', '#roadmap': '/roadmap',
+      '#open-source': '/docs', '#docs': '/docs', '#presale': '/presale',
+    };
+    const hash = location.hash.toLowerCase();
+    let path = cleanRoutePath();
+    if (legacy[hash]) {
+      path = legacy[hash];
+      if (normalizeLegacy) history.replaceState(null, '', `${path}${location.search}`);
+    }
+    if (path === '/rlya') { setTab('rlya', { scroll: false }); routeMeta('rlya'); return; }
+    if (path === '/technology') { setTab('technology', { scroll: false }); routeMeta('technology'); return; }
+    if (path === '/roadmap') { setTab('roadmap', { scroll: false }); routeMeta('roadmap'); return; }
+    if (path === '/docs') { setTab('docs', { scroll: false }); routeMeta('docs'); return; }
+    setTab('home', { scroll: false });
+    if (path === '/presale') {
+      routeMeta('presale');
+      requestAnimationFrame(() => setTab('home', { anchor: '#presale' }));
+      return;
+    }
+    routeMeta('home');
+  }
+"""
+if old_route not in text:
+    raise SystemExit('routeHash block not found')
+text = text.replace(old_route, new_route, 1)
+old_desktop = """      if (tab) {
+        setTab(tab.dataset.siteTab);
+        history.replaceState(null, '', tab.dataset.siteTab === 'home' ? '#home' : `#${tab.dataset.siteTab}`);
+        return;
+      }
+      if (event.target.closest('[data-presale-shortcut]')) {
+        setTab('home', { anchor: '#presale' });
+        history.replaceState(null, '', '#presale');
+      }"""
+new_desktop = """      if (tab) {
+        const name = tab.dataset.siteTab;
+        setTab(name);
+        writeRoute(ROUTE_PATHS[name] || '/');
+        routeMeta(name);
+        return;
+      }
+      if (event.target.closest('[data-presale-shortcut]')) {
+        setTab('home', { anchor: '#presale' });
+        writeRoute('/presale');
+        routeMeta('presale');
+      }"""
+if old_desktop not in text:
+    raise SystemExit('desktop tab routing block not found')
+text = text.replace(old_desktop, new_desktop, 1)
+old_mobile = """      if (mobileTab) {
+        event.preventDefault();
+        setTab(mobileTab.dataset.mobileTab);
+        $('#mobileMenu')?.classList.remove('open');
+        return;
+      }
+      if (event.target.closest('[data-mobile-presale]')) {
+        event.preventDefault();
+        setTab('home', { anchor: '#presale' });
+        $('#mobileMenu')?.classList.remove('open');
+        return;
+      }
+      const anchor = event.target.closest('a[href^="#"]');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      const map = { '#rlya': 'rlya', '#technology': 'technology', '#build': 'roadmap', '#roadmap': 'roadmap', '#open-source': 'docs', '#docs': 'docs' };
+      if (href === '#presale') { event.preventDefault(); setTab('home', { anchor: '#presale' }); }
+      else if (map[href]) { event.preventDefault(); setTab(map[href]); }
+      else if (href === '#purpose' || href === '#top' || href === '#home') { event.preventDefault(); setTab('home', { anchor: href === '#purpose' ? '#purpose' : null }); }"""
+new_mobile = """      if (mobileTab) {
+        event.preventDefault();
+        const name = mobileTab.dataset.mobileTab;
+        setTab(name);
+        writeRoute(ROUTE_PATHS[name] || '/');
+        routeMeta(name);
+        $('#mobileMenu')?.classList.remove('open');
+        return;
+      }
+      if (event.target.closest('[data-mobile-presale]')) {
+        event.preventDefault();
+        setTab('home', { anchor: '#presale' });
+        writeRoute('/presale');
+        routeMeta('presale');
+        $('#mobileMenu')?.classList.remove('open');
+        return;
+      }
+      const anchor = event.target.closest('a[href^="#"]');
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      const map = { '#rlya': 'rlya', '#technology': 'technology', '#build': 'roadmap', '#roadmap': 'roadmap', '#open-source': 'docs', '#docs': 'docs' };
+      if (href === '#presale') { event.preventDefault(); setTab('home', { anchor: '#presale' }); writeRoute('/presale'); routeMeta('presale'); }
+      else if (map[href]) { event.preventDefault(); setTab(map[href]); writeRoute(ROUTE_PATHS[map[href]]); routeMeta(map[href]); }
+      else if (href === '#purpose' || href === '#top' || href === '#home') { event.preventDefault(); setTab('home', { anchor: href === '#purpose' ? '#purpose' : null }); writeRoute('/'); routeMeta('home'); }"""
+if old_mobile not in text:
+    raise SystemExit('mobile/hash routing block not found')
+text = text.replace(old_mobile, new_mobile, 1)
+old_dapp = """    base.pathname = location.pathname || '/';
+    base.search = location.search;
+    base.hash = location.hash || '#presale';"""
+new_dapp = """    base.pathname = '/presale';
+    base.search = location.search;
+    base.hash = '';"""
+if old_dapp not in text:
+    raise SystemExit('legacy wallet dapp URL block not found')
+text = text.replace(old_dapp, new_dapp, 1)
+if '    routeHash();' not in text:
+    raise SystemExit('routeHash init call not found')
+text = text.replace('    routeHash();', "    routeLocation();\n    window.addEventListener('popstate', () => routeLocation({ normalizeLegacy: false }));", 1)
+p.write_text(text, encoding='utf-8')
+
+replace(
+    'web/prelaunch.js',
+    "function referralLinkFor(address) { const url = new URL(window.location.href); url.searchParams.set('ref', address); url.hash = 'presale'; return url.toString(); }",
+    "function referralLinkFor(address) { const url = new URL(cfg.projectUrl || window.location.origin); url.pathname = '/presale'; url.searchParams.set('ref', address); url.hash = ''; return url.toString(); }",
+)
+
+replace(
+    'web/presale-next.js',
+    "  base.pathname = location.pathname || '/';\n  base.search = location.search;\n  base.hash = '#presale';",
+    "  base.pathname = '/presale';\n  base.search = location.search;\n  base.hash = '';",
+)
+
+# Direct-load support for clean routes, and canonical no-trailing-slash redirects.
+p = Path('netlify.toml')
+text = p.read_text(encoding='utf-8')
+marker = '''[[redirects]]
+  from = "/favicon.ico"
+  to = "/rlya-token.png"
+  status = 200
+'''
+routes = '''[[redirects]]
+  from = "/rlya/"
+  to = "/rlya"
+  status = 301
+
+[[redirects]]
+  from = "/rlya"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/technology/"
+  to = "/technology"
+  status = 301
+
+[[redirects]]
+  from = "/technology"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/roadmap/"
+  to = "/roadmap"
+  status = 301
+
+[[redirects]]
+  from = "/roadmap"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/docs/"
+  to = "/docs"
+  status = 301
+
+[[redirects]]
+  from = "/docs"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/presale/"
+  to = "/presale"
+  status = 301
+
+[[redirects]]
+  from = "/presale"
+  to = "/index.html"
+  status = 200
+
+'''
+if marker not in text:
+    raise SystemExit('netlify favicon redirect marker not found')
+p.write_text(text.replace(marker, routes + marker, 1), encoding='utf-8')
+
+# Extend the permanent audit so hash-route regression cannot silently return.
+p = Path('scripts/audit_presale_public.py')
+text = p.read_text(encoding='utf-8')
+needle = "check('installWalletChooser();' not in hotfix, 'legacy provider-sniffing wallet chooser is still installed')\n"
+addition = """check(\"ROUTE_PATHS = Object.freeze({ home: '/', rlya: '/rlya', technology: '/technology', roadmap: '/roadmap', docs: '/docs', presale: '/presale' })\" in hotfix, 'clean public route map is missing')
+check('history.pushState' in hotfix and \"window.addEventListener('popstate'\" in hotfix, 'clean route history/back navigation is incomplete')
+check('href=\"#home\"' not in hotfix, 'generated navigation still exposes #home')
+check(\"url.pathname = '/presale'\" in prelaunch and \"url.hash = ''\" in prelaunch, 'referral URLs are not using clean /presale')
+for route in ('/rlya', '/technology', '/roadmap', '/docs', '/presale'):
+    check(f'from = \"{route}\"' in netlify, f'Netlify direct-route rewrite missing for {route}')
+"""
+if needle not in text:
+    raise SystemExit('public audit insertion point not found')
+p.write_text(text.replace(needle, needle + addition, 1), encoding='utf-8')
+
+print('RALYA_PRETTY_ROUTES_PATCH=APPLIED')
