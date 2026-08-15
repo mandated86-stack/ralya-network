@@ -63,8 +63,8 @@
     card.id = 'siteCopyControl';
     card.innerHTML = `
       <h2>Live website copy editor</h2>
-      <p>Change approved public wording without a GitHub commit or site rebuild. Live overrides are plain text only and cannot change pricing, token supply, referrals, wallets, payment logic, allocation access or Mainnet configuration.</p>
-      <div class="safe"><strong>Fast path.</strong> Tick only the fields you want to override. Unticked fields continue using the version-controlled website defaults.</div>
+      <p>Change approved public wording without a GitHub commit, blockchain build or Netlify redeploy. Live overrides are plain text only and cannot change pricing, token supply, referrals, wallets, payment logic, allocation access or Mainnet configuration.</p>
+      <div class="safe"><strong>Instant path.</strong> Tick only the fields you want to override. Unticked fields continue using the version-controlled website defaults. New visitors see the update immediately; already-open pages refresh live copy automatically within about 30 seconds.</div>
       <div id="siteCopyFields"></div>
       <div class="owner-actions"><button class="btn btn-primary" id="siteCopySave">Sign + publish live text</button><button class="btn btn-secondary" id="siteCopyReload">Reload</button><button class="btn btn-secondary" id="siteCopyReset">Reset all live overrides</button></div>
       <pre class="launch-log" id="siteCopyLog" style="min-height:90px">Live-copy editor ready. No financial settings are editable here.</pre>`;
@@ -105,7 +105,7 @@
     }
     const payload = { overrides: next }, body = await signedBody('save', payload);
     const result = await json('/api/site-content', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-    overrides = result.overrides || {}; render(); log(`Published ${Object.keys(overrides).length} live override(s). Public pages pick them up immediately on refresh.`);
+    overrides = result.overrides || {}; render(); log(`Published ${Object.keys(overrides).length} live override(s). New visitors see it immediately; open pages refresh within about 30 seconds.`);
   }
   async function reset() {
     if (!confirm('Reset every live website-text override back to the version-controlled defaults?')) return;
