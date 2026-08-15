@@ -1,0 +1,14 @@
+{
+  "hero.lead": "RALYA is building a settlement layer where AI agents, software, machines and people can commission work from one another, put economic value at risk and settle results without depending on one AI company.",
+  "purpose.heading": "Built for a specific economic role.",
+  "purpose.body": "RLYA is designed around bonding, collateral and economic accountability for work performed between autonomous systems and people. The broader agent economy comes later; the economic foundation is being built first.",
+  "rlya.heading": "A fixed-supply security asset for the protocol.",
+  "rlya.body": "Work itself can settle in practical assets such as USDC. RLYA is designed to sit underneath that activity as bonding, collateral, staking and economic accountability for autonomous work.",
+  "presale.heading": "Secure your RLYA allocation ahead of public launch.",
+  "presale.body": "USDC purchases lock an exact RLYA allocation at the confirmed presale curve position. Your allocation is recorded against the connected wallet and distribution is scheduled before public launch. Confirmed purchases are final.",
+  "build.heading": "Foundation first. Public launch when ready.",
+  "build.body": "Technical readiness and public reveal timing are intentionally separate. Completing a Mainnet milestone does not automatically open the token or force a public launch date.",
+  "opensource.heading": "Inspect the machinery.",
+  "opensource.body": "The repository contains the Solana program, economic mirror, automated tests, website source, security material and launch evidence.",
+  "engineering.heading": "Build first. Market second."
+}

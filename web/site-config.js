@@ -73,12 +73,14 @@ window.RALYA_CONFIG = Object.freeze({
       style.dataset.rlyaPrelaunchStyle = '1';
       document.head.appendChild(style);
     }
+    if (!location.pathname.includes('/owner/')) loadScript('/site-content.js', 'data-rlya-site-content');
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
     if (location.pathname.includes('/owner/')) {
       loadScript('/owner/status-control.js', 'data-rlya-owner-status');
       loadScript('/owner/presale-control.js', 'data-rlya-owner-presale');
       loadScript('/owner/treasury-prep.js', 'data-rlya-owner-treasury');
+      loadScript('/owner/site-copy-control.js', 'data-rlya-owner-site-copy');
       if (cfg.saleProgramId && cfg.rlyaMint && cfg.salePda) loadScript('/owner/prelaunch-delivery.js', 'data-rlya-owner-delivery');
     }
   };

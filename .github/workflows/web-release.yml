@@ -1,0 +1,34 @@
+name: Web release
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/web-release.yml'
+      - 'web/**'
+      - 'netlify/functions/**'
+      - 'netlify.toml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/build_web_prod.sh'
+      - 'scripts/audit_prelaunch.py'
+      - 'scripts/audit_site_copy.py'
+      - 'scripts/prelaunch_selftest.mts'
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit pre-launch financial/web invariants
+        run: python3 scripts/audit_prelaunch.py
+      - name: Audit live-copy safety
+        run: python3 scripts/audit_site_copy.py
+      - name: Install pinned web and function dependencies
+        run: npm install --no-audit --no-fund
+      - name: Test pre-launch economic invariants
+        run: npm run test:prelaunch
+      - name: Compile Netlify functions
+        run: npm run build:functions
+      - name: Build self-hosted production browser bundles
+        run: npm run build:web

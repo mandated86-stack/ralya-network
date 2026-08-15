@@ -5,22 +5,19 @@ on:
     paths:
       - '.github/workflows/build.yml'
       - 'scripts/build_solana.sh'
-      - 'scripts/build_web_prod.sh'
       - 'scripts/audit_source.py'
-      - 'scripts/audit_prelaunch.py'
-      - 'scripts/prelaunch_selftest.mts'
       - 'scripts/verify_mainnet_public.mjs'
       - 'scripts/mainnet_program_deploy.sh'
       - 'scripts/mainnet_program_deploy.ps1'
       - 'scripts/devnet_smoke.sh'
       - 'scripts/local_validator_smoke.sh'
       - 'programs/rlya_sale/**'
+      - 'model/**'
+      - 'tokenomics/**'
+      - 'tests/**'
       - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'Anchor.toml'
-      - 'package.json'
-      - 'netlify.toml'
-      - 'netlify/functions/**'
-      - 'web/**'
 permissions:
   contents: read
 jobs:
@@ -32,6 +29,8 @@ jobs:
         run: bash scripts/build_solana.sh
       - name: Audit prelaunch financial invariants
         run: python3 scripts/audit_prelaunch.py
+      - name: Audit live-copy safety
+        run: python3 scripts/audit_site_copy.py
       - name: Install pinned web and function dependencies
         run: npm install --no-audit --no-fund
       - name: Test prelaunch economic invariants
