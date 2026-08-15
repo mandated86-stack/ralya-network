@@ -50,8 +50,10 @@ check("ROUTE_PATHS = Object.freeze({ home: '/', rlya: '/rlya', technology: '/tec
 check('pushState' in hotfix and "window.addEventListener('popstate'" in hotfix, 'clean route history/back navigation is incomplete')
 check('href="#home"' not in hotfix, 'generated navigation still exposes #home')
 check("url.pathname = '/presale'" in prelaunch and "url.hash = ''" in prelaunch, 'referral URLs are not using clean /presale')
+check('pretty_urls = false' in netlify, 'Netlify Pretty URLs must stay disabled for extensionless client routes')
 for route in ('/rlya', '/technology', '/roadmap', '/docs', '/presale'):
     check(f'from = "{route}"' in netlify, f'Netlify direct-route rewrite missing for {route}')
+    check(f'from = "{route}/"' not in netlify, f'Netlify trailing-slash redirect would loop for {route}')
 check('installSafeCopyObserver();' not in hotfix, 'old DOM mutation copy observer is still installed')
 
 for stale in (
@@ -94,6 +96,7 @@ if errors:
 print('RALYA_PRESALE_PUBLIC_AUDIT=PASS')
 print('canonical same-origin RPC proxy configured; provider credential stays server-side')
 print('Wallet Standard chooser + prominent CTA present')
+print('clean extensionless routes configured without Netlify trailing-slash loops')
 print('public state copy uses FINAL SETUP/LIVE and fails closed on reconnect')
 print('README/public buyer copy uses 288M, T-1, T+21 and Whitepaper v1.2')
 print('Mainnet mint/program/PDA remain blank and Day 0 is not launched')
