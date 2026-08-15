@@ -1,54 +1,82 @@
 RALYA / RLYA - NEXT OWNER ACTION
 
-The repository, Devnet protocol proof and Mainnet launch tooling are already prepared.
-Do NOT create a token manually and do NOT use the old Devnet addresses for production.
+RLYA 0.7.0 pre-launch allocation release candidate is merged into `main`.
+The repository checks, production build, pre-launch financial audit and clean localhost protocol integration passed.
+Devnet proof is already complete. Do NOT repeat Devnet and do NOT use Devnet addresses for production.
 
-ONE OWNER CHECKPOINT COMES NEXT:
+CURRENT VERIFIED MAINNET PREFLIGHT (0.7 PROGRAM)
+- Program bytes: 513,464
+- SBF SHA-256: afe98cf00bab2e7be0c10e40d8e9a7b396c8feac59045f9f07a8d4ad5017cb1c
+- Mainnet program rent: 3.574600320 SOL
+- Recommended dedicated deployment-payer funding: 3.674600320 SOL
+  (3.574600320 SOL rent + 0.100000000 SOL deployment/signature/retry buffer)
+- Cost preflight Actions run: 31865784917
 
-1) On the owner's own computer, download the current `mandated86-stack/ralya-network` main branch.
-   A normal GitHub `Code -> Download ZIP` extraction is supported; a git clone is NOT required.
+SECURITY RULE
+Production Program ID, upgrade-authority and deployment-payer PRIVATE keys must be generated only on the owner's own computer. The GitHub phone/cloud production-key workflow is intentionally disabled. Never send a seed phrase, private key, recovery phrase or production wallet JSON to ChatGPT, GitHub, email or cloud storage.
 
-   Run ONE of:
+ONE OWNER-LOCAL CHECKPOINT COMES NEXT
+
+1) On the owner's own computer, download the CURRENT `mandated86-stack/ralya-network` main branch.
+   A normal GitHub `Code -> Download ZIP` extraction is supported; git clone is optional.
+
+2) Run ONE of:
    Windows:     scripts/mainnet_program_deploy.ps1
    macOS/Linux: scripts/mainnet_program_deploy.sh
 
-   The script itself will:
+3) The script itself will:
    - refuse CI/cloud production-key generation;
    - run the RALYA source/security audit first;
-   - create THREE separate local identities:
+   - create THREE separate LOCAL identities:
        1. permanent RLYA Program ID keypair,
        2. dedicated upgrade-authority keypair,
        3. dedicated Mainnet deployment/fee-payer keypair;
-   - keep all three private files outside the downloaded project/repository;
-   - NEVER require importing a Phantom/Solflare seed into the Solana CLI;
-   - ask for an offline backup of all three local JSON key files;
+   - keep the private files outside the project/repository;
+   - ask for an OFFLINE backup of all three local JSON key files;
+   - patch only the PUBLIC Program ID into the local source;
    - build with the tested Solana 3.1.10 / Anchor 1.0.2 toolchain;
-   - configure only the dedicated payer as the CLI fee wallet for Mainnet deployment;
-   - show the dedicated payer PUBLIC address, CURRENT Mainnet rent estimate and current balance;
-   - stop safely if the payer needs funding, while preserving the same three local identities for retry;
+   - show the dedicated payer PUBLIC address, live Mainnet rent requirement and current balance;
+   - stop safely if funding is needed while preserving the same three local identities for retry;
    - deploy only after the owner explicitly types DEPLOY-RLYA-MAINNET;
-   - download the deployed program again and require an exact SHA-256/byte match;
-   - move upgrade authority away from the fee payer to the separate upgrade authority;
-   - produce RALYA_MAINNET_PROGRAM_PUBLIC.txt containing PUBLIC evidence only.
+   - download the deployed executable and require an exact byte/SHA-256 match;
+   - transfer upgrade authority away from the fee payer to the separate upgrade authority;
+   - produce `RALYA_MAINNET_PROGRAM_PUBLIC.txt` containing PUBLIC evidence only.
 
-   If the dedicated payer does not have enough real SOL, DO NOT confirm deployment.
-   Fund only the PUBLIC payer address printed by the script, then rerun the SAME script.
-   Never send the payer/program/upgrade JSON files to anyone.
+4) FUNDING CHECKPOINT
+   If the dedicated payer printed by the script is unfunded, STOP before deployment.
+   Send only real Mainnet SOL to that PUBLIC dedicated payer address.
+   The current 0.7 preflight target is 3.674600320 SOL, but the local script must re-check live rent/balance immediately before broadcast.
+   Then rerun the SAME script so the SAME three local identities are reused.
 
-2) After successful deployment, return ONLY RALYA_MAINNET_PROGRAM_PUBLIC.txt to ChatGPT.
-   NEVER send any JSON key file, seed phrase, private key or wallet recovery phrase.
+5) AFTER SUCCESSFUL PROGRAM DEPLOYMENT
+   Return ONLY `RALYA_MAINNET_PROGRAM_PUBLIC.txt` to ChatGPT.
+   NEVER send any of the three JSON key files.
 
-AFTER THAT PUBLIC RECORD IS VERIFIED:
-- ChatGPT updates the public Program ID/site evidence while the presale master switch stays OFF.
-- Initial token metadata is already independent of Netlify and is served from the public RALYA GitHub repository.
-- The owner launch console creates exactly 839,000,000 RLYA, funds every published allocation,
-  permanently removes mint authority, confirms freeze authority is absent, and atomically starts
-  the 365-day founder lock while finishing with the sale PAUSED.
-- The owner-funded 1 USDC Mainnet smoke check atomically performs resume + referral + purchase +
-  pause, verifies the exact 1% referral accounting, and finishes PAUSED.
-- Only after public verification is green is the website presale switch enabled and the sale resumed.
+AFTER THE PUBLIC PROGRAM RECORD IS VERIFIED
+- Keep pre-launch allocation access under the separate owner-signed CLOSED / OPEN / PAUSED control.
+- Keep the post-launch atomic-sale master switch OFF.
+- Create the production RLYA mint with 9 decimals and no freeze authority.
+- Mint exactly 839,000,000 RLYA once.
+- Initialize the sale/founder-lock foundation and fund all seven published allocation buckets.
+- Permanently revoke RLYA mint authority and confirm freeze authority is absent.
+- Atomically activate + pause so the founder's 365-day lock starts and the committed production sale state finishes PAUSED.
+- Verify Program ID / mint / PDA / treasury / supply / authorities / allocation balances with `scripts/verify_mainnet_public.mjs`.
 
-Until those owner-signed Mainnet transactions happen:
+IMPORTANT 0.7 RULE — NO LEGACY 1-USDC SMOKE BEFORE PRE-LAUNCH DISTRIBUTION
+Do NOT run the old owner-funded 1 USDC atomic smoke purchase during the delayed-allocation pre-launch phase. It would consume part of the same 100.68M presale inventory and move the buyer price curve. Production verification before delayed distribution is byte/state verification only. The atomic smoke tool may be used later only when doing so cannot steal inventory from confirmed pre-launch allocations.
+
+FINAL PRE-LAUNCH DISTRIBUTION
+- Close pre-launch allocation access.
+- Export the final hashed delivery manifest only after active quote windows clear.
+- Keep the production sale PAUSED.
+- Commit the manifest totals/hash on-chain through the pre-launch metrics PDA.
+- Deliver website allocations through `deliver_prelaunch`.
+- Deliver authorized private/off-site allocations through `deliver_prelaunch_manual`.
+- Deterministic per-wallet receipt PDAs make interrupted distribution reruns idempotent.
+- Reconcile the imported gross USDC/referral accounting and separate private/manual totals.
+
+Until the owner-local Mainnet transactions happen:
 Mainnet program = NOT DEPLOYED
 Production RLYA mint = NOT CREATED
-Real-money public presale = DISABLED
+Post-launch atomic token sale = DISABLED
+Pre-launch allocation access = CLOSED by default
