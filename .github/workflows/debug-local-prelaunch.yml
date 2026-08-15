@@ -14,6 +14,6 @@ jobs:
         shell: bash
         run: |
           echo 'Mapping entire generated localhost integration harness'
-          sed -n "/cat > \/tmp\/ralya_local_integration\.mjs <<'NODE'/,/^NODE$/p" scripts/local_validator_smoke.sh \
+          sed -n "/cat > \/tmp\/ralya_local_integration\.mjs <<'JS'/,/^JS$/p" scripts/local_validator_smoke.sh \
             | sed '1d;$d' \
             | nl -ba
