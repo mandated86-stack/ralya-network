@@ -1,103 +1,177 @@
-# Build status - RLYA 0.6.0 Mainnet-preparation release candidate
+# Build status — RLYA 0.7.0 pre-launch presale release candidate
 
-## Verified now
-- fixed 839M economic model and invariant tests
-- 57 deterministic tests passing
-- 50,000-operation randomized sale/referral stress run passing
-- Rust/Solana source and launch-safety audit passing
-- browser JavaScript and Mainnet owner-tool syntax checks passing
-- real Solana SBF compilation passing in GitHub Actions
-- compiler/integration toolchain pinned to Solana 3.1.10 and Anchor CLI 1.0.2; top-level Anchor program crates pinned to 1.0.2
-- CI rejects any Solana stack-frame warning above the 4,096-byte limit
-- current Buy and BuyWithReferral account validation compile without the prior stack overflow warning
-- current program successfully deployed to a fresh localhost Solana validator as a 406,656-byte executable
-- full localhost on-chain protocol integration passed: initialize, activation gates, direct buy, referral buy, manual distribution and sale pause/resume
-- 500 USDC referred purchase reconciled exactly to 5 USDC referrer + 495 USDC treasury
-- 2,000,000 RLYA manual/off-site distribution moved tokens from the same sale vault and advanced price from $0.003000 to $0.003100
-- final localhost integration accounting recorded 600 USDC gross and 5 USDC referral payout
-- 12 localhost on-chain abuse/permission guards passed, including mint-authority activation gate, vault-funding gate, referral bypass, self-referral, circular referral, slippage, wrong treasury, unauthorized admin, paused purchase, presale-cap overflow, sub-minimum purchase and early founder release
-- integration verified hard-cap supply remained fixed, mint authority was removed and freeze authority was absent
-- public Solana Devnet program deployment passed
-- public Devnet core protocol integration passed against the deployed program: initialize, activation gates, direct buy, referral attribution/bypass guard, referred purchase and manual distribution
-- public Devnet referred purchase reconciled exactly to 5 USDC referrer + 495 USDC treasury from a 500 USDC test purchase
-- public Devnet manual distribution of 2,000,000 RLYA advanced the price from $0.003000 to $0.003100
-- public Devnet final state recorded 600 USDC gross, 5 USDC referral payout and approximately 2.2M RLYA distributed/sold
-- public Devnet final invariants verified hard-cap supply remained 839,000,000 RLYA, mint authority was absent and freeze authority was absent
-- disposable Devnet test identities use no production keys and no real-money sale is enabled
-- production browser presale master switch is enforced independently of address configuration and defaults OFF
-- public manual/off-site RLYA distribution is exposed separately from total distribution
-- production browser Solana/Metaplex dependencies are pinned and self-hosted in generated bundles instead of runtime `esm.sh` imports
-- owner-controlled Mainnet deployment uses three isolated local identities: permanent Program ID, separate upgrade authority and separate deployment/fee payer
-- no personal Phantom/Solflare seed is required by the Solana CLI; the dedicated deployment payer is configured locally and funded only through its public address
-- Mainnet owner deployment supports either a clean git checkout or a normal GitHub Download ZIP; temporary public Program-ID source patches restore automatically on stop/failure
-- Mainnet deployment runs the source/security audit before production-key generation
-- Mainnet deployment tooling requires exact downloaded on-chain executable SHA-256/byte equality with the locally built SBF binary before completing authority transfer
-- initial production token metadata is publicly reachable from the RALYA GitHub repository and is no longer blocked on pre-launch Netlify availability
-- Mainnet token-preparation console stages exact 839M creation, all published allocations and permanent mint-authority revocation before activation
-- Mainnet founder-lock activation and pause are atomic in one Solana transaction, so the committed state finishes PAUSED without an inter-transaction public ACTIVE window
-- owner-funded 1 USDC Mainnet referral smoke flow is designed as atomic `resume -> register referral -> buy -> pause`, with idempotent recovery and transparent owner-funded accounting
-- public-only Mainnet verifier checks program, mint authorities, deterministic PDAs, allocation reconciliation, founder lock and pre/post-smoke accounting without private keys
-- final authoritative production release-gate GitHub Actions run `31817417473` (Build 55, source commit `747e7091bfebb281ea30ec2c8c7103f801b6fc7c`) passed SBF build/audit, exact Solana/Anchor toolchain checks, dedicated-payer CLI option verification, pinned browser dependency installation and self-hosted production browser bundle build
-- matching Repository checks run `31817417468` passed repository verification plus shell/PowerShell/Node Mainnet owner-tool syntax checks
-- production bundle marker: `RALYA_PRODUCTION_WEB_BUNDLE=PASS`
+## Product position
+
+RALYA is being built as economic settlement infrastructure for autonomous work. The long-term protocol is intended to let AI agents, software, machines and people commission work from one another, settle practical payments such as USDC and use RLYA for bonding, collateral, staking and economic accountability. The broader Jobs/AI-agent layer is a later release; it is not represented as live today.
+
+## Fixed economics
+
+- lifetime hard cap: **839,000,000 RLYA**
+- decimals: **9**
+- founder allocation: **83,900,000 RLYA (10%)**
+- founder production lock: **365 days**
+- working public-presale pool: **100,680,000 RLYA (12%)**
+- starting presale price: **$0.003000 / RLYA**
+- price step: **+$0.000050 per 1,000,000 RLYA allocated/distributed**
+- referral rate: **1% of referred gross USDC**
+- no arbitrary owner public-price setter
+- no voluntary refund/claim path
+
+Website purchases and authorized private/off-site allocations consume the same 100.68M pool and advance the same fixed curve.
+
+## Pre-launch allocation layer
+
+RLYA 0.7.0 adds a separate pre-launch allocation mode. It does not replace the already-built post-launch atomic sale path.
+
+During pre-launch allocation mode:
+
+1. buyer connects a Solana wallet;
+2. buyer signs a harmless quote-authorization message;
+3. the backend locks an exact short-lived curve position and RLYA allocation;
+4. buyer signs the real Solana USDC transaction;
+5. the backend independently verifies the confirmed transaction, signer, RALYA quote memo and exact USDC balance changes;
+6. the exact RLYA allocation is recorded against that wallet;
+7. reconnecting the same wallet shows its confirmed expected RLYA;
+8. actual RLYA distribution remains scheduled before public token launch.
+
+The public website never has to pretend pre-launch RLYA was already transferred.
+
+### Pre-launch payment/referral protections
+
+- real Solana Mainnet USDC only
+- exact BigInt pricing/accounting; no floating-point money calculations in the backend
+- short quote reservations prevent buyers from receiving a stale curve position
+- buyer signs the quote request before a reservation is created
+- quote nonces are one-use
+- quote requests are rate-limited
+- one live reservation per buyer wallet
+- the transaction must contain the quote-specific RALYA memo
+- the buyer wallet must be a signer
+- buyer USDC debit must equal the locked gross amount
+- treasury/referrer credits must exactly reconcile to the quote
+- first confirmed referral attribution is locked
+- self-referral and direct two-wallet circular referrals are blocked
+- confirmation-time presale cap guard remains authoritative
+
+## Owner pre-launch controls
+
+The private `/owner/` console now separates three different concepts:
+
+### Public reveal stage
+
+Owner-signed public messaging stages:
+
+- Pre-launch
+- Mainnet preparation
+- Mainnet verified
+- Distribution preparation
+- Distribution scheduled
+- Launch approaching
+
+Changing the public stage does **not** open presale/token trading or execute blockchain transactions.
+
+### Pre-launch allocation access
+
+Separately owner-signed controls can:
+
+- open new pre-launch allocations;
+- pause new allocations;
+- close new allocations;
+- inspect public totals;
+- record an authorized private/off-site investor allocation;
+- look up a buyer wallet;
+- export the final hashed delivery manifest.
+
+A private/off-site allocation enters an RLYA amount, not an arbitrary replacement price. It immediately consumes the shared presale pool and advances the fixed curve.
+
+### Future distribution
+
+The final delivery manifest separates per wallet:
+
+- website-presale RLYA;
+- genuine private/off-site RLYA;
+- verified website gross USDC;
+- website referral USDC;
+- locked referrer;
+- source transaction identifiers.
+
+Private owner reconciliation notes are not exposed through the public buyer wallet endpoint.
+
+## Mainnet reconciliation added in source
+
+The production sale program keeps the existing `Sale` account layout and adds separate pre-launch reconciliation accounts/instructions.
+
+The intended production migration is:
+
+- `initialize_prelaunch_metrics` creates a separate reconciliation PDA;
+- `import_prelaunch_referral` recreates the buyer's locked pre-launch referral attribution on Mainnet;
+- `deliver_prelaunch` delivers website-presale RLYA from the official sale vault, advances `Sale.total_sold`, imports the already-paid gross USDC/referral totals and increments separate pre-launch metrics;
+- `deliver_prelaunch_manual` delivers genuine private/off-site pre-launch RLYA while advancing the existing `manual_sold` counter;
+- deterministic web/manual delivery receipt PDAs make distribution idempotent so rerunning the distribution tool skips completed wallet allocations.
+
+This preserves the distinction between public website presale and private/off-site allocation while keeping one final total-sold price curve.
+
+## Existing verified protocol foundation retained
+
+- 57 deterministic tests
+- 50,000-operation randomized sale/referral stress run
+- Rust/Solana source and launch-safety audit
+- pinned Solana **3.1.10** / Anchor **1.0.2** toolchain
+- CI stack-frame rejection above 4,096 bytes
+- full localhost on-chain integration for initialize, activation gates, direct buy, referral buy, manual distribution and pause/resume
+- 500 USDC referred test purchase reconciled to 5 USDC referrer + 495 USDC treasury
+- 2,000,000 RLYA manual distribution advanced tested price from $0.003000 to $0.003100
+- public Solana Devnet program deployment
+- public Devnet core protocol integration
+- fixed-supply authority checks
+- protected post-launch atomic-sale master switch
+- pinned/self-hosted production browser blockchain dependencies
+- owner-controlled local Mainnet deployment scripts with exact executable byte/SHA verification
+- staged Mainnet 839M token-preparation console
+- atomic activate + pause founder-lock sequence
+- owner-funded 1 USDC atomic Mainnet smoke tool
+- public-only Mainnet verifier
 
 ## Public Devnet evidence
-- Devnet program: `Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN`
+
+- Program: `Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN`
 - Devnet RLYA test mint: `3K3AWEJaJ7sqYB926CitbRaBnPn6cyiC8WPsEe1N6Uii`
 - Devnet USDC test mint: `BHAVfo4QzXKoRhNrinficvotonPyhuWQNYhwFn5XNdvW`
 - Devnet sale PDA: `ASgQBY5NPHHcuXNDWaDSD4wX8MiZ57JdUjzFvzxtejDg`
-- GitHub Actions evidence run: `31778172257`
-- final marker: `RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS`
-- transaction signatures and full reconciliation: `docs/DEVNET_PROTOCOL_EVIDENCE.md`
+- Actions evidence run: `31778172257`
+- marker: `RALYA_DEVNET_PROTOCOL_INTEGRATION=PASS`
+- full reconciliation: `docs/DEVNET_PROTOCOL_EVIDENCE.md`
 
-## Complete in source/test package
-- fixed 839M economics
-- working 12% public-sale engineering pool model
-- instant USDC-to-RLYA settlement logic with buyer minimum-output protection
-- distribution-based stepped pricing
-- owner off-site distribution synchronization and separate public transparency metric
-- no claim/refund state
-- 365-day founder lock
-- real wallet/RPC browser client
-- owner admin panel including off-site distribution, sale lifecycle, unsold withdrawal and founder release
-- staged owner Mainnet token launch console
-- atomic activate/pause Mainnet module
-- atomic owner-funded 1 USDC Mainnet referral smoke module
-- public-only Mainnet verification script
-- isolated-payer owner-controlled Windows/macOS/Linux Mainnet program deployment scripts
-- protected public presale enable gate
-- pinned/self-hosted production browser dependency build
-- repository-hosted initial token metadata and image
-- Whitepaper v1.1
-- public GitHub CI configuration
+These are test-only assets and are never production addresses.
 
-## Current network status
-- Localhost Solana validator: **FULL PROTOCOL INTEGRATION VERIFIED**
-- Solana Devnet: **PUBLIC DEPLOYMENT + CORE PROTOCOL INTEGRATION VERIFIED**
-- Solana Mainnet: **NOT DEPLOYED**
+## Network / release state
+
+- Localhost protocol: **VERIFIED**
+- Public Devnet core protocol: **VERIFIED**
+- Pre-launch allocation software: **0.7.0 RELEASE-CANDIDATE CODE**
+- Solana production Mainnet program: **NOT DEPLOYED**
 - Production RLYA mint: **NOT CREATED**
-- Real-money public sale: **DISABLED**
+- Pre-launch allocation access: **DEFAULT CLOSED; OWNER CONTROLLED**
+- Post-launch atomic RLYA sale: **DISABLED**
+- Public token launch: **NOT OPEN**
 
-## Owner-signed evidence still required before the word LIVE is used
-- permanent owner-controlled production Program ID, separate upgrade authority and dedicated deployment payer are generated locally and backed up safely
-- dedicated Mainnet deployment payer has enough real SOL for the current program-rent estimate plus transaction fees
-- Mainnet program deploys and downloaded executable exactly matches the built SBF binary
-- production upgrade authority is transferred away from the deployment payer; a hardware/multisig/governance arrangement is preferred before substantial public funds are exposed
-- owner creates the production RLYA mint and exactly 839,000,000 RLYA
-- all seven launch allocation accounts reconcile to the fixed 839M supply
-- mint authority is permanently revoked and freeze authority is absent
-- founder allocation is placed under the production 365-day lock while sale finishes PAUSED
-- owner-funded atomic 1 USDC referred-purchase smoke verification passes and finishes PAUSED
-- `scripts/verify_mainnet_public.mjs` returns `RALYA_MAINNET_PUBLIC_VERIFICATION=PASS`
-- signed Mainnet Program ID, RLYA mint, sale PDA, treasury and transaction evidence are published in site configuration/evidence
-- hardened website is deployed with presale master switch still OFF
-- only after all verification passes is the public presale switch enabled and the authorized owner resumes the on-chain sale
+The informational website can be public while allocation access remains closed. Technical Mainnet completion and public reveal timing are deliberately independent.
 
-## Referral system
-- Fixed on-chain rate: 1% of referred gross USDC purchase (100 basis points).
-- Buyer quote and gross purchase amount are unchanged by referral.
-- Referral reward is paid in USDC from sale proceeds; no extra RLYA is minted.
-- Same-wallet self-referrals and direct two-wallet loops are rejected.
-- A buyer wallet's first referral attribution is locked and future purchases must honor it.
-- Browser referral links use `?ref=<SolanaWallet>`.
-- Aggregate referral USDC is recorded in sale state.
+## Remaining production checkpoints
+
+1. finish 0.7.0 release gates and deploy the hardened website with pre-launch allocation access closed;
+2. when the owner chooses, open pre-launch allocation access independently of token launch;
+3. later deploy the permanent Mainnet program from owner-controlled local keys;
+4. verify downloaded Mainnet executable matches the exact built binary;
+5. create exactly 839M production RLYA and all seven allocation accounts;
+6. permanently revoke mint authority and confirm freeze authority absent;
+7. start the 365-day founder lock while final sale state remains PAUSED;
+8. complete owner-funded Mainnet smoke verification;
+9. close pre-launch allocations and export the final hashed delivery manifest;
+10. distribute confirmed pre-launch allocations from the official sale vault using idempotent receipt PDAs;
+11. independently verify production supply, allocations, metrics and transaction evidence;
+12. update public production addresses;
+13. announce/publicly launch only when the owner chooses;
+14. later switch from pre-launch allocation mode to the already-built atomic USDC → RLYA settlement mode.
+
+No production Mainnet address is to be claimed until signed on-chain evidence exists.
