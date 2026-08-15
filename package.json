@@ -6,7 +6,7 @@
   "scripts": {
     "build:web": "bash scripts/build_web_prod.sh",
     "build:functions": "esbuild netlify/functions/launch-status.mts netlify/functions/presale-state.mts netlify/functions/presale-quote.mts netlify/functions/presale-confirm.mts netlify/functions/presale-wallet.mts netlify/functions/presale-owner.mts netlify/functions/presale-cleanup.mts --bundle --platform=node --format=esm --target=node22 --outdir=/tmp/ralya-netlify-functions --log-level=warning",
-    "test:prelaunch": "esbuild scripts/prelaunch_selftest.mts --bundle --platform=node --format=esm --target=node22 --outfile=/tmp/ralya-prelaunch-selftest.mjs --log-level=warning && node /tmp/ralya-prelaunch-selftest.mjs"
+    "test:prelaunch": "esbuild scripts/prelaunch_selftest.mts --bundle --platform=node --format=cjs --target=node22 --outfile=/tmp/ralya-prelaunch-selftest.cjs --log-level=warning && node /tmp/ralya-prelaunch-selftest.cjs"
   },
   "dependencies": {
     "@metaplex-foundation/mpl-token-metadata": "3.4.0",
