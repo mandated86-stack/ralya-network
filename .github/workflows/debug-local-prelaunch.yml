@@ -8,49 +8,46 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/prelaunch-presale
-      - name: Instrument reconciliation values locally
+      - name: Reduce delivery account stack frames
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('scripts/local_validator_smoke.sh')
+          p=Path('programs/rlya_sale/src/lib.rs')
           s=p.read_text()
-          marker="const metricsInfo=await c.getAccountInfo(preMetrics);assert(metricsInfo);"
-          diag="""console.log('PRELAUNCH_DIAG_BEFORE_METRICS',JSON.stringify({q:q.toString(),q2:q2.toString(),man:man.toString(),expectedWeb:expectedWeb.toString(),expectedManual:expectedManual.toString(),expectedGross:expectedGross.toString(),expectedReferral:expectedReferral.toString(),beforePreSold:beforePre.sold.toString(),saleSold:s.sold.toString(),saleManual:s.manual.toString(),saleRaised:s.raised.toString(),saleRefPaid:s.refPaid.toString(),preBuyerBalance:(await amt(preBuyerRlya)).toString(),prePrivateBalance:(await amt(prePrivateRlya)).toString()}));\n"""
-          if marker not in s: raise SystemExit('metrics marker missing')
-          s=s.replace(marker,diag+marker,1)
-          marker2="assert.equal(metricExpectedWeb,expectedWeb);"
-          diag2="""console.log('PRELAUNCH_DIAG_METRICS',JSON.stringify({metricExpectedWeb:metricExpectedWeb.toString(),metricExpectedManual:metricExpectedManual.toString(),metricExpectedGross:metricExpectedGross.toString(),metricExpectedReferral:metricExpectedReferral.toString(),metricWeb:metricWeb.toString(),metricManual:metricManual.toString(),metricGross:metricGross.toString(),metricReferral:metricReferral.toString()}));\n"""
-          if marker2 not in s: raise SystemExit('metric assert marker missing')
-          s=s.replace(marker2,diag2+marker2,1)
-          marker3="s=await getState(sale);assert.equal(s.status,2);"
-          diag3="""s=await getState(sale);console.log('PRELAUNCH_DIAG_FINAL',JSON.stringify({sold:s.sold.toString(),expectedSold:(q+q2+man+expectedWeb+expectedManual).toString(),manual:s.manual.toString(),expectedManualSold:(man+expectedManual).toString(),raised:s.raised.toString(),expectedRaised:(3600n*U).toString(),refPaid:s.refPaid.toString(),expectedRefPaid:(35n*U).toString(),guardCount}));assert.equal(s.status,2);"""
-          if marker3 not in s: raise SystemExit('final assert marker missing')
-          s=s.replace(marker3,diag3,1)
+          for struct_name in ('DeliverPrelaunch', 'DeliverPrelaunchManual'):
+              marker=f"pub struct {struct_name}<'info> {{"
+              start=s.index(marker)
+              next_derive=s.find('\n}\n\n#[derive(Accounts)]', start)
+              if next_derive < 0:
+                  raise SystemExit(f'could not isolate {struct_name}')
+              end=next_derive + 2
+              block=s[start:end]
+              block2=block.replace("pub sale: Account<'info, Sale>,", "pub sale: Box<Account<'info, Sale>>,")
+              block2=block2.replace("pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,", "pub prelaunch_metrics: Box<Account<'info, PrelaunchMetrics>>,")
+              if block2 == block and 'Box<Account' not in block:
+                  raise SystemExit(f'expected account fields not found in {struct_name}')
+              s=s[:start]+block2+s[end:]
           p.write_text(s)
           PY
-      - name: Prepare temporary Solana JS test dependencies
-        run: npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
-      - name: Run diagnostic integration and preserve only reconciliation values
-        shell: bash
-        run: |
-          set +e
-          bash scripts/local_validator_smoke.sh > /tmp/ralya-debug-full.log 2>&1
-          status=$?
-          {
-            echo "diagnostic_exit=$status"
-            grep -E 'PRELAUNCH_DIAG_|AssertionError|actual:|expected:|RALYA_LOCAL_PRELAUNCH_INTEGRATION|PRELAUNCH_RECONCILIATION' /tmp/ralya-debug-full.log || true
-          } > DEBUG_PRELAUNCH_VALUES.txt
-          cat DEBUG_PRELAUNCH_VALUES.txt
-          exit 0
-      - name: Commit tiny diagnostic report
+          grep -A45 "pub struct DeliverPrelaunch<'info>" programs/rlya_sale/src/lib.rs | grep 'Box<Account' | wc -l | grep '^2$'
+          grep -A45 "pub struct DeliverPrelaunchManual<'info>" programs/rlya_sale/src/lib.rs | grep 'Box<Account' | wc -l | grep '^2$'
+      - name: Prelaunch audit
+        run: python3 scripts/audit_prelaunch.py
+      - name: Full localhost protocol integration
+        run: bash scripts/local_validator_smoke.sh
+      - name: Commit validated stack fix
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add DEBUG_PRELAUNCH_VALUES.txt
-          git commit -m 'Capture prelaunch reconciliation diagnostic values'
+          git add programs/rlya_sale/src/lib.rs
+          if git diff --cached --quiet; then
+            echo 'No stack-fix change needed.'
+            exit 0
+          fi
+          git commit -m 'Reduce prelaunch delivery stack frames'
           git push origin HEAD:agent/prelaunch-presale
