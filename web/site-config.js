@@ -2,13 +2,14 @@ window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
   build: '0.6.0-mainnet-prep',
-  launchPhase: 'protocol-testing',
+  launchPhase: 'pre-launch',
   presaleEnabled: false,
   network: 'mainnet-beta',
   rpcEndpoint: 'https://api.mainnet-beta.solana.com',
   explorerBase: 'https://explorer.solana.com',
   projectUrl: 'https://ralya-network.netlify.app',
   metadataUri: 'https://raw.githubusercontent.com/mandated86-stack/ralya-network/main/web/token-metadata.json',
+  ownerWallet: 'BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo',
   hardCap: 839000000,
   decimals: 9,
   presaleCap: 100680000,
@@ -18,9 +19,8 @@ window.RALYA_CONFIG = Object.freeze({
   minimumPurchaseUsdc: 1,
   referralBps: 100,
   usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  // These remain blank until the signed mainnet launch record exists.
-  // presaleEnabled must also be changed to true in a separate reviewed launch commit
-  // only after the mainnet smoke purchase/referral verification is complete.
+  // These remain blank until the signed Mainnet launch record exists.
+  // Public launch timing and technical readiness are intentionally controlled separately.
   rlyaMint: '',
   saleProgramId: '',
   salePda: '',
@@ -29,13 +29,12 @@ window.RALYA_CONFIG = Object.freeze({
   whitepaperPdf: 'RALYA_Whitepaper_v1.1.pdf'
 });
 
-// Production master switch. app.js intentionally remains unable to override this gate.
-// The capture-phase guard blocks a purchase before any wallet-signing handler can run,
-// and the observer keeps the purchase control disabled while presaleEnabled is false.
+// Production purchase master switch. app.js intentionally remains unable to override this gate.
+// Public launch-stage messaging is separate and can never turn buying on by itself.
 (() => {
   const cfg = window.RALYA_CONFIG;
   if (!cfg.presaleEnabled) {
-    const lockedMessage = 'Presale is not enabled yet. Mainnet verification must complete before purchases open.';
+    const lockedMessage = 'Presale access is not open yet. Connect your wallet later when allocation access is announced.';
     const enforce = () => {
       const button = document.getElementById('buyRlya');
       if (!button) return;
@@ -64,14 +63,24 @@ window.RALYA_CONFIG = Object.freeze({
     observer.observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ['disabled'] });
   }
 
-  const loadTransparency = () => {
-    if (!document.getElementById('marketPanel') || document.querySelector('script[data-rlya-transparency]')) return;
-    const script = document.createElement('script');
-    script.src = 'distribution-transparency.js';
-    script.defer = true;
-    script.dataset.rlyaTransparency = '1';
-    document.body.appendChild(script);
+  const loadPublicExtras = () => {
+    if (document.getElementById('marketPanel') && !document.querySelector('script[data-rlya-transparency]')) {
+      const transparency = document.createElement('script');
+      transparency.src = 'distribution-transparency.js';
+      transparency.defer = true;
+      transparency.dataset.rlyaTransparency = '1';
+      document.body.appendChild(transparency);
+    }
+
+    if ((document.getElementById('networkStatus') || document.getElementById('programTag')) && !document.querySelector('script[data-rlya-launch-status]')) {
+      const status = document.createElement('script');
+      status.src = '/launch-status.js';
+      status.defer = true;
+      status.dataset.rlyaLaunchStatus = '1';
+      document.body.appendChild(status);
+    }
   };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadTransparency, { once: true });
-  else loadTransparency();
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadPublicExtras, { once: true });
+  else loadPublicExtras();
 })();
