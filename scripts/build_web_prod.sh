@@ -24,6 +24,7 @@ replacements = {
 entries = (
     "web/app.js",
     "web/prelaunch.js",
+    "web/presale-next.js",
     "web/admin/admin.js",
     "web/owner/launch.js",
     "web/owner/atomic-launch.js",
@@ -40,6 +41,7 @@ PY
 
 ./node_modules/.bin/esbuild "$TMP/web/app.js" --bundle --format=esm --platform=browser --target=es2022 --minify --outfile="$TMP/app.bundle.js"
 ./node_modules/.bin/esbuild "$TMP/web/prelaunch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --outfile="$TMP/prelaunch.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/presale-next.js" --bundle --format=iife --platform=browser --target=es2022 --minify --outfile="$TMP/presale-next.bundle.js"
 ./node_modules/.bin/esbuild "$TMP/web/admin/admin.js" --bundle --format=esm --platform=browser --target=es2022 --minify --outfile="$TMP/admin.bundle.js"
 ./node_modules/.bin/esbuild "$TMP/web/owner/launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --outfile="$TMP/launch.bundle.js"
 ./node_modules/.bin/esbuild "$TMP/web/owner/atomic-launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --outfile="$TMP/atomic-launch.bundle.js"
@@ -49,6 +51,7 @@ PY
 
 cp "$TMP/app.bundle.js" web/app.js
 cp "$TMP/prelaunch.bundle.js" web/prelaunch.js
+cp "$TMP/presale-next.bundle.js" web/presale-next.js
 cp "$TMP/admin.bundle.js" web/admin/admin.js
 cp "$TMP/launch.bundle.js" web/owner/launch.js
 cp "$TMP/atomic-launch.bundle.js" web/owner/atomic-launch.js
@@ -56,7 +59,7 @@ cp "$TMP/smoke.bundle.js" web/owner/smoke.js
 cp "$TMP/prelaunch-delivery.bundle.js" web/owner/prelaunch-delivery.js
 cp "$TMP/treasury-prep.bundle.js" web/owner/treasury-prep.js
 
-BUNDLED=(web/app.js web/prelaunch.js web/admin/admin.js web/owner/launch.js web/owner/atomic-launch.js web/owner/smoke.js web/owner/prelaunch-delivery.js web/owner/treasury-prep.js)
+BUNDLED=(web/app.js web/prelaunch.js web/presale-next.js web/admin/admin.js web/owner/launch.js web/owner/atomic-launch.js web/owner/smoke.js web/owner/prelaunch-delivery.js web/owner/treasury-prep.js)
 if grep -R -n "https://esm.sh" "${BUNDLED[@]}"; then echo "Production bundle still references esm.sh" >&2; exit 1; fi
 for f in "${BUNDLED[@]}" web/owner/status-control.js web/owner/presale-control.js web/owner/site-copy-control.js web/launch-status.js web/site-content.js web/site-config.js web/site-ui.js web/site-ui-hotfix.js; do node --check "$f"; done
 python3 -m json.tool web/site-copy.json >/dev/null
