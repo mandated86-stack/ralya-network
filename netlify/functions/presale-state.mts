@@ -3,7 +3,7 @@ import { computeState, json, publicState, store } from './_shared/presale-core.m
 export default async (req: Request) => {
   if (req.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
   try {
-    const state = await computeState(store(), false);
+    const state = await computeState(store(), true);
     return json(publicState(state));
   } catch (err: any) {
     return json({ error: err?.message || 'Could not load presale state.' }, 500);

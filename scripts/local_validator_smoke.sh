@@ -93,7 +93,7 @@ echo "RALYA_LOCAL_VALIDATOR_DEPLOYMENT=PASS"
 
 # Test-only JS clients. The workflow also prepares /tmp/node_modules so the
 # temporary ESM harness resolves these packages without committing dependencies.
-npm install --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
+npm install --prefix /tmp --no-save --no-package-lock --silent @solana/web3.js@1.98.4 @solana/spl-token@0.4.14
 
 cat > /tmp/ralya_local_integration.mjs <<'JS'
 import fs from 'node:fs';
@@ -220,12 +220,19 @@ await fail('manifest commitment blocks excess private delivery',()=>send(new Tra
 console.log('PRELAUNCH_MANUAL_DELIVERY PASS');
 
 const metricsInfo=await c.getAccountInfo(preMetrics);assert(metricsInfo);const mb=Buffer.from(metricsInfo.data),mv=new DataView(mb.buffer,mb.byteOffset,mb.byteLength);let mo=72;
-const metricExpectedWeb=mv.getBigUint64(mo,true);mo+=8,metricExpectedManual=mv.getBigUint64(mo,true);mo+=8,metricExpectedGross=mv.getBigUint64(mo,true);mo+=8,metricExpectedReferral=mv.getBigUint64(mo,true);mo+=8,metricWeb=mv.getBigUint64(mo,true);mo+=8,metricManual=mv.getBigUint64(mo,true);mo+=8,metricGross=mv.getBigUint64(mo,true);mo+=8,metricReferral=mv.getBigUint64(mo,true);
+const metricExpectedWeb=mv.getBigUint64(mo,true);mo+=8;
+const metricExpectedManual=mv.getBigUint64(mo,true);mo+=8;
+const metricExpectedGross=mv.getBigUint64(mo,true);mo+=8;
+const metricExpectedReferral=mv.getBigUint64(mo,true);mo+=8;
+const metricWeb=mv.getBigUint64(mo,true);mo+=8;
+const metricManual=mv.getBigUint64(mo,true);mo+=8;
+const metricGross=mv.getBigUint64(mo,true);mo+=8;
+const metricReferral=mv.getBigUint64(mo,true);
 assert.equal(metricExpectedWeb,expectedWeb);assert.equal(metricExpectedManual,expectedManual);assert.equal(metricExpectedGross,expectedGross);assert.equal(metricExpectedReferral,expectedReferral);assert.equal(metricWeb,expectedWeb);assert.equal(metricManual,expectedManual);assert.equal(metricGross,expectedGross);assert.equal(metricReferral,expectedReferral);
 assert.equal(Buffer.from(metricsInfo.data).subarray(40,72).toString('hex'),manifestHash.toString('hex'));
 console.log('PRELAUNCH_RECONCILIATION PASS');
 
-const mint=await getMint(c,rlya);assert.equal(mint.supply,HARD);assert.equal(mint.mintAuthority,null);assert.equal(mint.freezeAuthority,null);
+const finalMint=await getMint(c,rlya);assert.equal(finalMint.supply,HARD);assert.equal(finalMint.mintAuthority,null);assert.equal(finalMint.freezeAuthority,null);
 s=await getState(sale);assert.equal(s.status,2);assert.equal(s.raised,3_600n*U);assert.equal(s.refPaid,35n*U);assert.equal(s.sold,q+q2+man+expectedWeb+expectedManual);assert.equal(s.manual,man+expectedManual);assert(guardCount>=13);
 console.log(JSON.stringify({status:'PASS',programId:PROGRAM_ID.toBase58(),rlyaMint:rlya.toBase58(),usdcMint:usdc.toBase58(),sale:sale.toBase58(),prelaunchMetrics:preMetrics.toBase58(),totalSold:s.sold.toString(),grossUsdc:s.raised.toString(),referralUsdc:s.refPaid.toString(),priceMicroUsdc:price(s).toString(),guardCount}));
 console.log('RALYA_LOCAL_PROTOCOL_INTEGRATION=PASS');

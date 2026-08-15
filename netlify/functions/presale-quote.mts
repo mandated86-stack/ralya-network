@@ -76,7 +76,8 @@ export default async (req: Request, context: any) => {
         : { windowStartMs: now, count: 0 };
       if (currentRate.count >= RATE_LIMIT) throw new Error('Too many quote requests. Please try again shortly.');
       await s.setJSON(rateKey, { windowStartMs: currentRate.windowStartMs, count: currentRate.count + 1 });
-      await s.setJSON(`quote-auth/${auth.nonce}`, { buyer, usedAt: new Date(now).toISOString() });
+      const authClaim = await s.setJSON(`quote-auth/${auth.nonce}`, { buyer, usedAt: new Date(now).toISOString() }, { onlyIfNew: true });
+      if (!authClaim.modified) throw new Error('This quote authorization has already been used.');
 
       // A buyer can hold only one live reservation. Replacing a quote releases the
       // old reservation before the new one is priced, preventing accidental self-blocking.

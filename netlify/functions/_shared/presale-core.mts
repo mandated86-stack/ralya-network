@@ -199,8 +199,8 @@ export async function computeState(s = store(), includeReservations = false) {
   let reserved = 0n;
   for (const quote of activeQuotes) reserved += BigInt(quote.rlyaBase || 0);
   const effectiveProgress = totalAllocated + reserved;
-  const current = priceAt(totalAllocated);
-  const nextBoundary = minBig(((totalAllocated / STEP_SIZE_BASE) + 1n) * STEP_SIZE_BASE, PRESALE_CAP_BASE);
+  const current = priceAt(effectiveProgress);
+  const nextBoundary = minBig(((effectiveProgress / STEP_SIZE_BASE) + 1n) * STEP_SIZE_BASE, PRESALE_CAP_BASE);
 
   return {
     control,
@@ -217,7 +217,7 @@ export async function computeState(s = store(), includeReservations = false) {
     availableForNewQuotesBase: PRESALE_CAP_BASE - effectiveProgress,
     currentPriceMicroUsdc: current,
     nextPriceMicroUsdc: current + STEP_INCREMENT_MICRO_USDC,
-    toNextStepBase: nextBoundary > totalAllocated ? nextBoundary - totalAllocated : 0n,
+    toNextStepBase: nextBoundary > effectiveProgress ? nextBoundary - effectiveProgress : 0n,
     webCount,
     manualCount,
   };
@@ -229,6 +229,7 @@ export function publicState(state: Awaited<ReturnType<typeof computeState>>) {
     currentPriceMicroUsdc: state.currentPriceMicroUsdc.toString(),
     nextPriceMicroUsdc: state.nextPriceMicroUsdc.toString(),
     totalAllocatedBase: state.totalAllocatedBase.toString(),
+    quoteProgressBase: state.effectiveProgressBase.toString(),
     webAllocatedBase: state.webAllocatedBase.toString(),
     manualAllocatedBase: state.manualAllocatedBase.toString(),
     totalUsdcRaisedBase: state.totalUsdcRaisedBase.toString(),
@@ -285,44 +286,44 @@ export async function verifyOwnerAction(s: ReturnType<typeof store>, body: any) 
   if (!Number.isFinite(time) || Math.abs(Date.now() - time) > MAX_OWNER_CLOCK_SKEW_MS) throw new Error('Owner signature expired. Sign again.');
   const expected = ownerMessage(wallet, operation, payload, timestamp, nonce);
   if (message !== expected) throw new Error('Signed owner message does not match the action.');
-  const used = await s.get(`auth/${nonce}`, { type: 'json' });
-  if (used) throw new Error('Owner action nonce has already been used.');
   let signature: Buffer;
   try { signature = Buffer.from(signatureB64, 'base64'); } catch { throw new Error('Invalid owner signature encoding.'); }
   if (signature.length !== 64) throw new Error('Invalid owner signature length.');
   const ok = verifySignature(null, Buffer.from(message, 'utf8'), ownerKey(wallet), signature);
   if (!ok) throw new Error('Owner signature verification failed.');
-  await s.setJSON(`auth/${nonce}`, { operation, usedAt: new Date().toISOString() });
+  const nonceClaim = await s.setJSON(`auth/${nonce}`, { operation, usedAt: new Date().toISOString() }, { onlyIfNew: true });
+  if (!nonceClaim.modified) throw new Error('Owner action nonce has already been used.');
   return { wallet, operation, payload };
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const MUTATION_LOCK_LEASE_MS = 120_000;
 
 export async function withMutationLock<T>(s: ReturnType<typeof store>, fn: () => Promise<T>): Promise<T> {
   const token = randomUUID();
   const key = 'lock/mutation';
   let acquired = false;
-  for (let attempt = 0; attempt < 12 && !acquired; attempt += 1) {
+  for (let attempt = 0; attempt < 20 && !acquired; attempt += 1) {
     const now = Date.now();
-    const current: any = await s.get(key, { type: 'json' });
-    if (current?.expiresAtMs && Number(current.expiresAtMs) > now) {
-      await sleep(70 + Math.floor(Math.random() * 90));
-      continue;
+    const current: any = await s.getWithMetadata(key, { type: 'json' });
+    let result: any = null;
+    if (!current) {
+      result = await s.setJSON(key, { token, expiresAtMs: now + MUTATION_LOCK_LEASE_MS }, { onlyIfNew: true });
+    } else if (Number(current.data?.expiresAtMs || 0) <= now) {
+      result = await s.setJSON(key, { token, expiresAtMs: now + MUTATION_LOCK_LEASE_MS }, { onlyIfMatch: current.etag });
     }
-    await s.setJSON(key, { token, expiresAtMs: now + 8_000 });
-    await sleep(90 + Math.floor(Math.random() * 50));
-    const check1: any = await s.get(key, { type: 'json' });
-    if (check1?.token !== token) continue;
-    await sleep(45);
-    const check2: any = await s.get(key, { type: 'json' });
-    if (check2?.token === token) acquired = true;
+    if (result?.modified) {
+      acquired = true;
+      break;
+    }
+    await sleep(90 + Math.floor(Math.random() * 110));
   }
   if (!acquired) throw new Error('Presale is busy. Please retry in a moment.');
   try {
     return await fn();
   } finally {
-    const current: any = await s.get(key, { type: 'json' });
-    if (current?.token === token) await s.delete(key);
+    const current: any = await s.getWithMetadata(key, { type: 'json' });
+    if (current?.data?.token === token) await s.delete(key);
   }
 }
 

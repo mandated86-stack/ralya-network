@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program_option::COption;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, TransferChecked};
 
-declare_id!("8rMEhAaQ9gU5y1ejwQtWKsV2kpET3DHjkh9aGxxjuFmn");
+declare_id!("AjAMpuiEKuSbi6JUtdtWT5DJzA18ZWmnTqLnVcp3iCS2");
 
 const SALE_SEED: &[u8] = b"sale";
 const SALE_VAULT_SEED: &[u8] = b"sale_vault";
@@ -1219,14 +1219,14 @@ pub struct DeliverPrelaunch<'info> {
         has_one = admin,
         has_one = rlya_mint
     )]
-    pub sale: Account<'info, Sale>,
+    pub sale: Box<Account<'info, Sale>>,
     #[account(
         mut,
         seeds = [PRELAUNCH_METRICS_SEED, rlya_mint.key().as_ref()],
         bump = prelaunch_metrics.bump,
         has_one = rlya_mint
     )]
-    pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,
+    pub prelaunch_metrics: Box<Account<'info, PrelaunchMetrics>>,
     #[account(
         mut,
         token::mint = rlya_mint,
@@ -1263,14 +1263,14 @@ pub struct DeliverPrelaunchManual<'info> {
         has_one = admin,
         has_one = rlya_mint
     )]
-    pub sale: Account<'info, Sale>,
+    pub sale: Box<Account<'info, Sale>>,
     #[account(
         mut,
         seeds = [PRELAUNCH_METRICS_SEED, rlya_mint.key().as_ref()],
         bump = prelaunch_metrics.bump,
         has_one = rlya_mint
     )]
-    pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,
+    pub prelaunch_metrics: Box<Account<'info, PrelaunchMetrics>>,
     #[account(
         mut,
         token::mint = rlya_mint,

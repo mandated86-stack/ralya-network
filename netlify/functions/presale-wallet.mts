@@ -1,9 +1,49 @@
+import bs58 from 'bs58';
+import { createPublicKey, verify as verifySignature } from 'node:crypto';
 import { RLYA_UNIT, assertWallet, getAllocationEvents, json, store } from './_shared/presale-core.mts';
 
+const VIEW_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+function walletKey(wallet: string) {
+  const raw = bs58.decode(wallet);
+  if (raw.length !== 32) throw new Error('Invalid buyer public key length.');
+  const der = Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(raw)]);
+  return createPublicKey({ key: der, format: 'der', type: 'spki' });
+}
+
+function viewMessage(wallet: string, timestamp: string, nonce: string) {
+  return [
+    'RALYA allocation view',
+    `Wallet: ${wallet}`,
+    `Timestamp: ${timestamp}`,
+    `Nonce: ${nonce}`,
+  ].join('\n');
+}
+
+function verifyView(body: any, wallet: string) {
+  if (assertWallet(body?.wallet, 'Wallet') !== wallet) throw new Error('Signed wallet does not match the requested allocation.');
+  const timestamp = String(body?.timestamp || '').trim();
+  const nonce = String(body?.nonce || '').trim();
+  const message = String(body?.message || '');
+  const signatureB64 = String(body?.signature || '').trim();
+  if (!/^[a-f0-9]{32,64}$/i.test(nonce)) throw new Error('Invalid allocation-view nonce.');
+  const time = Date.parse(timestamp);
+  if (!Number.isFinite(time) || Math.abs(Date.now() - time) > VIEW_CLOCK_SKEW_MS) throw new Error('Allocation-view authorization expired. Sign again.');
+  const expected = viewMessage(wallet, timestamp, nonce);
+  if (message !== expected) throw new Error('Signed allocation-view message does not match this request.');
+  let signature: Buffer;
+  try { signature = Buffer.from(signatureB64, 'base64'); } catch { throw new Error('Invalid allocation-view signature encoding.'); }
+  if (signature.length !== 64) throw new Error('Invalid allocation-view signature length.');
+  if (!verifySignature(null, Buffer.from(message, 'utf8'), walletKey(wallet), signature)) throw new Error('Allocation-view wallet signature verification failed.');
+}
+
 export default async (req: Request, context: any) => {
-  if (req.method !== 'GET') return json({ error: 'Method not allowed.' }, 405);
+  if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
   try {
     const wallet = assertWallet(context?.params?.wallet, 'Wallet');
+    let body: any;
+    try { body = await req.json(); } catch { throw new Error('Invalid allocation-view authorization.'); }
+    verifyView(body, wallet);
     const s = store();
     const [events, referral] = await Promise.all([
       getAllocationEvents(s),
