@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: 66e90367a7b3d977051caf4dbc74e98a73402c07
-      - name: Print failed harness lines around assertion
+      - name: Print exact failed harness block
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -23,6 +23,6 @@ jobs:
           lines = text[start:end].splitlines()
           print('generated harness lines:', len(lines))
           for i, line in enumerate(lines, 1):
-              if 135 <= i <= 150:
+              if 120 <= i <= 134:
                   print(f'{i:4d} {line}')
           PY
