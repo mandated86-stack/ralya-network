@@ -25,7 +25,7 @@
 
 [[redirects]]
   from = "/owner/"
-  to = "/owner/index.html"
+  to = "/owner-control.html"
   status = 200
   force = true
 
