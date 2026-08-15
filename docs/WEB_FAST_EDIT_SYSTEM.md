@@ -32,12 +32,12 @@ Current approved live-copy fields cover the major public section headings and in
 
 ## Lane B — normal website/design/code edits
 
-For HTML/CSS/JS/layout or new website functionality, edit GitHub as normal. `.github/workflows/web-fast.yml` provides a website-only release gate.
+For HTML/CSS/JS/layout or new website functionality, edit GitHub as normal. `.github/workflows/web-release.yml` is the single website-only release gate.
 
-The fast lane checks:
+The fast website lane checks:
 
 1. release/source safety assertions without rebuilding Solana;
-2. pre-launch financial invariants;
+2. pre-launch financial/web invariants;
 3. live-copy safety;
 4. pinned web/function dependencies;
 5. presale economic self-test;
@@ -46,11 +46,11 @@ The fast lane checks:
 
 It deliberately does **not** compile/deploy the Solana program or run the full 50,000-operation/protocol pipeline for ordinary website-only changes.
 
-Rapid successive pushes to the same website branch cancel the previous web-fast run so edits do not queue behind obsolete versions.
+Rapid successive pushes to the same website branch cancel the previous `Web release` run so edits do not queue behind obsolete versions.
 
 ## Lane C — protocol/economic changes
 
-Only use the full repository/Solana gates when changing protocol source, tokenomics, economic model, Mainnet scripts, tests or other security-critical blockchain files. The full `Repository checks` and `Build` workflows remain for that work.
+Only use the full repository/Solana gates when changing protocol source, tokenomics, economic model, Mainnet scripts, tests or other security-critical blockchain files. `Repository checks` is path-filtered to those protocol/security areas, and the full `Build` workflow remains for the Solana release path.
 
 ## Netlify production behavior
 
@@ -58,4 +58,4 @@ The existing Netlify project is `ralya-network`, site ID `aeca50d3-428e-4300-9c7
 
 ## Editing rule for future chats
 
-Before touching GitHub for a requested wording change, first ask internally whether it fits the owner live-copy allowlist. If yes, use the live-copy system rather than rebuilding/redeploying. If it is HTML/CSS/JS or outside the allowlist, use the web-fast GitHub lane. Use full Solana/protocol CI only when the actual protocol/economics/security code changes.
+Before touching GitHub for a requested wording change, first determine whether it fits the owner live-copy allowlist. If yes, use the live-copy system rather than rebuilding/redeploying. If it is HTML/CSS/JS or outside the allowlist, use the `Web release` GitHub lane. Use full Solana/protocol CI only when the actual protocol/economics/security code changes.
