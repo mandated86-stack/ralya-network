@@ -13,10 +13,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: agent/prelaunch-presale
-      - name: Reduce delivery account stack frames
+      - name: Apply stack and harness fixes
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           p=Path('programs/rlya_sale/src/lib.rs')
           s=p.read_text()
           for struct_name in ('DeliverPrelaunch', 'DeliverPrelaunchManual'):
@@ -27,27 +28,49 @@ jobs:
                   raise SystemExit(f'could not isolate {struct_name}')
               end=next_derive + 2
               block=s[start:end]
-              block2=block.replace("pub sale: Account<'info, Sale>,", "pub sale: Box<Account<'info, Sale>>,")
-              block2=block2.replace("pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,", "pub prelaunch_metrics: Box<Account<'info, PrelaunchMetrics>>,")
-              if block2 == block and 'Box<Account' not in block:
-                  raise SystemExit(f'expected account fields not found in {struct_name}')
-              s=s[:start]+block2+s[end:]
+              block=block.replace("pub sale: Account<'info, Sale>,", "pub sale: Box<Account<'info, Sale>>,")
+              block=block.replace("pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,", "pub prelaunch_metrics: Box<Account<'info, PrelaunchMetrics>>,")
+              s=s[:start]+block+s[end:]
+          p.write_text(s)
+
+          p=Path('scripts/local_validator_smoke.sh')
+          s=p.read_text()
+          old="const mint=await getMint(c,rlya);assert.equal(mint.supply,HARD);assert.equal(mint.mintAuthority,null);assert.equal(mint.freezeAuthority,null);"
+          if s.count(old) < 2 and 'const finalMint=await getMint(c,rlya)' not in s:
+              raise SystemExit('expected duplicate final mint assertion not found')
+          if 'const finalMint=await getMint(c,rlya)' not in s:
+              before, sep, tail = s.rpartition(old)
+              if not sep:
+                  raise SystemExit('final mint assertion not found')
+              new="const finalMint=await getMint(c,rlya);assert.equal(finalMint.supply,HARD);assert.equal(finalMint.mintAuthority,null);assert.equal(finalMint.freezeAuthority,null);"
+              s=before+new+tail
           p.write_text(s)
           PY
           grep -A45 "pub struct DeliverPrelaunch<'info>" programs/rlya_sale/src/lib.rs | grep 'Box<Account' | wc -l | grep '^2$'
           grep -A45 "pub struct DeliverPrelaunchManual<'info>" programs/rlya_sale/src/lib.rs | grep 'Box<Account' | wc -l | grep '^2$'
+          grep -F 'const finalMint=await getMint(c,rlya)' scripts/local_validator_smoke.sh >/dev/null
       - name: Prelaunch audit
         run: python3 scripts/audit_prelaunch.py
+      - name: Precheck generated integration harness syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('scripts/local_validator_smoke.sh').read_text()
+          start=s.index("cat > /tmp/ralya_local_integration.mjs <<'JS'\n") + len("cat > /tmp/ralya_local_integration.mjs <<'JS'\n")
+          end=s.index('\nJS\n', start)
+          Path('/tmp/ralya_local_integration.mjs').write_text(s[start:end])
+          PY
+          node --check /tmp/ralya_local_integration.mjs
       - name: Full localhost protocol integration
         run: bash scripts/local_validator_smoke.sh
-      - name: Commit validated stack fix
+      - name: Commit validated fixes
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add programs/rlya_sale/src/lib.rs
+          git add programs/rlya_sale/src/lib.rs scripts/local_validator_smoke.sh
           if git diff --cached --quiet; then
-            echo 'No stack-fix change needed.'
+            echo 'No validated fix changes needed.'
             exit 0
           fi
-          git commit -m 'Reduce prelaunch delivery stack frames'
+          git commit -m 'Harden prelaunch delivery validation path'
           git push origin HEAD:agent/prelaunch-presale
