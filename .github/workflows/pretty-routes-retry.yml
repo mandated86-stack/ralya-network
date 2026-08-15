@@ -1,0 +1,55 @@
+name: Finalize clean public routes
+on:
+  push:
+    paths:
+      - '.github/workflows/pretty-routes-retry.yml'
+permissions:
+  contents: write
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/presale-stability-wallet-2026-08-16
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply clean route patch
+        run: python3 scripts/pretty_routes_patch.py
+      - name: Correct route audit matcher
+        run: sed -i "s/check('history.pushState' in hotfix/check('pushState' in hotfix/" scripts/audit_presale_public.py
+      - name: Remove one-time patch machinery
+        run: rm -f scripts/pretty_routes_patch.py .github/workflows/pretty-routes.yml .github/workflows/pretty-routes-run.yml .github/workflows/pretty-routes-retry.yml
+      - name: Stage source before bundle smoke test
+        run: git add -A
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate JavaScript syntax
+        run: |
+          node --check web/site-ui-hotfix.js
+          node --check web/prelaunch.js
+          node --check web/presale-next.js
+      - name: Run all public presale audits
+        run: |
+          python3 scripts/audit_prelaunch.py
+          python3 scripts/audit_checkout_release.py
+          python3 scripts/audit_site_copy.py
+          python3 scripts/audit_presale_public.py
+      - name: Test economic invariants
+        run: npm run test:prelaunch
+      - name: Compile functions
+        run: npm run build:functions
+      - name: Production browser bundle smoke test
+        run: npm run build:web
+      - name: Restore staged source form
+        run: git restore --worktree web
+      - name: Re-run permanent route audit
+        run: python3 scripts/audit_presale_public.py
+      - name: Commit verified clean routes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Use clean public routes instead of hash URLs"
+          git push origin HEAD:build/presale-stability-wallet-2026-08-16
