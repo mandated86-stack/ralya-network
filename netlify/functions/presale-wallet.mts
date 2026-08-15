@@ -10,9 +10,7 @@ export default async (req: Request, context: any) => {
       s.get(`referral/${wallet}`, { type: 'json' }),
     ]);
     const mine = events.filter(event => event.wallet === wallet).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
-    let totalRlya = 0n;
-    let totalUsdc = 0n;
-    let totalReferral = 0n;
+    let totalRlya = 0n, totalUsdc = 0n, totalReferral = 0n;
     for (const event of mine) {
       totalRlya += BigInt(event.rlyaBase || 0);
       totalUsdc += BigInt(event.grossUsdcBase || 0);
@@ -29,7 +27,7 @@ export default async (req: Request, context: any) => {
       averagePriceMicroUsdc: averagePriceMicroUsdc.toString(),
       lockedReferrer: (referral as any)?.referrer || null,
       allocations: mine.map(event => ({
-        id: event.id,
+        id: event.kind === 'web' ? event.id : `private-${event.createdAt}`,
         kind: event.kind,
         rlyaBase: event.rlyaBase,
         grossUsdcBase: event.grossUsdcBase,
@@ -39,8 +37,7 @@ export default async (req: Request, context: any) => {
         priceAfterMicroUsdc: event.priceAfterMicroUsdc,
         createdAt: event.createdAt,
         confirmedAt: event.confirmedAt || null,
-        signature: event.signature || null,
-        paymentReference: event.paymentReference || null,
+        signature: event.kind === 'web' ? event.signature || null : null,
       })),
     });
   } catch (err: any) {
