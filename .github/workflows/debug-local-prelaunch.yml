@@ -13,9 +13,16 @@ jobs:
         with:
           ref: 66e90367a7b3d977051caf4dbc74e98a73402c07
       - name: Print failed harness lines around assertion
-        shell: bash
         run: |
-          echo 'Mapping failed integration commit harness lines 135-150'
-          awk 'index($0,"cat > /tmp/ralya_local_integration.mjs"){on=1;next} on && $0=="JS"{exit} on{print}' scripts/local_validator_smoke.sh \
-            | nl -ba \
-            | sed -n '135,150p'
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/local_validator_smoke.sh').read_text()
+          marker = "cat > /tmp/ralya_local_integration.mjs <<'JS'\n"
+          start = text.index(marker) + len(marker)
+          end = text.index('\nJS\n', start)
+          lines = text[start:end].splitlines()
+          print('generated harness lines:', len(lines))
+          for i, line in enumerate(lines, 1):
+              if 135 <= i <= 150:
+                  print(f'{i:4d} {line}')
+          PY
