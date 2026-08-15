@@ -1,8 +1,43 @@
 name: Repository checks
 on:
   push:
+    paths:
+      - '.github/workflows/check.yml'
+      - 'Makefile'
+      - 'programs/**'
+      - 'model/**'
+      - 'tokenomics/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '!scripts/audit_site_copy.py'
+      - '!scripts/build_web_prod.sh'
+      - '!scripts/prelaunch_selftest.mts'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Anchor.toml'
+      - 'BUILD_MANIFEST.json'
+      - 'FILE_HASHES.json'
   pull_request:
+    paths:
+      - '.github/workflows/check.yml'
+      - 'Makefile'
+      - 'programs/**'
+      - 'model/**'
+      - 'tokenomics/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '!scripts/audit_site_copy.py'
+      - '!scripts/build_web_prod.sh'
+      - '!scripts/prelaunch_selftest.mts'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Anchor.toml'
+      - 'BUILD_MANIFEST.json'
+      - 'FILE_HASHES.json'
   workflow_dispatch:
+concurrency:
+  group: rlya-repository-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

@@ -1,82 +1,87 @@
-RALYA / RLYA - NEXT OWNER ACTION
+RALYA / RLYA - CURRENT OWNER ACTIONS
+Updated: 2026-08-15
 
-RLYA 0.7.0 pre-launch allocation release candidate is merged into `main`.
-The repository checks, production build, pre-launch financial audit and clean localhost protocol integration passed.
-Devnet proof is already complete. Do NOT repeat Devnet and do NOT use Devnet addresses for production.
+CURRENT PHASE
+- RLYA 0.7.1 pre-launch release is the current production baseline.
+- Informational website is deployed through the Git-connected Netlify project `ralya-network`.
+- Pre-launch allocation software is built.
+- Pre-launch allocation access remains CLOSED by default and owner controlled.
+- Solana production Mainnet program is deliberately NOT deployed yet.
+- Production RLYA mint is deliberately NOT created yet.
+- Post-launch atomic USDC -> RLYA sale is disabled.
+- Do NOT start the Mainnet deployment sequence now. Mainnet is intentionally postponed until sufficient pre-launch progress/funding and the owner chooses to proceed.
 
-CURRENT VERIFIED MAINNET PREFLIGHT (0.7 PROGRAM)
+WHAT COMES NEXT
+1) Finish buying the public domain. As of this update the owner is in the process of buying `ralyaa.com` at Namecheap; do not assume purchase is complete until the owner confirms it.
+2) Connect the purchased domain to the existing Netlify project `ralya-network` and make it the primary custom domain.
+3) Review/edit website wording and UI while the site stays live. Use `docs/FAST_WEBSITE_EDITING.md` so small copy edits do not trigger Solana/repository-wide CI.
+4) Keep allocation access CLOSED while website/domain review is happening.
+5) When the owner decides the presale should accept real money, prepare/verify the treasury's canonical Solana USDC receiving account.
+6) Run the owner-signed server readiness preflight. OPEN must refuse if Solana RPC or the treasury USDC receiving account is not ready.
+7) Only after that owner decision, switch pre-launch allocation access from CLOSED to OPEN.
+8) Operate website purchases and authorized private/off-site investor allocations against the same 100.68M RLYA presale pool and fixed dynamic price curve.
+
+PRE-LAUNCH BUYER MODEL
+- Buyer connects a Solana wallet.
+- Buyer signs a harmless quote authorization.
+- Backend locks a short-lived exact curve position.
+- Buyer pays real Solana USDC.
+- Backend independently verifies signer, memo and exact USDC balance changes.
+- Exact RLYA entitlement is recorded against the buyer wallet.
+- Reconnecting the wallet shows confirmed expected RLYA.
+- Actual RLYA is distributed before public token launch, not immediately during the current pre-launch allocation stage.
+
+FIXED PRESALE ECONOMICS
+- Lifetime hard cap: 839,000,000 RLYA.
+- Decimals: 9.
+- Working public-presale pool: 100,680,000 RLYA (12%).
+- Start price: $0.003000/RLYA.
+- Price increases $0.000050 for each 1,000,000 RLYA allocated/distributed.
+- Website and authorized private/off-site allocations advance the same curve.
+- Referral: 1% of referred gross USDC.
+- No arbitrary owner price setter.
+- No voluntary refund/claim path in the technical product design.
+
+FAST WEBSITE EDITING
+- Instant temporary/live text: `/owner/` -> Live website copy editor -> owner wallet message signature -> Netlify Blobs -> visible on refresh; no GitHub deploy.
+- Permanent simple wording: edit only `web/site-copy.json`; tiny Copy release workflow.
+- HTML/CSS/JS/Netlify-function work: Web release workflow only; no Solana build.
+- Protocol/economics work: heavyweight repository/Solana path.
+- Superseded web/copy workflow runs cancel automatically.
+
+DOMAIN / HOSTING
+- Netlify project: `ralya-network`.
+- Site ID: aeca50d3-428e-4300-9c7f-668d219dc0bc.
+- Existing Netlify URL: https://ralya-network.netlify.app
+- GitHub repo: mandated86-stack/ralya-network, default branch `main`.
+- Namecheap hosting, SSL upsells, PremiumDNS, WordPress hosting and SiteLock are not required for the current Netlify architecture.
+- If `ralyaa.com` purchase completes, attach it to Netlify and then update public canonical project/domain metadata where appropriate.
+
+OWNER / SECURITY
+- Configured public owner wallet: BwurjZzEeGTVRtxshTXbxvbZjDszGdaTKXno6vqUWVFo
+- Never request or send seed phrases, private keys, recovery phrases or production keypair JSON files.
+- Phone/cloud production-key deployment workflow stays disabled.
+
+LATER MAINNET CHECKPOINT — NOT NOW
+The latest 0.7 cost preflight is retained for later planning only:
 - Program bytes: 513,464
 - SBF SHA-256: afe98cf00bab2e7be0c10e40d8e9a7b396c8feac59045f9f07a8d4ad5017cb1c
-- Mainnet program rent: 3.574600320 SOL
-- Recommended dedicated deployment-payer funding: 3.674600320 SOL
-  (3.574600320 SOL rent + 0.100000000 SOL deployment/signature/retry buffer)
+- Mainnet program rent estimate: 3.574600320 SOL
+- Recommended dedicated deployment payer estimate: 3.674600320 SOL
 - Cost preflight Actions run: 31865784917
 
-SECURITY RULE
-Production Program ID, upgrade-authority and deployment-payer PRIVATE keys must be generated only on the owner's own computer. The GitHub phone/cloud production-key workflow is intentionally disabled. Never send a seed phrase, private key, recovery phrase or production wallet JSON to ChatGPT, GitHub, email or cloud storage.
+When Mainnet is eventually chosen:
+- generate permanent Program ID, separate upgrade authority and dedicated payer only on the owner's local computer;
+- deploy and byte/SHA verify;
+- create 9-decimal RLYA with no freeze authority;
+- mint exactly 839M once;
+- fund all seven allocation buckets;
+- lock founder 83.9M for 365 days;
+- permanently revoke mint authority;
+- keep production sale PAUSED through verification;
+- close pre-launch allocations and generate final hashed manifest;
+- deliver confirmed website/private allocations through the built reconciliation + receipt path before public launch;
+- do not run the old 1-USDC atomic smoke before delayed pre-launch distribution because it would consume presale inventory and move the curve.
 
-ONE OWNER-LOCAL CHECKPOINT COMES NEXT
-
-1) On the owner's own computer, download the CURRENT `mandated86-stack/ralya-network` main branch.
-   A normal GitHub `Code -> Download ZIP` extraction is supported; git clone is optional.
-
-2) Run ONE of:
-   Windows:     scripts/mainnet_program_deploy.ps1
-   macOS/Linux: scripts/mainnet_program_deploy.sh
-
-3) The script itself will:
-   - refuse CI/cloud production-key generation;
-   - run the RALYA source/security audit first;
-   - create THREE separate LOCAL identities:
-       1. permanent RLYA Program ID keypair,
-       2. dedicated upgrade-authority keypair,
-       3. dedicated Mainnet deployment/fee-payer keypair;
-   - keep the private files outside the project/repository;
-   - ask for an OFFLINE backup of all three local JSON key files;
-   - patch only the PUBLIC Program ID into the local source;
-   - build with the tested Solana 3.1.10 / Anchor 1.0.2 toolchain;
-   - show the dedicated payer PUBLIC address, live Mainnet rent requirement and current balance;
-   - stop safely if funding is needed while preserving the same three local identities for retry;
-   - deploy only after the owner explicitly types DEPLOY-RLYA-MAINNET;
-   - download the deployed executable and require an exact byte/SHA-256 match;
-   - transfer upgrade authority away from the fee payer to the separate upgrade authority;
-   - produce `RALYA_MAINNET_PROGRAM_PUBLIC.txt` containing PUBLIC evidence only.
-
-4) FUNDING CHECKPOINT
-   If the dedicated payer printed by the script is unfunded, STOP before deployment.
-   Send only real Mainnet SOL to that PUBLIC dedicated payer address.
-   The current 0.7 preflight target is 3.674600320 SOL, but the local script must re-check live rent/balance immediately before broadcast.
-   Then rerun the SAME script so the SAME three local identities are reused.
-
-5) AFTER SUCCESSFUL PROGRAM DEPLOYMENT
-   Return ONLY `RALYA_MAINNET_PROGRAM_PUBLIC.txt` to ChatGPT.
-   NEVER send any of the three JSON key files.
-
-AFTER THE PUBLIC PROGRAM RECORD IS VERIFIED
-- Keep pre-launch allocation access under the separate owner-signed CLOSED / OPEN / PAUSED control.
-- Keep the post-launch atomic-sale master switch OFF.
-- Create the production RLYA mint with 9 decimals and no freeze authority.
-- Mint exactly 839,000,000 RLYA once.
-- Initialize the sale/founder-lock foundation and fund all seven published allocation buckets.
-- Permanently revoke RLYA mint authority and confirm freeze authority is absent.
-- Atomically activate + pause so the founder's 365-day lock starts and the committed production sale state finishes PAUSED.
-- Verify Program ID / mint / PDA / treasury / supply / authorities / allocation balances with `scripts/verify_mainnet_public.mjs`.
-
-IMPORTANT 0.7 RULE — NO LEGACY 1-USDC SMOKE BEFORE PRE-LAUNCH DISTRIBUTION
-Do NOT run the old owner-funded 1 USDC atomic smoke purchase during the delayed-allocation pre-launch phase. It would consume part of the same 100.68M presale inventory and move the buyer price curve. Production verification before delayed distribution is byte/state verification only. The atomic smoke tool may be used later only when doing so cannot steal inventory from confirmed pre-launch allocations.
-
-FINAL PRE-LAUNCH DISTRIBUTION
-- Close pre-launch allocation access.
-- Export the final hashed delivery manifest only after active quote windows clear.
-- Keep the production sale PAUSED.
-- Commit the manifest totals/hash on-chain through the pre-launch metrics PDA.
-- Deliver website allocations through `deliver_prelaunch`.
-- Deliver authorized private/off-site allocations through `deliver_prelaunch_manual`.
-- Deterministic per-wallet receipt PDAs make interrupted distribution reruns idempotent.
-- Reconcile the imported gross USDC/referral accounting and separate private/manual totals.
-
-Until the owner-local Mainnet transactions happen:
-Mainnet program = NOT DEPLOYED
-Production RLYA mint = NOT CREATED
-Post-launch atomic token sale = DISABLED
-Pre-launch allocation access = CLOSED by default
+LONG-TERM PRODUCT
+RALYA's central purpose remains autonomous/AI-to-AI economic settlement. A later Jobs/agent layer can let AI agents, software, machines and people commission work, settle practical payments such as USDC, and use RLYA for bonds/collateral/staking/accountability. That layer is intentionally deferred until after the token/presale foundation.

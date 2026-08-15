@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/web-release.yml'
       - 'web/**'
+      - '!web/site-copy.json'
       - 'netlify/functions/**'
       - 'netlify.toml'
       - 'package.json'
@@ -13,6 +14,9 @@ on:
       - 'scripts/audit_prelaunch.py'
       - 'scripts/audit_site_copy.py'
       - 'scripts/prelaunch_selftest.mts'
+concurrency:
+  group: rlya-web-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -20,12 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
       - name: Audit pre-launch financial/web invariants
         run: python3 scripts/audit_prelaunch.py
       - name: Audit live-copy safety
         run: python3 scripts/audit_site_copy.py
       - name: Install pinned web and function dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Test pre-launch economic invariants
         run: npm run test:prelaunch
       - name: Compile Netlify functions

@@ -1,0 +1,22 @@
+name: Copy release
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/copy-release.yml'
+      - 'web/site-copy.json'
+      - 'scripts/audit_site_copy.py'
+concurrency:
+  group: rlya-copy-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate site-copy JSON
+        run: python3 -m json.tool web/site-copy.json > /dev/null
+      - name: Audit live-copy boundaries
+        run: python3 scripts/audit_site_copy.py
