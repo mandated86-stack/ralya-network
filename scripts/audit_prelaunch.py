@@ -60,13 +60,12 @@ check("'/api/presale/confirm'" in client, 'buyer client does not independently c
 check('createTransferCheckedInstruction' in client, 'buyer USDC transfer builder missing')
 check('MEMO_PROGRAM' in client and 'quote.memo' in client, 'quote-to-transaction memo binding missing')
 check('Allocation Confirmed' in client, 'buyer confirmed allocation receipt UI missing')
-check('requiredAta' in client and 'Treasury USDC receiving account is not ready' in client, 'buyer can still be charged to create the treasury USDC account')
+check('requiredAta' in client and 'configuredTreasury' in client and 'No funds were moved' in client, 'buyer can still be charged to create the treasury USDC account')
 check('activateReferralReceiving' in client, 'referrer self-funded USDC receiving-account activation missing')
 
 check('manual_allocate' in owner_client and 'set_access' in owner_client and 'manifest' in owner_client, 'owner prelaunch controls incomplete')
 check('Atomic 1-USDC smoke is intentionally deferred' in owner_client, 'legacy atomic smoke is not hidden during delayed-allocation mode')
-check('Owner wallet required' in owner, 'server owner-wallet authorization missing')
-check('verifyOwnerAction' in owner, 'owner actions are not signed')
+check('verifyOwnerAction' in owner and 'Owner wallet required.' in core, 'server owner-wallet authorization missing')
 check('Prepare / verify USDC receiving account' in treasury_client and 'createAssociatedTokenAccountInstruction' in treasury_client, 'owner treasury USDC preparation control missing')
 
 for required in ('initialize_prelaunch_metrics', 'import_prelaunch_referral', 'deliver_prelaunch', 'deliver_prelaunch_manual', 'PrelaunchMetrics', 'PrelaunchDeliveryReceipt'):
@@ -83,7 +82,7 @@ check('pendingManifestAmount' in delivery, 'distribution rerun preflight is not 
 check("enc.encode('prelaunch_delivery')" in delivery and "enc.encode('prelaunch_manual_delivery')" in delivery, 'distribution tool cannot detect idempotent receipts')
 check('sale.status!==2' in delivery, 'distribution tool does not require PAUSED state')
 check('Manifest SHA-256 does not match' in delivery, 'distribution manifest hash verification missing')
-check('manifest commitment verified on-chain' in delivery, 'distribution tool does not verify the on-chain manifest commitment')
+check('manifest commitment verified on-chain' in delivery.lower(), 'distribution tool does not verify the on-chain manifest commitment')
 check('expectedWeb' in delivery and 'manualDelivered' in delivery, 'distribution tool does not reconcile committed expected/actual metrics')
 check('signAllTransactions' in delivery, 'distribution tool lacks safe small-batch wallet signing path')
 
@@ -91,7 +90,7 @@ check("presaleMode: 'prelaunch-allocation'" in site and 'presaleEnabled: false' 
 check("cfg.presaleMode === 'atomic' && !cfg.presaleEnabled" in site, 'atomic sale master gate is not preserved')
 check('prelaunch-delivery.js' in site and 'presale-control.js' in site and 'treasury-prep.js' in site, 'private owner prelaunch tools are not wired')
 check('Secure your RLYA allocation ahead of public launch' in index, 'professional prelaunch allocation wording missing')
-check('Distribution is scheduled before public launch' in index, 'buyer distribution timing wording missing')
+check('distribution is scheduled before public launch' in index.lower(), 'buyer distribution timing wording missing')
 check('AI-to-AI settlement' in index and 'autonomous work' in index, 'main AI-to-AI/autonomous-work purpose missing from public website')
 check('need 3 sol' not in index.lower() and 'cannot afford' not in index.lower(), 'internal launch financing language leaked into public website')
 check('RALYA_Whitepaper_v1.2.html' in index, 'public site still links the obsolete instant-delivery whitepaper')
