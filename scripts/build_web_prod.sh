@@ -58,7 +58,7 @@ cp "$TMP/treasury-prep.bundle.js" web/owner/treasury-prep.js
 
 BUNDLED=(web/app.js web/prelaunch.js web/admin/admin.js web/owner/launch.js web/owner/atomic-launch.js web/owner/smoke.js web/owner/prelaunch-delivery.js web/owner/treasury-prep.js)
 if grep -R -n "https://esm.sh" "${BUNDLED[@]}"; then echo "Production bundle still references esm.sh" >&2; exit 1; fi
-for f in "${BUNDLED[@]}" web/owner/status-control.js web/owner/presale-control.js web/owner/site-copy-control.js web/launch-status.js web/site-content.js web/site-config.js; do node --check "$f"; done
+for f in "${BUNDLED[@]}" web/owner/status-control.js web/owner/presale-control.js web/owner/site-copy-control.js web/launch-status.js web/site-content.js web/site-config.js web/site-ui.js; do node --check "$f"; done
 python3 -m json.tool web/site-copy.json >/dev/null
 
 echo "RALYA_PRODUCTION_WEB_BUNDLE=PASS"
