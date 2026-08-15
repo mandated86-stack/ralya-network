@@ -8,7 +8,7 @@ from model.ralya_core.config import (
     RLYA_UNIT,
     STAKING_BONUS_BPS,
     STAKING_BONUS_RESERVE,
-    STANDARD_PRESALE_RELEASE_SECONDS,
+    STANDARD_PRESALE_RELEASE_OFFSET_SECONDS,
     STAKED_PRESALE_RELEASE_SECONDS,
 )
 from model.ralya_core.tokenomics import allocation_table, validate_tokenomics
@@ -35,8 +35,8 @@ class TokenomicsTests(unittest.TestCase):
         self.assertEqual(PRESALE_ALLOCATION * STAKING_BONUS_BPS // 10_000, STAKING_BONUS_RESERVE)
 
     def test_presale_release_windows(self):
-        self.assertEqual(STANDARD_PRESALE_RELEASE_SECONDS, 21 * 24 * 60 * 60)
-        self.assertEqual(STAKED_PRESALE_RELEASE_SECONDS, 36 * 24 * 60 * 60)
+        self.assertEqual(STANDARD_PRESALE_RELEASE_OFFSET_SECONDS, -(24 * 60 * 60))
+        self.assertEqual(STAKED_PRESALE_RELEASE_SECONDS, 21 * 24 * 60 * 60)
 
 
 if __name__ == "__main__":
