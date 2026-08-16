@@ -21,9 +21,12 @@ jobs:
             'full expected RLYA allocation': 'full RLYA allocation',
             'wallet-specific expected RLYA allocations': 'wallet-specific RLYA allocations',
             'expected RLYA allocations': 'RLYA allocations',
+            'expected RLYA allocation': 'RLYA allocation',
             'records an expected allocation first': 'records your RLYA allocation',
             'your expected allocation is committed': 'your presale allocation is committed',
             'keeps the full expected RLYA allocation': 'keeps the full RLYA allocation',
+            'an expected allocation': 'a recorded allocation',
+            'expected allocation': 'recorded allocation',
           }
           for path in Path('web').rglob('*'):
             if not path.is_file() or path.suffix.lower() not in {'.html', '.js', '.json'}:
@@ -35,7 +38,7 @@ jobs:
             if updated != text:
               path.write_text(updated, encoding='utf-8')
           PY
-          if grep -R -ni "expected RLYA allocation" web; then exit 1; fi
+          if grep -R -ni "expected RLYA allocation\|expected allocation" web; then exit 1; fi
           grep -Fq 'You will receive' web/index.html
           grep -Fq '>BUY</button>' web/index.html
           grep -Fq 'View RALYA source on GitHub' web/index.html
