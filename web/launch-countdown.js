@@ -31,7 +31,12 @@
         <span class="ralya-hero-price-label">LIVE RLYA PRICE</span>
         <strong class="ralya-hero-price" id="ralyaHeroLivePrice">--</strong>
         <div class="ralya-hero-price-trend"><span class="ralya-hero-price-badge"><span class="ralya-hero-price-arrow">▲</span> LIVE</span><span class="ralya-hero-price-gain" id="ralyaHeroPriceGain">Rises as RLYA is purchased</span></div>
-      </article>`;
+      </article>
+      <div class="ralya-coingecko-banner" aria-label="RLYA launching on CoinGecko">
+        <span class="ralya-coingecko-mark">CG</span>
+        <div class="ralya-coingecko-copy"><span>MARKET DISCOVERY</span><strong>LAUNCHING ON COINGECKO</strong></div>
+        <span class="ralya-coingecko-status">COMING</span>
+      </div>`;
     heading.insertAdjacentElement('beforebegin', board);
   }
 
@@ -43,19 +48,20 @@
     const shell = build.querySelector('.shell');
     if (!shell) return;
     shell.innerHTML = `
-      <div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>From presale to an autonomous economy.</h2></div><p>Core economics and the live presale foundation are already built. The next milestones take RLYA through Solana Mainnet, public trading, autonomous-work utility and finally a purpose-built RALYA blockchain.</p></div>
+      <div class="section-head"><div><span class="eyebrow">ROADMAP</span><h2>From presale to an autonomous economy.</h2></div><p>Core economics and the live presale foundation are already built. RLYA is now moving toward CoinGecko market discovery, Solana Mainnet, public trading, autonomous-work utility and finally a purpose-built RALYA blockchain.</p></div>
       <div class="ralya-roadmap-shell">
-        <div class="ralya-roadmap-progress"><div><strong>RALYA BUILD PROGRESS</strong><small>Core economic + presale foundation built. Mainnet, trading and autonomous-work layers follow.</small><div class="ralya-progress-track"><div class="ralya-progress-fill"></div></div></div><div class="ralya-progress-value">56%</div></div>
+        <div class="ralya-roadmap-progress"><div><strong>RALYA BUILD PROGRESS</strong><small>Core economic + presale foundation built. CoinGecko launch preparation is underway; Mainnet, trading and autonomous-work layers follow.</small><div class="ralya-progress-track"><div class="ralya-progress-fill"></div></div></div><div class="ralya-progress-value">50%</div></div>
         <div class="ralya-roadmap-list">
           <article class="ralya-milestone ralya-roadmap-complete"><div class="ralya-milestone-num">01</div><div><h3>Economic Model &amp; Supply Design</h3><p>839M lifetime maximum, presale allocation, staking-bonus reserve, referral economics and founder-lock model defined and tested.</p></div><span class="ralya-roadmap-badge">✓ COMPLETE</span></article>
           <article class="ralya-milestone ralya-roadmap-complete"><div class="ralya-milestone-num">02</div><div><h3>Solana Presale Infrastructure</h3><p>Wallet connection, verified USDC receipts, signed quotes, buyer records, owner tools and public presale state are operational.</p></div><span class="ralya-roadmap-badge">✓ COMPLETE</span></article>
           <article class="ralya-milestone ralya-roadmap-complete"><div class="ralya-milestone-num">03</div><div><h3>Buy + Stake &amp; Referral System</h3><p>Wallet-locked release choice, fixed +5% RLYA bonus and 1% USDC referral settlement are built into the presale flow.</p></div><span class="ralya-roadmap-badge">✓ COMPLETE</span></article>
           <article class="ralya-milestone ralya-roadmap-complete"><div class="ralya-milestone-num">04</div><div><h3>Public RLYA Presale</h3><p>Live USDC purchasing, live price progression and connected-wallet RLYA tracking.</p></div><span class="ralya-roadmap-badge">● LIVE NOW</span></article>
-          <article class="ralya-milestone ralya-roadmap-next"><div class="ralya-milestone-num">05</div><div><h3>Solana Mainnet Launch</h3><p><span id="deployProgramItem">Production RLYA deployment</span>, Mainnet program activation and final supply/security controls.</p></div><span class="ralya-roadmap-badge" id="programTag">NEXT</span></article>
-          <article class="ralya-milestone"><div class="ralya-milestone-num">06</div><div><h3>Presale Distribution</h3><p id="mintItem">Standard presale RLYA distributed T-1; Buy + Stake base + fixed 5% bonus unlocks T+21.</p></div><span class="ralya-roadmap-badge">PLANNED</span></article>
-          <article class="ralya-milestone"><div class="ralya-milestone-num">07</div><div><h3>DEX &amp; Exchange Launch</h3><p>Public liquidity and trading begin. This milestone is tied directly to the homepage countdown.</p></div><span class="ralya-roadmap-badge">COUNTDOWN</span></article>
-          <article class="ralya-milestone"><div class="ralya-milestone-num">08</div><div><h3>AI-to-AI Economy</h3><p>Autonomous agents commission work, settle practical payment and use RLYA for bonding, collateral and economic accountability.</p></div><span class="ralya-roadmap-badge">UTILITY</span></article>
-          <article class="ralya-milestone ralya-roadmap-final"><div class="ralya-milestone-num">09</div><div><h3>RALYA Blockchain Deployed</h3><p>Final roadmap milestone: graduate from the initial Solana settlement foundation to RALYA's own purpose-built blockchain for autonomous economic activity.</p></div><span class="ralya-roadmap-badge">FINAL MILESTONE</span></article>
+          <article class="ralya-milestone ralya-roadmap-coingecko"><div class="ralya-milestone-num">05</div><div><h3>Launching on CoinGecko</h3><p>CoinGecko market-discovery listing preparation ahead of RLYA public trading.</p></div><span class="ralya-roadmap-badge">LAUNCHING</span></article>
+          <article class="ralya-milestone ralya-roadmap-next"><div class="ralya-milestone-num">06</div><div><h3>Solana Mainnet Launch</h3><p><span id="deployProgramItem">Production RLYA deployment</span>, Mainnet program activation and final supply/security controls.</p></div><span class="ralya-roadmap-badge" id="programTag">NEXT</span></article>
+          <article class="ralya-milestone"><div class="ralya-milestone-num">07</div><div><h3>Presale Distribution</h3><p id="mintItem">Standard presale RLYA distributed T-1; Buy + Stake base + fixed 5% bonus unlocks T+21.</p></div><span class="ralya-roadmap-badge">PLANNED</span></article>
+          <article class="ralya-milestone"><div class="ralya-milestone-num">08</div><div><h3>DEX &amp; Exchange Launch</h3><p>Public liquidity and trading begin. This milestone is tied directly to the homepage countdown.</p></div><span class="ralya-roadmap-badge">COUNTDOWN</span></article>
+          <article class="ralya-milestone"><div class="ralya-milestone-num">09</div><div><h3>AI-to-AI Economy</h3><p>Autonomous agents commission work, settle practical payment and use RLYA for bonding, collateral and economic accountability.</p></div><span class="ralya-roadmap-badge">UTILITY</span></article>
+          <article class="ralya-milestone ralya-roadmap-final"><div class="ralya-milestone-num">10</div><div><h3>RALYA Blockchain Deployed</h3><p>Final roadmap milestone: graduate from the initial Solana settlement foundation to RALYA's own purpose-built blockchain for autonomous economic activity.</p></div><span class="ralya-roadmap-badge">FINAL MILESTONE</span></article>
         </div>
         <div class="ralya-roadmap-note">Solana remains the initial settlement foundation. The RALYA blockchain stays at the end of the roadmap, after public trading and real autonomous-work utility are established.</div>
       </div>`;
