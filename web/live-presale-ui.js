@@ -56,7 +56,7 @@
       .ralya-live-price-trend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#0b7f68}
       .ralya-live-price-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.28);color:#078268}
       .ralya-live-price-arrow{display:inline-block;color:#10b981;font-size:14px;animation:ralyaPriceArrow 1.8s ease-in-out infinite}
-      .ralya-live-price-copy{color:#64748b;font-weight:700;letter-spacing:.02em}
+      .ralya-live-price-copy{color:#078268;font-size:14px;font-weight:900;letter-spacing:.02em}
       .ralya-price-tick{animation:ralyaPriceTick .8s ease-out}
       @keyframes ralyaPriceArrow{0%,100%{transform:translateY(1px);opacity:.72}50%{transform:translateY(-2px);opacity:1}}
       @keyframes ralyaPriceTick{0%{filter:drop-shadow(0 0 0 rgba(16,185,129,0))}40%{filter:drop-shadow(0 0 12px rgba(16,185,129,.35))}100%{filter:drop-shadow(0 0 0 rgba(16,185,129,0))}}
