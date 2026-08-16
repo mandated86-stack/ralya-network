@@ -1,12 +1,10 @@
 (() => {
   if (/^\/owner(?:\/|$)/.test(location.pathname)) return;
 
-  const RLYA_UNIT = 1_000_000_000n;
   let lastPrice = null;
   let copyPassQueued = false;
 
   const exactCopyReplacements = [
-    ['TOTAL ALLOCATED', 'TOTAL RLYA PURCHASED'],
     ['PRESALE ALLOCATION', 'PRESALE PURCHASE'],
     ['RLYA ALLOCATION CONFIRMED', 'RLYA PURCHASE CONFIRMED'],
     ['Purchased allocation:', 'RLYA purchased:'],
@@ -29,7 +27,7 @@
     for (const node of nodes) {
       const parent = node.parentElement;
       if (!parent || parent.closest('script,style,code,pre')) continue;
-      let text = node.nodeValue || '';
+      const text = node.nodeValue || '';
       let next = text;
       for (const [from, to] of exactCopyReplacements) next = next.split(from).join(to);
       next = next.replace(/your RLYA allocation/gi, 'your purchased RLYA');
@@ -45,14 +43,8 @@
     requestAnimationFrame(() => {
       copyPassQueued = false;
       replaceBuyerCopy(document.body);
+      syncWalletSummary();
     });
-  }
-
-  function formatRlyaBase(base, maxFraction = 2) {
-    const value = BigInt(base || 0);
-    const whole = value / RLYA_UNIT;
-    let frac = (value % RLYA_UNIT).toString().padStart(9, '0').slice(0, maxFraction).replace(/0+$/, '');
-    return `${Number(whole).toLocaleString()}${frac ? `.${frac}` : ''}`;
   }
 
   function ensureStyle() {
@@ -87,6 +79,27 @@
     return trend;
   }
 
+  function syncWalletSummary() {
+    const summary = document.getElementById('soldRlya');
+    if (!summary) return;
+
+    const source = document.getElementById('rlyaBalance');
+    const sourceText = String(source?.textContent || '').trim();
+    const walletText = sourceText && sourceText !== '--' ? sourceText : '-- RLYA';
+    if (summary.textContent !== walletText) summary.textContent = walletText;
+    summary.setAttribute('aria-live', 'polite');
+
+    const card = summary.closest('article');
+    if (!card) return;
+    const heading = card.querySelector(':scope > span');
+    if (heading && heading.textContent !== 'YOUR RLYA') heading.textContent = 'YOUR RLYA';
+
+    // This summary is personal to the connected wallet. Do not show global sold totals or
+    // the old "of 288M public presale" line here.
+    const oldSubline = card.querySelector(':scope > small');
+    if (oldSubline) oldSubline.remove();
+  }
+
   function applyState(detail) {
     if (!detail || detail.backendReady === false) return;
     ensureStyle();
@@ -116,13 +129,7 @@
       }
     }
 
-    const soldEl = document.getElementById('soldRlya');
-    if (soldEl && detail.totalAllocatedBase != null) {
-      soldEl.textContent = `${formatRlyaBase(detail.totalAllocatedBase, 2)} RLYA`;
-      const card = soldEl.closest('article');
-      const heading = card?.querySelector(':scope > span');
-      if (heading) heading.textContent = 'TOTAL RLYA PURCHASED';
-    }
+    syncWalletSummary();
     queueCopyPass();
   }
 
@@ -136,10 +143,15 @@
     }, 700);
   });
 
-  const observer = new MutationObserver(queueCopyPass);
+  const observer = new MutationObserver(() => {
+    queueCopyPass();
+    syncWalletSummary();
+  });
+
   const start = () => {
     ensureStyle();
     replaceBuyerCopy(document.body);
+    syncWalletSummary();
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
     fetch('/api/presale/state', { cache: 'no-store' })
       .then(response => response.ok ? response.json() : null)
