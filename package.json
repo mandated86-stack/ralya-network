@@ -5,7 +5,7 @@
   "description": "Pinned production dependencies for the RALYA website, owner consoles and pre-launch presale functions.",
   "scripts": {
     "build:web": "bash scripts/build_web_prod.sh",
-    "build:functions": "esbuild netlify/functions/launch-status.mts netlify/functions/site-content.mts netlify/functions/presale-state.mts netlify/functions/presale-quote.mts netlify/functions/presale-confirm.mts netlify/functions/presale-wallet.mts netlify/functions/presale-owner.mts netlify/functions/presale-cleanup.mts netlify/functions/solana-rpc.mts --bundle --platform=node --format=esm --target=node22 --outdir=/tmp/ralya-netlify-functions --log-level=warning",
+    "build:functions": "esbuild netlify/functions/launch-status.mts netlify/functions/site-content.mts netlify/functions/presale-state.mts netlify/functions/presale-quote.mts netlify/functions/presale-confirm.mts netlify/functions/presale-wallet.mts netlify/functions/presale-referral.mts netlify/functions/presale-owner.mts netlify/functions/presale-cleanup.mts netlify/functions/solana-rpc.mts --bundle --platform=node --format=esm --target=node22 --outdir=/tmp/ralya-netlify-functions --log-level=warning",
     "test:prelaunch": "esbuild scripts/prelaunch_selftest.mts --bundle --platform=node --format=cjs --target=node22 --outfile=/tmp/ralya-prelaunch-selftest.cjs --log-level=warning && node /tmp/ralya-prelaunch-selftest.cjs"
   },
   "dependencies": {

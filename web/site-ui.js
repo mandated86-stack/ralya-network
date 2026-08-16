@@ -348,7 +348,7 @@
       showModal({
         eyebrow: 'RLYA REFERRAL',
         title: 'Share your link. Earn 1% USDC.',
-        html: `<p>Your referred buyer pays the normal amount and keeps their full expected RLYA allocation. Your wallet receives <strong>1% of confirmed referred USDC purchases</strong>.</p>
+        html: `<p>Your referred buyer pays the normal amount and keeps their full RLYA allocation. Your wallet receives <strong>1% of confirmed referred USDC purchases</strong>.</p>
           <div class="referral-link-row"><input id="quickReferralLink" readonly value="${link.replace(/"/g,'&quot;')}" /></div>
           <div class="share-actions"><button type="button" class="btn btn-primary" id="quickActivateCopy">Activate payout & copy</button><button type="button" class="btn btn-secondary" id="quickShareLink">Share link</button></div>
           <div class="wallet-help">The first time you activate referrals, your wallet may ask to create its Solana USDC receiving account. RALYA never asks for a seed phrase or private key.</div>`
