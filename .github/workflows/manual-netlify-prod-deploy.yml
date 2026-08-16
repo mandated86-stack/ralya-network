@@ -1,0 +1,31 @@
+name: Temporary Netlify production deploy
+on:
+  push:
+    branches:
+      - tmp/netlify-prod-deploy
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      NETLIFY_AUTH_TOKEN_A: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_AUTH_TOKEN_B: ${{ secrets.NETLIFY_TOKEN }}
+      SITE_ID: aeca50d3-428e-4300-9c7f-668d219dc0bc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 53c2d8f15e486f9fae7e6ac6f8d16c5a27b74c50
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deploy current main to production if Netlify token is configured
+        run: |
+          TOKEN="$NETLIFY_AUTH_TOKEN_A"
+          if [ -z "$TOKEN" ]; then TOKEN="$NETLIFY_AUTH_TOKEN_B"; fi
+          if [ -z "$TOKEN" ]; then
+            echo 'NETLIFY_TOKEN_AVAILABLE=NO'
+            exit 2
+          fi
+          echo 'NETLIFY_TOKEN_AVAILABLE=YES'
+          npx --yes netlify-cli@latest deploy --prod --build --site "$SITE_ID" --auth "$TOKEN" --message "RALYA presale checkout runtime fix 53c2d8f"
