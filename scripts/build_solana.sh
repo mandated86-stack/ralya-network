@@ -2,6 +2,7 @@
 set -euo pipefail
 # Dedicated public compiler gate for RALYA 0.6.0 Mainnet preparation.
 # Presale v4 compile gate includes the T-1 launch schedule and T+21 staking delivery semantics.
+# Re-run after boxing delivery accounts to enforce the 4096-byte Solana stack-frame limit.
 # Anchor 1.0.x recommends Solana 3.1.10. The quick installer supplies the
 # supporting toolchain, then the exact Agave/Solana release is pinned below.
 curl --proto '=https' --tlsv1.2 -sSfL https://solana-install.solana.workers.dev | bash
