@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+# Presale v4 permanent release gate: wallet fallback, verified celebration, ledger v4, T-1/T+21.
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
 
