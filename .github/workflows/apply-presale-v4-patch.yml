@@ -17,6 +17,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: build/presale-celebration-wallet-delivery-v4-2026-08-16
+      - name: Normalize Rust struct matcher in patch script
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/apply_presale_v4_patch.py')
+          s=p.read_text()
+          s=s.replace('pub expected_referral_usdc: u64;\\n    pub web_rlya_delivered: u64;', 'pub expected_referral_usdc: u64,\\n    pub web_rlya_delivered: u64,')
+          s=s.replace('pub expected_referral_usdc: u64;\\n    pub scheduled_public_launch_at: i64;\\n    pub web_rlya_delivered: u64;', 'pub expected_referral_usdc: u64,\\n    pub scheduled_public_launch_at: i64,\\n    pub web_rlya_delivered: u64,')
+          p.write_text(s)
+          PY
       - name: Apply presale v4 migration
         run: python3 scripts/apply_presale_v4_patch.py
       - name: Reject malformed patch output
@@ -31,7 +41,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add web netlify/functions programs/rlya_sale/src/lib.rs scripts/audit_checkout_release.py
+          git add web netlify/functions programs/rlya_sale/src/lib.rs scripts/audit_checkout_release.py scripts/apply_presale_v4_patch.py
           git diff --cached --quiet && exit 0
           git commit -m 'Build presale celebration, hardened ledger, wallet fallback, and T-1 delivery'
           git push origin HEAD:build/presale-celebration-wallet-delivery-v4-2026-08-16
