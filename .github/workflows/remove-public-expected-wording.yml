@@ -1,0 +1,49 @@
+name: Remove public expected-allocation wording
+on:
+  push:
+    branches:
+      - fix/remove-public-expected-wording-2026-08-16
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Clean public allocation wording
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          replacements = {
+            'full expected RLYA allocation': 'full RLYA allocation',
+            'wallet-specific expected RLYA allocations': 'wallet-specific RLYA allocations',
+            'expected RLYA allocations': 'RLYA allocations',
+            'records an expected allocation first': 'records your RLYA allocation',
+            'your expected allocation is committed': 'your presale allocation is committed',
+            'keeps the full expected RLYA allocation': 'keeps the full RLYA allocation',
+          }
+          for path in Path('web').rglob('*'):
+            if not path.is_file() or path.suffix.lower() not in {'.html', '.js', '.json'}:
+              continue
+            text = path.read_text(encoding='utf-8', errors='ignore')
+            updated = text
+            for old, new in replacements.items():
+              updated = updated.replace(old, new)
+            if updated != text:
+              path.write_text(updated, encoding='utf-8')
+          PY
+          if grep -R -ni "expected RLYA allocation" web; then exit 1; fi
+          grep -Fq 'You will receive' web/index.html
+          grep -Fq '>BUY</button>' web/index.html
+          grep -Fq 'View RALYA source on GitHub' web/index.html
+      - name: Commit cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web
+          git diff --cached --check
+          git commit -m 'Remove public expected-allocation wording'
+          git push
