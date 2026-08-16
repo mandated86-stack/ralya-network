@@ -34,21 +34,12 @@ jobs:
               raise SystemExit('getControl block not found')
           text = text.replace(old_get, new_get, 1)
           core.write_text(text, encoding='utf-8')
-
-          smoke = Path('.github/workflows/production-web-smoke.yml')
-          s = smoke.read_text(encoding='utf-8')
-          old_check = "if (!['closed', 'open', 'paused'].includes(data.access)) throw new Error('Invalid presale access state');"
-          new_check = "if (data.access !== 'open') throw new Error(`Presale unexpectedly ${data.access}; production must remain open`);"
-          if old_check not in s:
-              raise SystemExit('production smoke access check not found')
-          s = s.replace(old_check, new_check, 1)
-          smoke.write_text(s, encoding='utf-8')
           PY
       - name: Commit hardened open state
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add netlify/functions/_shared/presale-core.mts .github/workflows/production-web-smoke.yml
+          git add netlify/functions/_shared/presale-core.mts
           git diff --cached --check
           git commit -m 'Keep presale open across production deploys'
           git push
