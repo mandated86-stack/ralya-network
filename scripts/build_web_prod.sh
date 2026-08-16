@@ -41,15 +41,15 @@ for rel in entries:
     out = tmp / rel; out.parent.mkdir(parents=True, exist_ok=True); out.write_text(text, encoding="utf-8")
 PY
 
-./node_modules/.bin/esbuild "$TMP/web/app.js" --bundle --format=esm --platform=browser --target=es2022 --minify --inject="$BUFFER_SHIM" --outfile="$TMP/app.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/prelaunch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --inject="$BUFFER_SHIM" --outfile="$TMP/prelaunch.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/presale-next.js" --bundle --format=iife --platform=browser --target=es2022 --minify --inject="$BUFFER_SHIM" --outfile="$TMP/presale-next.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/admin/admin.js" --bundle --format=esm --platform=browser --target=es2022 --minify --inject="$BUFFER_SHIM" --outfile="$TMP/admin.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/owner/launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject="$BUFFER_SHIM" --outfile="$TMP/launch.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/owner/atomic-launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject="$BUFFER_SHIM" --outfile="$TMP/atomic-launch.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/owner/smoke.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject="$BUFFER_SHIM" --outfile="$TMP/smoke.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/owner/prelaunch-delivery.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject="$BUFFER_SHIM" --outfile="$TMP/prelaunch-delivery.bundle.js"
-./node_modules/.bin/esbuild "$TMP/web/owner/treasury-prep.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject="$BUFFER_SHIM" --outfile="$TMP/treasury-prep.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/app.js" --bundle --format=esm --platform=browser --target=es2022 --minify --inject:"$BUFFER_SHIM" --outfile="$TMP/app.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/prelaunch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --inject:"$BUFFER_SHIM" --outfile="$TMP/prelaunch.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/presale-next.js" --bundle --format=iife --platform=browser --target=es2022 --minify --inject:"$BUFFER_SHIM" --outfile="$TMP/presale-next.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/admin/admin.js" --bundle --format=esm --platform=browser --target=es2022 --minify --inject:"$BUFFER_SHIM" --outfile="$TMP/admin.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/owner/launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject:"$BUFFER_SHIM" --outfile="$TMP/launch.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/owner/atomic-launch.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject:"$BUFFER_SHIM" --outfile="$TMP/atomic-launch.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/owner/smoke.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject:"$BUFFER_SHIM" --outfile="$TMP/smoke.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/owner/prelaunch-delivery.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject:"$BUFFER_SHIM" --outfile="$TMP/prelaunch-delivery.bundle.js"
+./node_modules/.bin/esbuild "$TMP/web/owner/treasury-prep.js" --bundle --format=esm --platform=browser --target=es2022 --minify --splitting=false --inject:"$BUFFER_SHIM" --outfile="$TMP/treasury-prep.bundle.js"
 
 cp "$TMP/app.bundle.js" web/app.js
 cp "$TMP/prelaunch.bundle.js" web/prelaunch.js
