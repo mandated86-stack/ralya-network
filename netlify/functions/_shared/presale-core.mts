@@ -15,8 +15,21 @@ export const STAKING_BONUS_BPS = 500n;
 export const STANDARD_RELEASE_OFFSET_SECONDS = -24 * 60 * 60;
 export const STAKED_RELEASE_DAYS = 21;
 export const BASE_PRICE_MICRO_USDC = 3_000n;
+
+// Keep the published macro curve anchors unchanged: +$0.000050 per 1M RLYA overall.
+// The live prelaunch quote engine interpolates that same slope in 10,000-RLYA slices.
 export const STEP_SIZE_BASE = 1_000_000n * RLYA_UNIT;
 export const STEP_INCREMENT_MICRO_USDC = 50n;
+export const LIVE_PRICE_SCALE = 2n; // half-micro-USDC units; 1 = $0.0000005
+export const LIVE_STEP_SIZE_BASE = 10_000n * RLYA_UNIT;
+export const LIVE_STEP_INCREMENT_SCALED = 1n;
+
+// Existing browser builds understand whole-micro prices. This compatibility preview is
+// deliberately close to, but never materially outside, the precise live curve. The precise
+// current/next price is separately exposed below and used by the server quote engine.
+export const CLIENT_PREVIEW_STEP_SIZE_BASE = 200_000n * RLYA_UNIT;
+export const CLIENT_PREVIEW_STEP_INCREMENT_MICRO_USDC = 10n;
+
 export const REFERRAL_BPS = 100n;
 export const BPS_DENOMINATOR = 10_000n;
 export const MIN_PURCHASE_USDC_BASE = USDC_UNIT;
@@ -109,8 +122,26 @@ export function baseToDecimal(base: bigint, decimals: number, maxFraction = deci
   return `${whole}${frac ? `.${frac}` : ''}`;
 }
 
+const ceilDiv = (n: bigint, d: bigint) => (n + d - 1n) / d;
+const minBig = (a: bigint, b: bigint) => a < b ? a : b;
+
+export function priceAtScaled(progressBase: bigint) {
+  return BASE_PRICE_MICRO_USDC * LIVE_PRICE_SCALE
+    + (progressBase / LIVE_STEP_SIZE_BASE) * LIVE_STEP_INCREMENT_SCALED;
+}
+
+// Legacy metadata fields are whole micro-USDC. Round upward so they never understate
+// the precise half-micro live price. Public UI uses the exact decimal field instead.
 export function priceAt(progressBase: bigint) {
-  return BASE_PRICE_MICRO_USDC + (progressBase / STEP_SIZE_BASE) * STEP_INCREMENT_MICRO_USDC;
+  return ceilDiv(priceAtScaled(progressBase), LIVE_PRICE_SCALE);
+}
+
+export function scaledPriceToUsdc(priceScaled: bigint) {
+  const denominator = LIVE_PRICE_SCALE * 1_000_000n;
+  const whole = priceScaled / denominator;
+  const remainder = priceScaled % denominator;
+  const fraction = (remainder * 10_000_000n / denominator).toString().padStart(7, '0');
+  return `${whole}.${fraction}`;
 }
 
 export function stakingBonus(rlyaBase: bigint) {
@@ -120,9 +151,6 @@ export function stakingBonus(rlyaBase: bigint) {
 export function deliveryPolicy(stake: boolean) {
   return stake ? 'staked-plus21d' as const : 'standard-tminus1' as const;
 }
-
-const ceilDiv = (n: bigint, d: bigint) => (n + d - 1n) / d;
-const minBig = (a: bigint, b: bigint) => a < b ? a : b;
 
 export function quoteAllocation(progressBase: bigint, usdcBase: bigint) {
   if (usdcBase < MIN_PURCHASE_USDC_BASE) throw new Error('Minimum purchase is 1 USDC.');
@@ -135,18 +163,18 @@ export function quoteAllocation(progressBase: bigint, usdcBase: bigint) {
   while (remaining > 0n) {
     if (progress >= PRESALE_CAP_BASE) throw new Error('This order exceeds the remaining presale allocation.');
     loops += 1;
-    if (loops > 512) throw new Error('Order crosses too many pricing steps.');
-    const stepIndex = progress / STEP_SIZE_BASE;
-    const price = BASE_PRICE_MICRO_USDC + stepIndex * STEP_INCREMENT_MICRO_USDC;
-    const nextBoundary = minBig((stepIndex + 1n) * STEP_SIZE_BASE, PRESALE_CAP_BASE);
+    if (loops > 30_000) throw new Error('Order crosses too many pricing steps.');
+    const stepIndex = progress / LIVE_STEP_SIZE_BASE;
+    const priceScaled = BASE_PRICE_MICRO_USDC * LIVE_PRICE_SCALE + stepIndex * LIVE_STEP_INCREMENT_SCALED;
+    const nextBoundary = minBig((stepIndex + 1n) * LIVE_STEP_SIZE_BASE, PRESALE_CAP_BASE);
     const available = nextBoundary - progress;
-    const costToFill = ceilDiv(available * price, RLYA_UNIT);
+    const costToFill = ceilDiv(available * priceScaled, RLYA_UNIT * LIVE_PRICE_SCALE);
     if (remaining >= costToFill) {
       allocation += available;
       progress += available;
       remaining -= costToFill;
     } else {
-      const part = remaining * RLYA_UNIT / price;
+      const part = remaining * RLYA_UNIT * LIVE_PRICE_SCALE / priceScaled;
       if (part <= 0n || part > available) throw new Error('Purchase amount is too small for the current price.');
       allocation += part;
       progress += part;
@@ -246,8 +274,9 @@ export async function computeState(s = store(), includeReservations = false) {
     if (quote.stake) reservedStakingBonus += BigInt(quote.stakingBonusBase || 0);
   }
   const effectiveProgress = totalAllocated + reserved;
-  const current = priceAt(effectiveProgress);
-  const nextBoundary = minBig(((effectiveProgress / STEP_SIZE_BASE) + 1n) * STEP_SIZE_BASE, PRESALE_CAP_BASE);
+  const currentScaled = priceAtScaled(effectiveProgress);
+  const nextScaled = currentScaled + LIVE_STEP_INCREMENT_SCALED;
+  const nextBoundary = minBig(((effectiveProgress / LIVE_STEP_SIZE_BASE) + 1n) * LIVE_STEP_SIZE_BASE, PRESALE_CAP_BASE);
 
   return {
     control,
@@ -266,8 +295,10 @@ export async function computeState(s = store(), includeReservations = false) {
     remainingBase: PRESALE_CAP_BASE - totalAllocated,
     availableForNewQuotesBase: PRESALE_CAP_BASE - effectiveProgress,
     availableStakingBonusBase: STAKING_BONUS_RESERVE_BASE - totalStakingBonus - reservedStakingBonus,
-    currentPriceMicroUsdc: current,
-    nextPriceMicroUsdc: current + STEP_INCREMENT_MICRO_USDC,
+    currentPriceScaledUsdc: currentScaled,
+    nextPriceScaledUsdc: nextScaled,
+    currentPriceMicroUsdc: ceilDiv(currentScaled, LIVE_PRICE_SCALE),
+    nextPriceMicroUsdc: ceilDiv(nextScaled, LIVE_PRICE_SCALE),
     toNextStepBase: nextBoundary > effectiveProgress ? nextBoundary - effectiveProgress : 0n,
     webCount,
     manualCount,
@@ -279,6 +310,13 @@ export function publicState(state: Awaited<ReturnType<typeof computeState>>) {
     access: state.control.access,
     currentPriceMicroUsdc: state.currentPriceMicroUsdc.toString(),
     nextPriceMicroUsdc: state.nextPriceMicroUsdc.toString(),
+    currentPriceUsdc: scaledPriceToUsdc(state.currentPriceScaledUsdc),
+    nextPriceUsdc: scaledPriceToUsdc(state.nextPriceScaledUsdc),
+    currentPriceScaledUsdc: state.currentPriceScaledUsdc.toString(),
+    nextPriceScaledUsdc: state.nextPriceScaledUsdc.toString(),
+    priceScale: LIVE_PRICE_SCALE.toString(),
+    liveStepSizeBase: LIVE_STEP_SIZE_BASE.toString(),
+    liveStepIncrementScaledUsdc: LIVE_STEP_INCREMENT_SCALED.toString(),
     totalAllocatedBase: state.totalAllocatedBase.toString(),
     quoteProgressBase: state.effectiveProgressBase.toString(),
     webAllocatedBase: state.webAllocatedBase.toString(),
@@ -296,8 +334,10 @@ export function publicState(state: Awaited<ReturnType<typeof computeState>>) {
     standardReleaseOffsetSeconds: STANDARD_RELEASE_OFFSET_SECONDS,
     stakedReleaseDays: STAKED_RELEASE_DAYS,
     basePriceMicroUsdc: BASE_PRICE_MICRO_USDC.toString(),
-    stepSizeBase: STEP_SIZE_BASE.toString(),
-    stepIncrementMicroUsdc: STEP_INCREMENT_MICRO_USDC.toString(),
+    stepSizeBase: CLIENT_PREVIEW_STEP_SIZE_BASE.toString(),
+    stepIncrementMicroUsdc: CLIENT_PREVIEW_STEP_INCREMENT_MICRO_USDC.toString(),
+    macroStepSizeBase: STEP_SIZE_BASE.toString(),
+    macroStepIncrementMicroUsdc: STEP_INCREMENT_MICRO_USDC.toString(),
     referralBps: REFERRAL_BPS.toString(),
     webPurchaseCount: state.webCount,
     manualAllocationCount: state.manualCount,

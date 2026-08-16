@@ -67,7 +67,7 @@ cp web/owner/index.html web/owner-control.html
 
 BUNDLED=(web/app.js web/prelaunch.js web/presale-next.js web/admin/admin.js web/owner/launch.js web/owner/atomic-launch.js web/owner/smoke.js web/owner/prelaunch-delivery.js web/owner/treasury-prep.js)
 if grep -R -n "https://esm.sh" "${BUNDLED[@]}"; then echo "Production bundle still references esm.sh" >&2; exit 1; fi
-for f in "${BUNDLED[@]}" web/owner/status-control.js web/owner/presale-control.js web/owner/site-copy-control.js web/launch-status.js web/site-content.js web/site-config.js web/site-ui.js web/site-ui-hotfix.js web/wallet-mobile-fix.js scripts/browser-buffer-shim.js; do node --check "$f"; done
+for f in "${BUNDLED[@]}" web/owner/status-control.js web/owner/presale-control.js web/owner/site-copy-control.js web/launch-status.js web/site-content.js web/site-config.js web/site-ui.js web/site-ui-hotfix.js web/wallet-mobile-fix.js web/live-presale-ui.js scripts/browser-buffer-shim.js; do node --check "$f"; done
 python3 -m json.tool web/site-copy.json >/dev/null
 grep -Fq 'RALYA Owner Control Center' web/owner-control.html
 

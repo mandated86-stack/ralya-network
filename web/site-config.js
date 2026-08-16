@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.4-presale-celebration-wallet-delivery',
+  build: '1.0.5-live-presale-price-purchase-copy',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -22,8 +22,14 @@ window.RALYA_CONFIG = Object.freeze({
   standardReleaseOffsetSeconds: -86400,
   stakedReleaseDaysAfterLaunch: 21,
   basePriceMicroUsdc: 3000,
+  // Published macro curve: +$0.000050 per 1M RLYA. Live prelaunch pricing
+  // interpolates the same slope every 10,000 RLYA at half-micro precision.
   priceStepTokens: 1000000,
   priceStepIncrementMicroUsdc: 50,
+  livePriceStepTokens: 10000,
+  livePriceScale: 2,
+  livePriceStepIncrementScaledUsdc: 1,
+  livePriceStepIncrementUsdc: 0.0000005,
   minimumPurchaseUsdc: 1,
   referralBps: 100,
   usdcMint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
@@ -158,6 +164,7 @@ window.RALYA_CONFIG = Object.freeze({
       loadScript('/purchase-celebration.js?v=1.0.4', 'data-rlya-purchase-celebration');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
+      loadScript('/live-presale-ui.js?v=1.0.5', 'data-rlya-live-presale-ui');
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
