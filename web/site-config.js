@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.2-mobile-wallet-owner-hotfix',
+  build: '1.0.3-wallet-browser-buy-copy',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -131,7 +131,7 @@ window.RALYA_CONFIG = Object.freeze({
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
       loadStyle('/presale-next.css', 'data-rlya-presale-next-style');
       loadScript('/presale-next.js', 'data-rlya-presale-next');
-      loadScript('/wallet-mobile-fix.js', 'data-rlya-wallet-mobile-fix');
+      loadScript('/wallet-mobile-fix.js?v=1.0.3', 'data-rlya-wallet-mobile-fix');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
     }
