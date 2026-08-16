@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.5-live-presale-price-purchase-copy',
+  build: '1.0.6-wallet-summary-card',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -164,7 +164,7 @@ window.RALYA_CONFIG = Object.freeze({
       loadScript('/purchase-celebration.js?v=1.0.4', 'data-rlya-purchase-celebration');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
-      loadScript('/live-presale-ui.js?v=1.0.5', 'data-rlya-live-presale-ui');
+      loadScript('/live-presale-ui.js?v=1.0.6', 'data-rlya-live-presale-ui');
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
