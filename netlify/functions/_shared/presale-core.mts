@@ -58,7 +58,7 @@ export type PresaleControl = {
 };
 
 const DEFAULT_CONTROL: PresaleControl = {
-  access: 'closed',
+  access: 'open',
   updatedAt: null,
   updatedBy: null,
 };
@@ -170,8 +170,15 @@ async function readPrefix<T = any>(s: ReturnType<typeof store>, prefix: string):
   return values.filter(Boolean) as T[];
 }
 
+function forcePresaleOpen() {
+  const value = (globalThis as any).Netlify?.env?.get?.('RALYA_PRESALE_FORCE_OPEN');
+  return /^(1|true|yes|on)$/i.test(String(value || '').trim());
+}
+
 export async function getControl(s = store()) {
-  return (await s.get('control', { type: 'json' }) as PresaleControl | null) || DEFAULT_CONTROL;
+  const stored = (await s.get('control', { type: 'json' }) as PresaleControl | null) || DEFAULT_CONTROL;
+  if (forcePresaleOpen() && stored.access === 'closed') return { ...stored, access: 'open' as const };
+  return stored;
 }
 
 export async function getAllocationEvents(s = store()) {
