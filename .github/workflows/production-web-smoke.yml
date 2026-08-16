@@ -36,7 +36,8 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync('/tmp/presale-state.json', 'utf8'));
-          if (!['closed', 'open', 'paused'].includes(data.access)) throw new Error('Invalid presale access state');
+          if (data.access !== 'open') throw new Error(`Presale unexpectedly ${data.access}; production must remain open`);
+          if (data.backendReady !== true) throw new Error('Presale backend is not ready');
           if (!data.currentPriceMicroUsdc) throw new Error('Missing current price');
           console.log(`PRESALE_STATE=${data.access}`);
           console.log(`BACKEND_READY=${data.backendReady}`);
