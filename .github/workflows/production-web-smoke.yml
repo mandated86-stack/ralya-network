@@ -57,6 +57,59 @@ jobs:
           console.log('WALLET_ENDPOINT_JSON=PASS');
           NODE
 
+      - name: Verify signed quote rejection is controlled JSON, never platform 502
+        run: |
+          node <<'NODE'
+          const crypto = require('crypto');
+          const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+          function b58(buf) {
+            let x = 0n;
+            for (const b of buf) x = (x << 8n) + BigInt(b);
+            let out = '';
+            while (x > 0n) { const r = Number(x % 58n); x /= 58n; out = alphabet[r] + out; }
+            for (const b of buf) { if (b === 0) out = '1' + out; else break; }
+            return out || '1';
+          }
+          (async () => {
+            const { publicKey } = crypto.generateKeyPairSync('ed25519');
+            const der = publicKey.export({ type: 'spki', format: 'der' });
+            const wallet = b58(der.subarray(der.length - 32));
+            const timestamp = new Date().toISOString();
+            const nonce = crypto.randomBytes(20).toString('hex');
+            const message = [
+              'RALYA prelaunch allocation quote',
+              `Wallet: ${wallet}`,
+              'USDC: 1',
+              'Referrer: -',
+              'Stake: NO',
+              `Timestamp: ${timestamp}`,
+              `Nonce: ${nonce}`,
+            ].join('\n');
+            const signature = crypto.randomBytes(64).toString('base64');
+            const res = await fetch('https://ralyaai.com/api/presale/quote', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ wallet, usdcAmount: '1', referrer: null, stake: false, timestamp, nonce, message, signature }),
+            });
+            const body = await res.text();
+            if (res.status !== 400) throw new Error(`Expected controlled 400, got ${res.status}: ${body}`);
+            const data = JSON.parse(body);
+            if (!/signature verification failed/i.test(String(data.error || ''))) throw new Error(`Unexpected quote error: ${body}`);
+            console.log('SIGNED_QUOTE_REJECTION_JSON=PASS');
+          })().catch(err => { console.error(err); process.exit(1); });
+          NODE
+
+      - name: Verify opaque referral-code endpoint
+        run: |
+          code="$(curl --silent --show-error --max-time 20 -o /tmp/referral.json -w '%{http_code}' 'https://ralyaai.com/api/presale/referral?code=BAD')"
+          test "$code" = "400"
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('/tmp/referral.json', 'utf8'));
+          if (!data.error) throw new Error('Expected controlled referral JSON error');
+          console.log('REFERRAL_ENDPOINT_JSON=PASS');
+          NODE
+
       - name: Verify same-origin Solana RPC proxy
         run: |
           curl --fail --silent --show-error --max-time 20 \
