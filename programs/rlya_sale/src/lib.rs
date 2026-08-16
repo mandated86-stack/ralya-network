@@ -1403,7 +1403,7 @@ pub struct DeliverPrelaunch<'info> {
         seeds = [SALE_VAULT_SEED, rlya_mint.key().as_ref()],
         bump
     )]
-    pub sale_vault: Account<'info, TokenAccount>,
+    pub sale_vault: Box<Account<'info, TokenAccount>>,
     #[account(
         mut,
         token::mint = rlya_mint,
@@ -1411,9 +1411,9 @@ pub struct DeliverPrelaunch<'info> {
         seeds = [STAKING_BONUS_VAULT_SEED, rlya_mint.key().as_ref()],
         bump
     )]
-    pub staking_bonus_vault: Account<'info, TokenAccount>,
+    pub staking_bonus_vault: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = recipient_rlya_account.mint == rlya_mint.key(), constraint = recipient_rlya_account.owner == recipient.key())]
-    pub recipient_rlya_account: Account<'info, TokenAccount>,
+    pub recipient_rlya_account: Box<Account<'info, TokenAccount>>,
     #[account(
         init,
         payer = admin,
@@ -1421,7 +1421,7 @@ pub struct DeliverPrelaunch<'info> {
         seeds = [PRELAUNCH_DELIVERY_SEED, rlya_mint.key().as_ref(), recipient.key().as_ref()],
         bump
     )]
-    pub delivery_receipt: Account<'info, PrelaunchDeliveryReceipt>,
+    pub delivery_receipt: Box<Account<'info, PrelaunchDeliveryReceipt>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -1455,9 +1455,9 @@ pub struct DeliverPrelaunchManual<'info> {
         seeds = [SALE_VAULT_SEED, rlya_mint.key().as_ref()],
         bump
     )]
-    pub sale_vault: Account<'info, TokenAccount>,
+    pub sale_vault: Box<Account<'info, TokenAccount>>,
     #[account(mut, constraint = recipient_rlya_account.mint == rlya_mint.key(), constraint = recipient_rlya_account.owner == recipient.key())]
-    pub recipient_rlya_account: Account<'info, TokenAccount>,
+    pub recipient_rlya_account: Box<Account<'info, TokenAccount>>,
     #[account(
         init,
         payer = admin,
@@ -1465,7 +1465,7 @@ pub struct DeliverPrelaunchManual<'info> {
         seeds = [PRELAUNCH_MANUAL_DELIVERY_SEED, rlya_mint.key().as_ref(), recipient.key().as_ref()],
         bump
     )]
-    pub delivery_receipt: Account<'info, PrelaunchDeliveryReceipt>,
+    pub delivery_receipt: Box<Account<'info, PrelaunchDeliveryReceipt>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
