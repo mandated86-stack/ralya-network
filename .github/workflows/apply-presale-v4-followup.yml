@@ -1,0 +1,37 @@
+name: Apply presale v4 followup
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/presale-celebration-wallet-delivery-v4-2026-08-16
+    paths:
+      - 'scripts/apply_presale_v4_followup.py'
+      - '.github/workflows/apply-presale-v4-followup.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/presale-celebration-wallet-delivery-v4-2026-08-16
+      - name: Apply wallet and ledger follow-up
+        run: python3 scripts/apply_presale_v4_followup.py
+      - name: Reject malformed patch output
+        run: git diff --check
+      - name: Audit final checkout and release policy
+        run: python3 scripts/audit_checkout_release.py
+      - name: Audit prelaunch financial invariants
+        run: python3 scripts/audit_prelaunch.py
+      - name: Audit live-copy safety
+        run: python3 scripts/audit_site_copy.py
+      - name: Commit follow-up changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web netlify/functions scripts/audit_checkout_release.py
+          git diff --cached --quiet && exit 0
+          git commit -m 'Harden mobile wallet OPEN APP fallback and complete v4 ledger index'
+          git push origin HEAD:build/presale-celebration-wallet-delivery-v4-2026-08-16
