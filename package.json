@@ -21,5 +21,8 @@
   },
   "devDependencies": {
     "esbuild": "0.28.1"
+  },
+  "overrides": {
+    "rpc-websockets": "9.1.3"
   }
 }
