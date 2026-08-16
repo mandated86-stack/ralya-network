@@ -11,6 +11,11 @@ const STANDARD_RELEASE_OFFSET_SECONDS = -24 * 60 * 60;
 const STAKED_RELEASE_DAYS = 21;
 const QUOTE_CONFIRMATION_GRACE_MS = 2 * 60 * 1000;
 
+function forcePresaleOpen() {
+  const value = (globalThis as any).Netlify?.env?.get?.('RALYA_PRESALE_FORCE_OPEN');
+  return /^(1|true|yes|on)$/i.test(String(value || '').trim());
+}
+
 function priceAt(progressBase: bigint) {
   return BASE_PRICE_MICRO_USDC + (progressBase / PRICE_STEP_BASE) * STEP_INCREMENT_MICRO_USDC;
 }
@@ -115,9 +120,12 @@ export default async (req: Request) => {
       listJson(s, 'quote/'),
     ]);
 
-    const control = controlRaw && ['closed', 'open', 'paused'].includes(String(controlRaw.access))
+    const storedControl = controlRaw && ['closed', 'open', 'paused'].includes(String(controlRaw.access))
       ? controlRaw
-      : { access: 'closed', updatedAt: null };
+      : { access: 'open', updatedAt: null };
+    const control = forcePresaleOpen() && storedControl.access === 'closed'
+      ? { ...storedControl, access: 'open' }
+      : storedControl;
     const events = [...purchases, ...manual].filter((row: any) => row && row.rlyaBase != null);
 
     let webAllocatedBase = 0n;
@@ -159,7 +167,7 @@ export default async (req: Request) => {
     if (quoteProgressBase > PRESALE_CAP_BASE) throw new Error('Confirmed plus reserved allocation exceeds the fixed presale cap.');
 
     return response(publicShape({
-      access: String(control.access || 'closed'),
+      access: String(control.access || 'open'),
       totalAllocatedBase: totalAllocatedBase.toString(),
       quoteProgressBase: quoteProgressBase.toString(),
       webAllocatedBase: webAllocatedBase.toString(),
