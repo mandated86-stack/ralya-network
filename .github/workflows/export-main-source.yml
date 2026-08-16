@@ -1,0 +1,22 @@
+name: Export main source
+on:
+  push:
+    branches:
+      - tmp/export-main-for-netlify
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ec2918347988f595e8ea41afb9c4199d54d22f54
+      - name: Package source
+        run: |
+          tar --exclude=.git --exclude=node_modules -czf /tmp/ralya-main-source.tgz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ralya-main-source
+          path: /tmp/ralya-main-source.tgz
+          retention-days: 1
