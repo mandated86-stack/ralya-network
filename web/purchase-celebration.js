@@ -56,6 +56,7 @@
       const bit = document.createElement('i');
       bit.style.setProperty('--x', `${Math.round(Math.random() * 100)}%`);
       bit.style.setProperty('--r', `${Math.round(Math.random() * 320 - 160)}deg`);
+      bit.style.setProperty('--h', String(155 + Math.round(Math.random() * 55)));
       bit.style.setProperty('--d', `${(Math.random() * 1.2).toFixed(2)}s`);
       bit.style.setProperty('--t', `${(1.6 + Math.random() * 1.8).toFixed(2)}s`);
       host.appendChild(bit);

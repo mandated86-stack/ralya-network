@@ -37,6 +37,11 @@ function serializeEvent(event: any) {
     signature: event.signature || null,
     paymentReference: event.paymentReference || null,
     note: event.note || null,
+    ledgerVersion: event.ledgerVersion || null,
+    ledgerRecordSha256: event.ledgerRecordSha256 || null,
+    deliveryStatus: event.deliveryStatus || 'pending',
+    automaticDelivery: event.automaticDelivery !== false,
+    claimRequired: event.claimRequired === true,
   };
 }
 
@@ -253,9 +258,15 @@ export default async (req: Request) => {
           paymentReference,
           note,
           status: 'allocation-confirmed',
+          ledgerVersion: 4,
+          deliveryStatus: 'pending',
+          automaticDelivery: true,
+          claimRequired: false,
         };
-        await s.setJSON(`manual/${id}`, row);
-        return row;
+        const eventRow = { ...row, ledgerRecordSha256: sha256Json(row) };
+        await s.setJSON(`manual/${id}`, eventRow);
+        await s.setJSON(`wallet-purchase/${buyer}/${id}`, eventRow);
+        return eventRow;
       });
       return json({ ok: true, allocation: serializeEvent(event) });
     }

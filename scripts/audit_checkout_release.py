@@ -51,6 +51,8 @@ check('Standard T-1 delivery' in delivery or 'Standard wallets become eligible a
 check('ralya:purchase-confirmed' in celebration and 'claim' in celebration, 'verified-purchase celebration/reassurance is missing')
 check('final-manifest/v4' in owner, 'final manifest is not frozen in persistent storage')
 check('ledgerRecordSha256' in confirm and 'wallet-purchase/' in confirm, 'confirmed purchase ledger lacks hash/index hardening')
+check('row.ready !== false' in read('web/presale-next.js') and 'data-mobile-open' in read('web/presale-next.js'), 'mobile chooser can still render unavailable catalog wallets instead of OPEN APP fallback')
+check('ledgerRecordSha256: sha256Json(row)' in owner and 'wallet-purchase/${buyer}/${id}' in owner, 'manual/private allocation ledger is not v4-hardened')
 
 if errors:
     print('CHECKOUT RELEASE AUDIT FAILED')

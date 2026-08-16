@@ -321,7 +321,7 @@ function runNativeConnect() {
 function renderWalletList(modal) {
   const list = $('#ralyaWalletList', modal);
   const state = client.getSnapshot();
-  const connectors = (state.connectors || []).filter(row => row && row.name && !isMwaConnector(row));
+  const connectors = (state.connectors || []).filter(row => row && row.name && !isMwaConnector(row) && row.ready !== false);
   const preferred = ['Phantom', 'Solflare', 'Trust Wallet', 'WalletConnect', 'MetaMask', 'Backpack'];
   connectors.sort((a, b) => {
     const ai = preferred.findIndex(name => name.toLowerCase() === String(a.name).toLowerCase());
@@ -352,9 +352,7 @@ async function openWalletChooser() {
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
   if (list) list.innerHTML = '<p class="ralya-wallet-empty">Checking available wallets…</p>';
-  // The official MWA package registers its Wallet Standard entry from the user's click.
-  // Give that registration event a moment to reach ConnectorKit before rendering choices.
-  if (android) await sleep(120);
+  // Render immediately. Branded mobile fallbacks no longer wait on generic MWA registration.
   renderWalletList(modal);
 }
 
