@@ -17,6 +17,7 @@ const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'
 let provider = null;
 let wallet = null;
 let referralWallet = null;
+let referralCode = null;
 let lockedReferrer = null;
 let lockedStake = null;
 let state = null;
@@ -53,7 +54,8 @@ function formatBase(base, decimals = 9, maxFraction = 4) {
   return `${Number(whole).toLocaleString()}${frac ? `.${frac}` : ''}`;
 }
 function formatPrice(micro) { return `$${(Number(BigInt(micro || 0)) / 1_000_000).toFixed(6)}`; }
-function referralLinkFor(address) { const url = new URL(cfg.projectUrl || window.location.origin); url.pathname = '/presale'; url.searchParams.set('ref', address); url.hash = ''; return url.toString(); }
+function referralLinkForCode(code) { const url = new URL(cfg.projectUrl || window.location.origin); url.pathname = '/presale'; url.searchParams.set('ref', String(code || '').toUpperCase()); url.hash = ''; return url.toString(); }
+const REFERRAL_CODE_RE = /^[A-F0-9]{10}$/;
 function nonceHex() { const bytes = crypto.getRandomValues(new Uint8Array(20)); return [...bytes].map(v => v.toString(16).padStart(2, '0')).join(''); }
 function toBase64(bytes) { let binary = ''; const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes); for (const b of arr) binary += String.fromCharCode(b); return btoa(binary); }
 function quoteAuthMessage(walletAddress, usdcAmount, referrer, stake, timestamp, nonce) {
@@ -80,13 +82,14 @@ function setReferral(raw, quiet = false) {
   const input = $('#referralInput');
   if (lockedReferrer) {
     referralWallet = new PublicKey(lockedReferrer);
-    if (input) { input.value = lockedReferrer; input.disabled = true; }
-    if ($('#referralStatus')) $('#referralStatus').textContent = `Locked referral: ${shorten(lockedReferrer)} · receives 1% of referred USDC purchases`;
+    if (input) { input.value = referralCode || 'Referral locked'; input.disabled = true; }
+    if ($('#referralStatus')) $('#referralStatus').textContent = 'Referral locked for this wallet · referrer receives 1% of referred USDC purchases';
     return referralWallet;
   }
   const value = String(raw || '').trim();
   if (!value) {
     referralWallet = null;
+    referralCode = null;
     if (input) input.value = '';
     if ($('#referralStatus')) $('#referralStatus').textContent = 'No referral attached.';
     return null;
@@ -95,6 +98,7 @@ function setReferral(raw, quiet = false) {
     const pk = new PublicKey(value);
     if (wallet && pk.equals(wallet)) throw new Error('You cannot refer your own wallet.');
     referralWallet = pk;
+    referralCode = null;
     if (input) input.value = pk.toBase58();
     if ($('#referralStatus')) $('#referralStatus').textContent = `Referral: ${shorten(pk.toBase58())} · receives 1% of this purchase in USDC`;
     return pk;
@@ -105,11 +109,44 @@ function setReferral(raw, quiet = false) {
     return null;
   }
 }
-function loadReferralFromUrl() { const value = new URL(window.location.href).searchParams.get('ref'); if (value) setReferral(value, true); }
-function updateReferralLink() {
+async function applyReferralValue(raw, quiet = false) {
+  const value = String(raw || '').trim();
+  if (REFERRAL_CODE_RE.test(value.toUpperCase())) {
+    try {
+      const code = value.toUpperCase();
+      const resolved = await fetchJson(`/api/presale/referral?code=${encodeURIComponent(code)}`);
+      referralWallet = new PublicKey(resolved.wallet);
+      if (wallet && referralWallet.equals(wallet)) throw new Error('You cannot refer your own wallet.');
+      referralCode = code;
+      const input = $('#referralInput');
+      if (input) input.value = code;
+      if ($('#referralStatus')) $('#referralStatus').textContent = `Referral code ${code} attached · referrer receives 1% of this purchase in USDC`;
+      return referralWallet;
+    } catch (err) {
+      referralWallet = null; referralCode = null;
+      if (!quiet) toast(err.message || 'Invalid referral code.');
+      if ($('#referralStatus')) $('#referralStatus').textContent = 'Referral code is invalid.';
+      return null;
+    }
+  }
+  return setReferral(value, quiet);
+}
+async function loadReferralFromUrl() {
+  const value = new URL(window.location.href).searchParams.get('ref');
+  if (value) await applyReferralValue(value, true);
+}
+async function registerReferralCode() {
+  if (!wallet) return null;
+  const data = await fetchJson('/api/presale/referral', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ wallet: wallet.toBase58() }) });
+  referralCode = String(data.code || '').toUpperCase();
+  if (!REFERRAL_CODE_RE.test(referralCode)) throw new Error('Referral service returned an invalid code.');
+  return referralCode;
+}
+async function updateReferralLink() {
   const input = $('#myReferralLink'); const button = $('#copyReferralLink'); if (!input || !button) return;
-  if (!wallet) { input.value = 'Connect wallet to create your referral link'; button.disabled = true; }
-  else { input.value = referralLinkFor(wallet.toBase58()); button.disabled = false; }
+  if (!wallet) { input.value = 'Connect wallet to create your referral link'; button.disabled = true; return; }
+  try { const code = await registerReferralCode(); input.value = referralLinkForCode(code); button.disabled = false; }
+  catch { input.value = 'Referral link temporarily unavailable'; button.disabled = true; }
 }
 function wantsStake() {
   if (typeof lockedStake === 'boolean') return lockedStake;
@@ -246,7 +283,7 @@ async function connectWallet() {
       $$('.wallet-button').forEach(btn => btn.textContent = shorten(wallet.toBase58()));
       if ($('#walletLabel')) $('#walletLabel').textContent = shorten(wallet.toBase58());
       if (referralWallet && referralWallet.equals(wallet)) setReferral('', true);
-      updateReferralLink();
+      await updateReferralLink();
       await refreshWallet();
       updateBuyAvailability();
     } catch (err) {
@@ -265,7 +302,7 @@ function updatePreview() {
     if (breakdown) breakdown.innerHTML = `<small>Purchased allocation: ${formatBase(baseRlya, 9, 4)} RLYA</small><small>Staking bonus: ${bonus > 0n ? `+${formatBase(bonus, 9, 4)} RLYA (5%)` : 'Not selected'}</small>`;
     const avgMicro = baseRlya > 0n ? gross * RLYA_UNIT / baseRlya : 0n;
     avg.textContent = wantsStake()
-      ? `Estimated base price: ${formatPrice(avgMicro)} · expected total includes fixed 5% bonus · unlock day 21`
+      ? `Estimated base price: ${formatPrice(avgMicro)} · total includes fixed 5% bonus · unlock day 21`
       : `Estimated average price: ${formatPrice(avgMicro)} per RLYA · standard release T-1`;
     if ($('#allocationDelivery') && !lockedStake && wallet) $('#allocationDelivery').textContent = wantsStake() ? 'Buy + Stake: base + fixed 5% bonus unlock 21 days after public launch' : 'Standard: actual RLYA 1 day before public launch';
   } catch (err) {
@@ -280,7 +317,7 @@ function updateBuyAvailability() {
   const verified = state?.backendReady !== false && Boolean(state);
   const open = verified && state?.access === 'open';
   button.disabled = !(wallet && open);
-  button.textContent = wantsStake() ? 'Buy + Stake · secure allocation' : 'Secure my presale allocation';
+  button.textContent = 'BUY';
   if (!verified) msg.textContent = 'Live presale data reconnecting… purchasing remains disabled until the verified state returns.';
   else if (!open) msg.textContent = state?.access === 'paused' ? 'RLYA presale is temporarily paused.' : 'RLYA presale is in final setup. Connect your wallet and be ready when access opens.';
   else if (!wallet) msg.textContent = 'Connect a Solana wallet to continue.';
@@ -342,7 +379,8 @@ async function secureAllocation() {
   if (state?.backendReady === false || state?.access !== 'open') throw new Error('RLYA presale access is not verified open yet.');
   const usdcAmount = String($('#usdcInput')?.value || '').trim(); decimalToBase(usdcAmount, 6);
   const stake = wantsStake();
-  const typedReferral = String($('#referralInput')?.value || '').trim(); if (typedReferral) setReferral(typedReferral);
+  const typedReferral = String($('#referralInput')?.value || '').trim();
+  if (!lockedReferrer && typedReferral && !(referralCode && typedReferral.toUpperCase() === referralCode)) await applyReferralValue(typedReferral);
   const mint=new PublicKey(cfg.usdcMint),configuredTreasury=new PublicKey(cfg.prelaunchTreasuryWallet);
   const buyerUsdcAta=await getAssociatedTokenAddress(mint,wallet);
   if(!await connection.getAccountInfo(buyerUsdcAta,'confirmed'))throw new Error('Your wallet has no USDC token account on Solana.');
@@ -404,17 +442,20 @@ $$('[data-wallet-connect]').forEach(btn => btn.addEventListener('click', connect
 window.addEventListener('ralya:wallet-standard-connected', () => connectWallet());
 $('#usdcInput')?.addEventListener('input', updatePreview);
 $('#stakeToggle')?.addEventListener('change', () => { updatePreview(); updateBuyAvailability(); });
-$('#referralInput')?.addEventListener('change', e => setReferral(e.target.value));
+$('#referralInput')?.addEventListener('change', e => applyReferralValue(e.target.value).catch(err => toast(err.message || 'Invalid referral.')));
 $('#copyReferralLink')?.addEventListener('click', async () => {
   try{
     if(!wallet)await connectWallet();
     await activateReferralReceiving();
-    await navigator.clipboard.writeText(referralLinkFor(wallet.toBase58()));
+    const code = await registerReferralCode();
+    const link = referralLinkForCode(code);
+    if ($('#myReferralLink')) $('#myReferralLink').value = link;
+    await navigator.clipboard.writeText(link);
     toast('Referral link copied. Your wallet is ready to receive referral USDC.');
   }catch(err){toast(err.message||'Could not activate referral receiving account.');}
 });
 $('#buyRlya')?.addEventListener('click', () => secureAllocation().catch(err => { toast(err.message || 'Allocation purchase failed.'); updateBuyAvailability(); }));
 
-wireGithub(); loadReferralFromUrl(); updateReferralLink(); syncStakeUi(); refreshState(); updatePreview(); updateBuyAvailability();
+wireGithub(); loadReferralFromUrl().catch(() => {}); updateReferralLink().catch(() => {}); syncStakeUi(); refreshState(); updatePreview(); updateBuyAvailability();
 refreshTimer = setInterval(() => { refreshState(); if (wallet) refreshWallet(); }, 15_000);
 window.addEventListener('beforeunload', () => clearInterval(refreshTimer));

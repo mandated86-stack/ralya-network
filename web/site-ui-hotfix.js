@@ -384,7 +384,7 @@
       showModal({
         eyebrow: 'RLYA REFERRAL',
         title: 'Share your link. Earn 1% USDC.',
-        html: `<p>Your referred buyer pays the normal amount and keeps the full expected RLYA allocation. Your wallet receives <strong>1% of confirmed referred USDC purchases</strong>.</p><div class="referral-link-row"><input id="quickReferralLink" readonly value="${link.replace(/"/g,'&quot;')}" /></div><div class="share-actions"><button type="button" class="btn btn-primary" id="quickActivateCopy">Activate payout & copy</button><button type="button" class="btn btn-secondary" id="quickShareLink">Share link</button></div>`
+        html: `<p>Your referred buyer pays the normal amount and keeps the full RLYA allocation. Your wallet receives <strong>1% of confirmed referred USDC purchases</strong>.</p><div class="referral-link-row"><input id="quickReferralLink" readonly value="${link.replace(/"/g,'&quot;')}" /></div><div class="share-actions"><button type="button" class="btn btn-primary" id="quickActivateCopy">Activate payout & copy</button><button type="button" class="btn btn-secondary" id="quickShareLink">Share link</button></div>`
       });
       $('#quickActivateCopy')?.addEventListener('click', () => $('#copyReferralLink')?.click());
       $('#quickShareLink')?.addEventListener('click', async () => {

@@ -1,5 +1,5 @@
 import bs58 from 'bs58';
-import { createHash, createPublicKey, verify as verifySignature } from 'node:crypto';
+import { createHash, webcrypto } from 'node:crypto';
 import {
   PRESALE_TREASURY_WALLET, QUOTE_TTL_MS, USDC_MINT, assertWallet, computeState,
   decimalToBase, deliveryPolicy, getActiveQuotes, json, newId, quoteAllocation, referralReward,
@@ -11,12 +11,6 @@ const RATE_WINDOW_MS = 5 * 60 * 1000;
 const RATE_LIMIT = 12;
 const MAX_SLIPPAGE_BPS = 500;
 
-function buyerKey(wallet: string) {
-  const raw = bs58.decode(wallet);
-  if (raw.length !== 32) throw new Error('Invalid buyer public key length.');
-  const der = Buffer.concat([Buffer.from('302a300506032b6570032100', 'hex'), Buffer.from(raw)]);
-  return createPublicKey({ key: der, format: 'der', type: 'spki' });
-}
 
 function quoteMessage(wallet: string, usdcAmount: string, referrer: string | null, stake: boolean, timestamp: string, nonce: string) {
   return [
@@ -30,7 +24,7 @@ function quoteMessage(wallet: string, usdcAmount: string, referrer: string | nul
   ].join('\n');
 }
 
-function verifyBuyerRequest(body: any, buyer: string, referrer: string | null) {
+async function verifyBuyerRequest(body: any, buyer: string, referrer: string | null) {
   const usdcAmount = String(body?.usdcAmount || '').trim();
   const stake = body?.stake === true;
   const timestamp = String(body?.timestamp || '').trim();
@@ -45,7 +39,11 @@ function verifyBuyerRequest(body: any, buyer: string, referrer: string | null) {
   let signature: Buffer;
   try { signature = Buffer.from(signatureB64, 'base64'); } catch { throw new Error('Invalid quote signature encoding.'); }
   if (signature.length !== 64) throw new Error('Invalid quote signature length.');
-  if (!verifySignature(null, Buffer.from(message, 'utf8'), buyerKey(buyer), signature)) throw new Error('Buyer quote signature verification failed.');
+  const rawKey = bs58.decode(buyer);
+  if (rawKey.length !== 32) throw new Error('Invalid buyer public key length.');
+  const key = await webcrypto.subtle.importKey('raw', rawKey, { name: 'Ed25519' }, false, ['verify']);
+  const ok = await webcrypto.subtle.verify({ name: 'Ed25519' }, key, signature, Buffer.from(message, 'utf8'));
+  if (!ok) throw new Error('Buyer quote signature verification failed.');
   return { usdcAmount, stake, nonce };
 }
 
@@ -77,7 +75,7 @@ export default async (req: Request, context: any) => {
   try {
     const buyer = assertWallet(body?.wallet, 'Buyer wallet');
     const requestedReferrer = body?.referrer ? assertWallet(body.referrer, 'Referral wallet') : null;
-    const auth = verifyBuyerRequest(body, buyer, requestedReferrer);
+    const auth = await verifyBuyerRequest(body, buyer, requestedReferrer);
     const slippage = parseSlippageProtection(body);
     const grossUsdcBase = decimalToBase(auth.usdcAmount, 6, 'USDC amount');
     if (buyer === PRESALE_TREASURY_WALLET) throw new Error('Treasury wallet cannot create a public presale order.');
