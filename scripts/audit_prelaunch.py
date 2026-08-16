@@ -47,8 +47,11 @@ check('stakingBonus' in core and 'availableStakingBonusBase' in core, 'staking b
 check('quoteAllocation' in core and 'priceAt' in core, 'deterministic quote curve missing')
 check('getWithMetadata' in core and 'onlyIfNew: true' in core and 'onlyIfMatch: current.etag' in core, 'financial mutation lock is not compare-and-set safe')
 
-# Existing real buyer verification path remains present.
-check('verifySignature' in quote and 'buyerKey' in quote, 'quote reservations are not wallet-signature authenticated')
+# Existing real buyer verification path remains present. Accept the original native
+# Node Ed25519 verifier or the WebCrypto raw Ed25519 verifier used by the Netlify runtime.
+native_quote_auth = 'verifySignature' in quote and 'buyerKey' in quote
+webcrypto_quote_auth = 'webcrypto.subtle.importKey' in quote and 'webcrypto.subtle.verify' in quote and "{ name: 'Ed25519' }" in quote
+check(native_quote_auth or webcrypto_quote_auth, 'quote reservations are not wallet-signature authenticated')
 check('`Stake: ${stake ? \'YES\' : \'NO\'}`' in quote, 'staking choice is not bound into the signed quote request')
 check("state.control.access !== 'open'" in quote, 'server-side allocation access gate missing')
 check('RATE_LIMIT' in quote and 'quote-auth/' in quote, 'quote replay/rate protection missing')
@@ -101,7 +104,8 @@ check("presalemode: 'prelaunch-allocation'" in site_lower and 'presaleenabled: f
 check('presalecap: 288000000' in site_lower and 'stakingbonusreserve: 14400000' in site_lower and 'stakingbonusbps: 500' in site_lower, 'website configuration does not match revised economics')
 check("standardreleasetiming: '1-day-before-public-launch'" in site_lower, 'website standard T-1 release setting missing')
 check('stakedreleasedaysafterlaunch: 21' in site_lower, 'website staked day-21 release setting missing')
-check('expected rlya allocation' in index_lower, 'buyer expected-allocation wording missing')
+check('you will receive' in index_lower, 'buyer receive-amount wording missing')
+check('expected rlya allocation' not in index_lower, 'obsolete expected-allocation wording returned to the public page')
 check('1 day before public launch' in index_lower, 'public standard T-1 release wording missing')
 check('21 days after public launch' in index_lower, 'public Buy + Stake day-21 release wording missing')
 check('buy + stake' in index_lower and '5% more rlya' in index_lower, 'public fixed 5% staking option missing')
