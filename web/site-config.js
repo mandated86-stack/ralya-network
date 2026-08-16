@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.1-owner-wallet-ux',
+  build: '1.0.2-mobile-wallet-owner-hotfix',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -43,10 +43,24 @@ window.RALYA_CONFIG = Object.freeze({
   const canonicalOrigin = new URL(cfg.projectUrl).origin;
   const isOwnerPath = /^\/owner(?:\/|$)/.test(location.pathname);
 
-  // Trust Wallet exposes its Solana provider under window.trustwallet.solana. The private
-  // owner tools historically consume window.solana, so bridge the same provider locally.
-  if (isOwnerPath && window.trustwallet?.solana && !window.solana) {
-    try { window.solana = window.trustwallet.solana; } catch {}
+  // Trust Wallet may inject its Solana provider after the first page scripts execute.
+  // Keep bridging it for a short startup window so every private owner tool sees the same
+  // provider through window.solana without depending on injection timing.
+  if (isOwnerPath) {
+    let ownerBridgeChecks = 0;
+    const bridgeOwnerTrust = () => {
+      const trustSolana = window.trustwallet?.solana;
+      if (trustSolana?.connect && !window.solana) {
+        try { window.solana = trustSolana; } catch {}
+      }
+      ownerBridgeChecks += 1;
+      return Boolean(window.solana?.connect) || ownerBridgeChecks >= 50;
+    };
+    if (!bridgeOwnerTrust()) {
+      const bridgeTimer = setInterval(() => {
+        if (bridgeOwnerTrust()) clearInterval(bridgeTimer);
+      }, 100);
+    }
   }
 
   // Never let public traffic or wallet deep-links settle on the Netlify fallback hostname.
@@ -117,6 +131,7 @@ window.RALYA_CONFIG = Object.freeze({
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
       loadStyle('/presale-next.css', 'data-rlya-presale-next-style');
       loadScript('/presale-next.js', 'data-rlya-presale-next');
+      loadScript('/wallet-mobile-fix.js', 'data-rlya-wallet-mobile-fix');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
     }
