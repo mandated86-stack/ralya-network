@@ -2,6 +2,9 @@
   command = "npm run build:web"
   publish = "web"
 
+[functions]
+  node_bundler = "esbuild"
+
 [build.processing.html]
   pretty_urls = false
 
