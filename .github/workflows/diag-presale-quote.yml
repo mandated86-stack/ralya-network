@@ -1,0 +1,54 @@
+name: Diagnose live presale quote
+on:
+  push:
+    branches:
+      - diag/presale-quote-502-2026-08-16
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit signed 1 USDC test quote
+        run: |
+          node <<'NODE'
+          const crypto = require('crypto');
+          const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+          function b58(buf) {
+            let x = 0n;
+            for (const b of buf) x = (x << 8n) + BigInt(b);
+            let out = '';
+            while (x > 0n) { const r = Number(x % 58n); x /= 58n; out = alphabet[r] + out; }
+            for (const b of buf) { if (b === 0) out = '1' + out; else break; }
+            return out || '1';
+          }
+          (async () => {
+            const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
+            const der = publicKey.export({ type: 'spki', format: 'der' });
+            const wallet = b58(der.subarray(der.length - 32));
+            const usdcAmount = '1';
+            const referrer = null;
+            const stake = false;
+            const timestamp = new Date().toISOString();
+            const nonce = crypto.randomBytes(20).toString('hex');
+            const message = [
+              'RALYA prelaunch allocation quote',
+              `Wallet: ${wallet}`,
+              `USDC: ${usdcAmount}`,
+              'Referrer: -',
+              'Stake: NO',
+              `Timestamp: ${timestamp}`,
+              `Nonce: ${nonce}`,
+            ].join('\n');
+            const signature = crypto.sign(null, Buffer.from(message, 'utf8'), privateKey).toString('base64');
+            const res = await fetch('https://ralyaai.com/api/presale/quote', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ wallet, usdcAmount, referrer, stake, timestamp, nonce, message, signature }),
+            });
+            const body = await res.text();
+            console.log(`HTTP_STATUS=${res.status}`);
+            console.log(`RESPONSE=${body}`);
+            if (res.status >= 500) process.exit(2);
+          })().catch(err => { console.error(err); process.exit(1); });
+          NODE
