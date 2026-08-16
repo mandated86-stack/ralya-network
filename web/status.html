@@ -39,13 +39,13 @@
 
     <div class="gate"><header><h2>○ Opening readiness gate</h2><span class="tag progress">FINAL SETUP</span></header><p>Owner-signed allocation access stays CLOSED until the deployed server reaches Solana Mainnet through the dedicated RPC and independently verifies the configured treasury USDC receiving account. The owner opening preflight must return READY before OPEN can be signed.</p></div>
 
-    <div class="gate"><header><h2>✓ Referral accounting</h2><span class="tag good">PASS</span></header><p>The fixed referral rate is 1% of gross referred USDC. The buyer keeps the normal expected RLYA allocation and any fixed Buy + Stake bonus. Self-referrals and direct prohibited two-wallet loops remain rejected.</p></div>
+    <div class="gate"><header><h2>✓ Referral accounting</h2><span class="tag good">PASS</span></header><p>The fixed referral rate is 1% of gross referred USDC. The buyer keeps the normal RLYA allocation and any fixed Buy + Stake bonus. Self-referrals and direct prohibited two-wallet loops remain rejected.</p></div>
 
     <div class="gate"><header><h2>✓ Owner pre-launch controls</h2><span class="tag good">READY CODE</span></header><p>The owner can preflight, open, pause or close allocation access, inspect totals, look up buyer allocations and export a hashed delivery manifest. Public messaging controls cannot by themselves launch the production RLYA token.</p></div>
 
     <div class="gate"><header><h2>✓ Public Devnet evidence</h2><span class="tag good">PASS</span></header><p>The public Devnet deployment completed initialize, activation gates, direct purchase, referral attribution and payout, manual distribution and fixed-supply authority checks.</p><code class="proof-code">Program: Dk5eeCK6KmYY4b6pQkCRpfbZViwEjYJLryjZoUgBxsHN</code><code class="proof-code">Devnet RLYA test mint: 3K3AWEJaJ7sqYB926CitbRaBnPn6cyiC8WPsEe1N6Uii</code><code class="proof-code">Devnet sale PDA: ASgQBY5NPHHcuXNDWaDSD4wX8MiZ57JdUjzFvzxtejDg</code></div>
 
-    <div class="gate"><header><h2>○ Controlled real-USDC buyer test</h2><span class="tag next">AFTER OPEN</span></header><p>Before broad public promotion, a small real-USDC purchase must be completed from a non-owner buyer wallet and reconciled end to end: wallet connect, quote, exact USDC transaction, backend confirmation, expected allocation, correct T-1/T+21 policy and wallet reconnect/history.</p></div>
+    <div class="gate"><header><h2>○ Controlled real-USDC buyer test</h2><span class="tag next">AFTER OPEN</span></header><p>Before broad public promotion, a small real-USDC purchase must be completed from a non-owner buyer wallet and reconciled end to end: wallet connect, quote, exact USDC transaction, backend confirmation, recorded allocation, correct T-1/T+21 policy and wallet reconnect/history.</p></div>
 
     <div class="gate"><header><h2>○ Production RLYA Mainnet</h2><span class="tag next" id="mainnetEvidence">NEXT PHASE</span></header><p>The production 839M mint, production sale Program ID/PDA, authority-removal evidence and public token Day 0 remain a later phase. None is created by the current website/presale pass.</p></div>
 
