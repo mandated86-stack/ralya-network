@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.8-presale-gain-visibility',
+  build: '1.0.9-coingecko-launch-visibility',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -159,14 +159,14 @@ window.RALYA_CONFIG = Object.freeze({
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
       loadStyle('/presale-next.css?v=1.0.4', 'data-rlya-presale-next-style');
       loadStyle('/purchase-celebration.css?v=1.0.4', 'data-rlya-purchase-celebration-style');
-      loadStyle('/launch-countdown.css?v=1.0.1', 'data-rlya-launch-countdown-style');
+      loadStyle('/launch-countdown.css?v=1.0.2', 'data-rlya-launch-countdown-style');
       loadScript('/presale-next.js?v=1.0.4', 'data-rlya-presale-next');
       loadScript('/wallet-mobile-fix.js?v=1.0.4', 'data-rlya-wallet-mobile-fix');
       loadScript('/purchase-celebration.js?v=1.0.4', 'data-rlya-purchase-celebration');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
       loadScript('/live-presale-ui.js?v=1.0.7', 'data-rlya-live-presale-ui');
-      loadScript('/launch-countdown.js?v=1.0.0', 'data-rlya-launch-countdown');
+      loadScript('/launch-countdown.js?v=1.0.1', 'data-rlya-launch-countdown');
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
