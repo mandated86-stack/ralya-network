@@ -33,7 +33,7 @@ const canonicalUrl = () => {
 // Register the official Solana Mobile Wallet Adapter before ConnectorKit discovers wallets.
 // On supported Android wallets this opens the wallet authorization flow while RALYA remains
 // in the user's browser instead of navigating the site into a wallet's internal dapp browser.
-if (android && window.isSecureContext) {
+if (false && android && window.isSecureContext) {
   try {
     registerMwa({
       appIdentity: {
@@ -58,7 +58,7 @@ const client = new ConnectorClient(getDefaultConfig({
   network: 'mainnet-beta',
   clusters: [{ id: MAINNET_CHAIN, label: 'Solana Mainnet', url: rpcUrl }],
   wallets: {
-    featured: ['Mobile Wallet Adapter', 'Phantom', 'Solflare', 'Trust Wallet', 'MetaMask', 'Backpack', 'WalletConnect'],
+    featured: ['Phantom', 'Solflare', 'Trust Wallet', 'MetaMask', 'Backpack', 'WalletConnect'],
   },
   walletConnect: cfg.walletConnectProjectId
     ? {
@@ -213,7 +213,7 @@ function ensureModal() {
   modal.innerHTML = `<div class="ralya-wallet-backdrop" data-rlya-wallet-close></div>
     <section class="ralya-wallet-sheet" role="dialog" aria-modal="true" aria-labelledby="ralyaWalletTitle">
       <div class="ralya-wallet-head"><div><span>SOLANA WALLET</span><h3 id="ralyaWalletTitle">Connect to RALYA</h3></div><button type="button" data-rlya-wallet-close aria-label="Close">×</button></div>
-      <p class="ralya-wallet-intro">Choose a wallet. On supported Android wallets, RALYA opens the wallet authorization screen and stays in this browser.</p>
+      <p class="ralya-wallet-intro">Choose a wallet. Detected wallets connect here; on mobile, unavailable browser connectors open RALYA inside the selected wallet app.</p>
       <div class="ralya-wallet-list" id="ralyaWalletList"></div>
       <p class="ralya-wallet-foot">RALYA never asks for a seed phrase or private key.</p>
     </section>`;
@@ -244,8 +244,25 @@ function connectorRow(connector) {
       : 'Detected wallet · authorize connection';
   return `<button type="button" class="ralya-wallet-choice${mwa ? ' mobile-auth' : ''}" data-connector-id="${String(connector.id).replace(/"/g, '&quot;')}">${icon}<span><strong>${displayName}</strong><small>${detail}</small></span><b>${mwa ? 'AUTHORIZE' : 'CONNECT'}</b></button>`;
 }
-function mobileAuthorizationRow(name) {
-  return `<button type="button" class="ralya-wallet-choice mobile-auth" data-mobile-authorize="${name.toLowerCase()}"><span class="ralya-wallet-letter">${name[0]}</span><span><strong>${name}</strong><small>Use Android wallet authorization — do not open RALYA inside the wallet browser</small></span><b>AUTHORIZE</b></button>`;
+function walletBrowserTarget() {
+  const target = new URL(cfg.projectUrl || location.origin);
+  target.pathname = '/presale';
+  target.search = location.search;
+  target.hash = '';
+  return target;
+}
+function walletBrowserUrl(name) {
+  const target = walletBrowserTarget();
+  const ref = new URL(cfg.projectUrl || location.origin).origin;
+  const key = String(name || '').toLowerCase();
+  if (key === 'phantom') return `https://phantom.app/ul/browse/${encodeURIComponent(target.toString())}?ref=${encodeURIComponent(ref)}`;
+  if (key === 'solflare') return `https://solflare.com/ul/v1/browse/${encodeURIComponent(target.toString())}?ref=${encodeURIComponent(ref)}`;
+  if (key === 'trust wallet') return `https://link.trustwallet.com/open_url?coin_id=501&url=${encodeURIComponent(target.toString())}`;
+  if (key === 'metamask') return `https://metamask.app.link/dapp/${target.host}${target.pathname}${target.search}`;
+  return target.toString();
+}
+function mobileAppRow(name) {
+  return `<button type="button" class="ralya-wallet-choice mobile-auth" data-mobile-open="${name.toLowerCase()}"><span class="ralya-wallet-letter">${name[0]}</span><span><strong>${name}</strong><small>Open RALYA inside ${name} and connect there</small></span><b>OPEN APP</b></button>`;
 }
 function appendWalletError(message) {
   const list = $('#ralyaWalletList');
@@ -304,8 +321,8 @@ function runNativeConnect() {
 function renderWalletList(modal) {
   const list = $('#ralyaWalletList', modal);
   const state = client.getSnapshot();
-  const connectors = (state.connectors || []).filter(row => row && row.name);
-  const preferred = ['Mobile Wallet Adapter', 'Phantom', 'Solflare', 'Trust Wallet', 'WalletConnect', 'MetaMask', 'Backpack'];
+  const connectors = (state.connectors || []).filter(row => row && row.name && !isMwaConnector(row) && row.ready !== false);
+  const preferred = ['Phantom', 'Solflare', 'Trust Wallet', 'WalletConnect', 'MetaMask', 'Backpack'];
   connectors.sort((a, b) => {
     const ai = preferred.findIndex(name => name.toLowerCase() === String(a.name).toLowerCase());
     const bi = preferred.findIndex(name => name.toLowerCase() === String(b.name).toLowerCase());
@@ -314,11 +331,11 @@ function renderWalletList(modal) {
   const names = new Set(connectors.map(row => String(row.name).toLowerCase()));
   list.innerHTML = connectors.map(connectorRow).join('');
 
-  // Never fall back to a "browse this website inside the wallet" deep link. If a branded
-  // wallet has not exposed Wallet Standard, Android uses Mobile Wallet Adapter authorization.
+  // On Android, use a real detected connector when available. Otherwise use the wallet's
+  // documented dapp-browser handoff instead of pretending every brand supports generic MWA.
   if (android) {
     for (const name of ['Phantom', 'Solflare', 'Trust Wallet', 'MetaMask']) {
-      if (!names.has(name.toLowerCase())) list.insertAdjacentHTML('beforeend', mobileAuthorizationRow(name));
+      if (!names.has(name.toLowerCase())) list.insertAdjacentHTML('beforeend', mobileAppRow(name));
     }
   }
   if (!connectors.length && !android) {
@@ -326,7 +343,7 @@ function renderWalletList(modal) {
   }
 
   list.querySelectorAll('[data-connector-id]').forEach(button => button.addEventListener('click', () => connectConnector(button.dataset.connectorId), { once: true }));
-  list.querySelectorAll('[data-mobile-authorize]').forEach(button => button.addEventListener('click', () => connectMobileAuthorization(), { once: true }));
+  list.querySelectorAll('[data-mobile-open]').forEach(button => button.addEventListener('click', () => { location.assign(walletBrowserUrl(button.dataset.mobileOpen)); }, { once: true }));
 }
 
 async function openWalletChooser() {
@@ -335,9 +352,7 @@ async function openWalletChooser() {
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
   if (list) list.innerHTML = '<p class="ralya-wallet-empty">Checking available wallets…</p>';
-  // The official MWA package registers its Wallet Standard entry from the user's click.
-  // Give that registration event a moment to reach ConnectorKit before rendering choices.
-  if (android) await sleep(120);
+  // Render immediately. Branded mobile fallbacks no longer wait on generic MWA registration.
   renderWalletList(modal);
 }
 

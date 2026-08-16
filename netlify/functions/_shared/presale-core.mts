@@ -44,6 +44,11 @@ export type AllocationEvent = {
   stake?: boolean;
   stakingBonusBase?: string;
   deliveryPolicy?: 'standard-tminus1' | 'staked-plus21d';
+  ledgerVersion?: number;
+  deliveryStatus?: 'pending' | 'delivered';
+  automaticDelivery?: boolean;
+  claimRequired?: boolean;
+  ledgerRecordSha256?: string;
 };
 
 export type PresaleControl = {
@@ -174,7 +179,17 @@ export async function getAllocationEvents(s = store()) {
     readPrefix<AllocationEvent>(s, 'purchase/'),
     readPrefix<AllocationEvent>(s, 'manual/'),
   ]);
-  return [...web, ...manual];
+  const events = [...web, ...manual];
+  for (const event of events) {
+    if (!event.ledgerRecordSha256) continue;
+    const copy: any = { ...event };
+    const supplied = String(copy.ledgerRecordSha256).toLowerCase();
+    delete copy.ledgerRecordSha256;
+    if (!/^[a-f0-9]{64}$/.test(supplied) || sha256Json(copy) !== supplied) {
+      throw new Error(`Presale ledger integrity check failed for ${event.id}. Stop allocation/distribution operations.`);
+    }
+  }
+  return events;
 }
 
 export async function getActiveQuotes(s = store(), now = Date.now()) {
