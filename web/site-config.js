@@ -43,6 +43,28 @@ window.RALYA_CONFIG = Object.freeze({
   const canonicalOrigin = new URL(cfg.projectUrl).origin;
   const isOwnerPath = /^\/owner(?:\/|$)/.test(location.pathname);
 
+  // Trust Wallet's Android DApp browser exposes its native Solana provider on
+  // window.trustwallet.solana. Prefer that provider only when it is actually injected.
+  // ConnectorKit can still write its generic bridge to RALYA_WALLET_PROVIDER, but reads in
+  // Trust's DApp browser resolve to Trust's native provider so legacy web3.js Transaction
+  // objects reach Trust unchanged. Phantom, Solflare and every non-Trust browser continue to
+  // receive the existing ConnectorKit provider without any routing change.
+  if (!isOwnerPath && /Android/i.test(navigator.userAgent)) {
+    let connectorProvider = window.RALYA_WALLET_PROVIDER || null;
+    try {
+      Object.defineProperty(window, 'RALYA_WALLET_PROVIDER', {
+        configurable: true,
+        get() {
+          const trustSolana = window.trustwallet?.solana;
+          return trustSolana?.connect ? trustSolana : connectorProvider;
+        },
+        set(value) {
+          connectorProvider = value;
+        },
+      });
+    } catch {}
+  }
+
   // Trust Wallet may inject its Solana provider after the first page scripts execute.
   // Keep bridging it for a short startup window so every private owner tool sees the same
   // provider through window.solana without depending on injection timing.
