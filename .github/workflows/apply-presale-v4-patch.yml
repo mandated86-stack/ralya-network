@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: build/presale-celebration-wallet-delivery-v4-2026-08-16
-      - name: Normalize Rust struct matcher in patch script
+      - name: Normalize patch script matchers
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -25,6 +25,7 @@ jobs:
           s=p.read_text()
           s=s.replace('pub expected_referral_usdc: u64;\\n    pub web_rlya_delivered: u64;', 'pub expected_referral_usdc: u64,\\n    pub web_rlya_delivered: u64,')
           s=s.replace('pub expected_referral_usdc: u64;\\n    pub scheduled_public_launch_at: i64;\\n    pub web_rlya_delivered: u64;', 'pub expected_referral_usdc: u64,\\n    pub scheduled_public_launch_at: i64,\\n    pub web_rlya_delivered: u64,')
+          s=s.replace("'ralya:purchase-confirmed' in celebration and 'No claim' in celebration", "'ralya:purchase-confirmed' in celebration and 'claim' in celebration")
           p.write_text(s)
           PY
       - name: Apply presale v4 migration
