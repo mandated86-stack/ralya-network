@@ -35,6 +35,7 @@ function getProvider() {
   if (window.RALYA_WALLET_PROVIDER?.connect) return window.RALYA_WALLET_PROVIDER;
   if (window.phantom?.solana?.isPhantom) return window.phantom.solana;
   if (window.solflare?.isSolflare) return window.solflare;
+  if (window.trustwallet?.solana?.connect) return window.trustwallet.solana;
   if (window.solana?.connect) return window.solana;
   return null;
 }
@@ -218,7 +219,7 @@ async function refreshWallet() {
   try {
     const allocation = await fetchWalletAllocation();
     $('#rlyaBalance').textContent = `${formatBase(allocation.totalRlyaBase, 9, 4)} RLYA`;
-    if ($('#allocationStatus')) $('#allocationStatus').textContent = allocation.status === 'allocation-confirmed' ? 'EXPECTED ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
+    if ($('#allocationStatus')) $('#allocationStatus').textContent = allocation.status === 'allocation-confirmed' ? 'RLYA ALLOCATION CONFIRMED' : 'NO ALLOCATION YET';
     if ($('#allocationDelivery')) $('#allocationDelivery').textContent = allocation.status === 'allocation-confirmed' ? releaseText(allocation.distributionStatus) : 'Standard: actual RLYA 1 day before public launch';
     if (allocation.lockedReferrer) { lockedReferrer = allocation.lockedReferrer; setReferral(lockedReferrer, true); }
     const webAllocation = (allocation.allocations || []).find(row => row.kind === 'web');
@@ -368,16 +369,31 @@ async function secureAllocation() {
   }
   tx.add(new TransactionInstruction({ programId: MEMO_PROGRAM, keys: [], data: new TextEncoder().encode(quote.memo) }));
   $('#buyRlya').disabled = true; $('#buyMessage').textContent = 'Confirm the USDC transaction in your wallet…';
-  const signature = await sendTransaction(tx); $('#buyMessage').textContent = 'USDC confirmed. Verifying your expected RLYA allocation…';
+  const signature = await sendTransaction(tx); $('#buyMessage').textContent = 'USDC confirmed. Verifying your RLYA allocation…';
   const confirmed = await fetchJson('/api/presale/confirm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId: quote.quoteId, signature }) });
   const receipt = confirmed.receipt, explorer = `${cfg.explorerBase}/tx/${signature}`, box = $('#txResult');
   const receiptBase=BigInt(receipt.rlyaBase||0), receiptBonus=BigInt(receipt.stakingBonusBase||0), receiptTotal=receiptBase+receiptBonus;
   const release = receipt.stake ? '21 days after public launch' : '1 day before public launch';
+  const deliveryMessage = receipt.stake
+    ? 'Your base RLYA + fixed 5% bonus will be sent automatically to this same wallet 21 days after public launch. No claim is required.'
+    : 'Your RLYA will be sent automatically to this same wallet 1 day before public launch. No claim is required; it will appear in your wallet automatically.';
   if (box) {
     box.hidden = false;
-    box.innerHTML = `<strong>Expected Allocation Confirmed.</strong> ${formatBase(receiptBase, 9, 4)} RLYA purchased${receiptBonus > 0n ? ` + ${formatBase(receiptBonus, 9, 4)} RLYA staking bonus` : ''} = <strong>${formatBase(receiptTotal, 9, 4)} RLYA expected</strong> for ${shorten(receipt.wallet)}. Release: ${release}. <a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`;
+    box.innerHTML = `<strong>Purchase confirmed.</strong> ${formatBase(receiptBase, 9, 4)} RLYA purchased${receiptBonus > 0n ? ` + ${formatBase(receiptBonus, 9, 4)} RLYA staking bonus` : ''} = <strong>${formatBase(receiptTotal, 9, 4)} RLYA</strong> for ${shorten(receipt.wallet)}.<br/><br/><strong>Your RLYA is recorded.</strong> ${deliveryMessage}<br/><a href="${explorer}" target="_blank" rel="noopener">Verify USDC transaction →</a>`;
   }
-  toast(receipt.stake ? 'Buy + Stake allocation confirmed with 5% RLYA bonus.' : 'Expected RLYA allocation confirmed.');
+  window.dispatchEvent(new CustomEvent('ralya:purchase-confirmed', { detail: {
+    wallet: receipt.wallet,
+    signature,
+    baseRlyaBase: receiptBase.toString(),
+    bonusRlyaBase: receiptBonus.toString(),
+    totalRlyaBase: receiptTotal.toString(),
+    grossUsdcBase: String(receipt.grossUsdcBase || 0),
+    stake: receipt.stake === true,
+    release,
+    explorer,
+    deliveryMessage,
+  }}));
+  toast(receipt.stake ? 'Purchase confirmed · +5% Buy + Stake recorded.' : 'Purchase confirmed · your RLYA is recorded.');
   await Promise.all([refreshState(), refreshWallet()]);
 }
 function wireGithub() { const link = $('#githubLink'); if (!cfg.githubUrl || !link) return; link.href = cfg.githubUrl; link.removeAttribute('aria-disabled'); if ($('#githubLabel')) $('#githubLabel').textContent = 'View the public RALYA source →'; }

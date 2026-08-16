@@ -23,8 +23,9 @@ const PRESALE_CAP: u64 = 288_000_000_000_000_000;
 const STAKING_BONUS_RESERVE: u64 = 14_400_000_000_000_000;
 const FOUNDER_AMOUNT: u64 = 83_900_000_000_000_000;
 const FOUNDER_LOCK_SECONDS: i64 = 365 * 24 * 60 * 60;
-const STANDARD_PRESALE_RELEASE_SECONDS: i64 = 21 * 24 * 60 * 60;
-const STAKED_PRESALE_RELEASE_SECONDS: i64 = 36 * 24 * 60 * 60;
+const STANDARD_PRESALE_RELEASE_OFFSET_SECONDS: i64 = -24 * 60 * 60;
+const STAKED_PRESALE_RELEASE_SECONDS: i64 = 21 * 24 * 60 * 60;
+const MIN_LAUNCH_SCHEDULE_LEAD_SECONDS: i64 = 24 * 60 * 60;
 const MIN_PURCHASE_USDC: u64 = USDC_UNIT;
 const BASE_PRICE_MICRO_USDC: u64 = 3_000;
 const STEP_SIZE_RLYA: u64 = 1_000_000;
@@ -147,8 +148,29 @@ pub mod rlya_sale {
         Ok(())
     }
 
-    /// Marks the deliberate public token launch once. Presale buyer release clocks
-    /// and the founder one-year lock both begin from this public launch timestamp.
+    /// Commits the intended public launch timestamp once. This allows Standard
+    /// presale allocations to be delivered automatically at T-1 without starting
+    /// the founder lock early. Buy + Stake remains locked until 21 days after the
+    /// actual public launch is marked.
+    pub fn schedule_public_launch(ctx: Context<SchedulePublicLaunch>, scheduled_at: i64) -> Result<()> {
+        require!(ctx.accounts.sale.status == SaleStatus::Paused as u8, SaleError::InvalidState);
+        require!(ctx.accounts.sale.public_launch_at == 0, SaleError::PublicLaunchAlreadyMarked);
+        require!(ctx.accounts.prelaunch_metrics.scheduled_public_launch_at == 0, SaleError::PublicLaunchAlreadyScheduled);
+        let now = Clock::get()?.unix_timestamp;
+        let minimum = now.checked_add(MIN_LAUNCH_SCHEDULE_LEAD_SECONDS).ok_or(SaleError::MathOverflow)?;
+        require!(scheduled_at >= minimum, SaleError::PublicLaunchScheduleTooSoon);
+        ctx.accounts.prelaunch_metrics.scheduled_public_launch_at = scheduled_at;
+        emit!(PublicLaunchScheduled {
+            scheduled_at,
+            standard_presale_release_at: scheduled_at
+                .checked_add(STANDARD_PRESALE_RELEASE_OFFSET_SECONDS)
+                .ok_or(SaleError::MathOverflow)?,
+        });
+        Ok(())
+    }
+
+    /// Marks the deliberate public token launch once. The founder one-year lock
+    /// and Buy + Stake +21-day clock begin from the actual public launch timestamp.
     pub fn mark_public_launch(ctx: Context<MarkPublicLaunch>) -> Result<()> {
         require!(
             ctx.accounts.sale.status == SaleStatus::Active as u8
@@ -163,7 +185,10 @@ pub mod rlya_sale {
             ctx.accounts.founder_lock.unlock_at == 0 && !ctx.accounts.founder_lock.released,
             SaleError::FounderAlreadyReleased
         );
+        let scheduled_at = ctx.accounts.prelaunch_metrics.scheduled_public_launch_at;
+        require!(scheduled_at > 0, SaleError::PublicLaunchNotScheduled);
         let now = Clock::get()?.unix_timestamp;
+        require!(now >= scheduled_at, SaleError::PublicLaunchTooEarly);
         let founder_unlock_at = now
             .checked_add(FOUNDER_LOCK_SECONDS)
             .ok_or(SaleError::MathOverflow)?;
@@ -172,8 +197,8 @@ pub mod rlya_sale {
         emit!(PublicLaunchMarked {
             timestamp: now,
             founder_unlock_at,
-            standard_presale_release_at: now
-                .checked_add(STANDARD_PRESALE_RELEASE_SECONDS)
+            standard_presale_release_at: scheduled_at
+                .checked_add(STANDARD_PRESALE_RELEASE_OFFSET_SECONDS)
                 .ok_or(SaleError::MathOverflow)?,
             staked_presale_release_at: now
                 .checked_add(STAKED_PRESALE_RELEASE_SECONDS)
@@ -499,6 +524,7 @@ pub mod rlya_sale {
         metrics.expected_staking_bonus = expected_staking_bonus;
         metrics.expected_gross_usdc = expected_gross_usdc;
         metrics.expected_referral_usdc = expected_referral_usdc;
+        metrics.scheduled_public_launch_at = 0;
         metrics.web_rlya_delivered = 0;
         metrics.manual_rlya_delivered = 0;
         metrics.staking_bonus_delivered = 0;
@@ -557,12 +583,11 @@ pub mod rlya_sale {
         require!(gross_usdc_amount >= MIN_PURCHASE_USDC, SaleError::PurchaseTooSmall);
         require!(referral_usdc_amount <= gross_usdc_amount, SaleError::InvalidReferralReward);
 
-        let release_delay = if staked {
-            STAKED_PRESALE_RELEASE_SECONDS
+        if staked {
+            require_release_elapsed(&ctx.accounts.sale, STAKED_PRESALE_RELEASE_SECONDS)?;
         } else {
-            STANDARD_PRESALE_RELEASE_SECONDS
-        };
-        require_release_elapsed(&ctx.accounts.sale, release_delay)?;
+            require_standard_release_elapsed(&ctx.accounts.prelaunch_metrics)?;
+        }
 
         let staking_bonus_amount = if staked {
             staking_bonus_for(rlya_amount)?
@@ -704,7 +729,7 @@ pub mod rlya_sale {
     ) -> Result<()> {
         require!(ctx.accounts.sale.status == SaleStatus::Paused as u8, SaleError::InvalidState);
         require!(rlya_amount > 0, SaleError::InvalidAmount);
-        require_release_elapsed(&ctx.accounts.sale, STANDARD_PRESALE_RELEASE_SECONDS)?;
+        require_standard_release_elapsed(&ctx.accounts.prelaunch_metrics)?;
 
         let price_before = current_price(&ctx.accounts.sale)?;
         let new_total = ctx
@@ -884,6 +909,17 @@ fn staking_bonus_for(rlya_amount: u64) -> Result<u64> {
         .checked_div(BPS_DENOMINATOR as u128)
         .ok_or(SaleError::MathOverflow)?;
     u64::try_from(value).map_err(|_| error!(SaleError::MathOverflow))
+}
+
+fn require_standard_release_elapsed(metrics: &PrelaunchMetrics) -> Result<i64> {
+    require!(metrics.scheduled_public_launch_at > 0, SaleError::PublicLaunchNotScheduled);
+    let release_at = metrics
+        .scheduled_public_launch_at
+        .checked_add(STANDARD_PRESALE_RELEASE_OFFSET_SECONDS)
+        .ok_or(SaleError::MathOverflow)?;
+    let now = Clock::get()?.unix_timestamp;
+    require!(now >= release_at, SaleError::PresaleReleaseStillLocked);
+    Ok(now)
 }
 
 fn require_release_elapsed(sale: &Sale, delay_seconds: i64) -> Result<i64> {
@@ -1096,6 +1132,26 @@ pub struct Activate<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SchedulePublicLaunch<'info> {
+    pub admin: Signer<'info>,
+    pub rlya_mint: Account<'info, Mint>,
+    #[account(
+        seeds = [SALE_SEED, rlya_mint.key().as_ref()],
+        bump = sale.bump,
+        has_one = admin,
+        has_one = rlya_mint
+    )]
+    pub sale: Account<'info, Sale>,
+    #[account(
+        mut,
+        seeds = [PRELAUNCH_METRICS_SEED, rlya_mint.key().as_ref()],
+        bump = prelaunch_metrics.bump,
+        has_one = rlya_mint
+    )]
+    pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,
+}
+
+#[derive(Accounts)]
 pub struct MarkPublicLaunch<'info> {
     pub admin: Signer<'info>,
     pub rlya_mint: Account<'info, Mint>,
@@ -1107,6 +1163,12 @@ pub struct MarkPublicLaunch<'info> {
         has_one = rlya_mint
     )]
     pub sale: Account<'info, Sale>,
+    #[account(
+        seeds = [PRELAUNCH_METRICS_SEED, rlya_mint.key().as_ref()],
+        bump = prelaunch_metrics.bump,
+        has_one = rlya_mint
+    )]
+    pub prelaunch_metrics: Account<'info, PrelaunchMetrics>,
     #[account(
         mut,
         seeds = [FOUNDER_LOCK_SEED, rlya_mint.key().as_ref()],
@@ -1513,6 +1575,7 @@ pub struct PrelaunchMetrics {
     pub expected_staking_bonus: u64,
     pub expected_gross_usdc: u64,
     pub expected_referral_usdc: u64,
+    pub scheduled_public_launch_at: i64,
     pub web_rlya_delivered: u64,
     pub manual_rlya_delivered: u64,
     pub staking_bonus_delivered: u64,
@@ -1521,7 +1584,7 @@ pub struct PrelaunchMetrics {
     pub bump: u8,
 }
 impl PrelaunchMetrics {
-    pub const SPACE: usize = 8 + 32 + 32 + (8 * 10) + 1 + 16;
+    pub const SPACE: usize = 8 + 32 + 32 + (8 * 11) + 1 + 16;
 }
 
 #[account]
@@ -1577,6 +1640,11 @@ pub struct SaleInitialized {
 pub struct SaleStatusChanged {
     pub status: u8,
     pub timestamp: i64,
+}
+#[event]
+pub struct PublicLaunchScheduled {
+    pub scheduled_at: i64,
+    pub standard_presale_release_at: i64,
 }
 #[event]
 pub struct PublicLaunchMarked {
@@ -1699,6 +1767,14 @@ pub enum SaleError {
     PublicLaunchNotMarked,
     #[msg("public RLYA launch has already been marked")]
     PublicLaunchAlreadyMarked,
+    #[msg("public RLYA launch must be scheduled before T-1 distribution")]
+    PublicLaunchNotScheduled,
+    #[msg("public RLYA launch has already been scheduled")]
+    PublicLaunchAlreadyScheduled,
+    #[msg("public RLYA launch must be scheduled at least 24 hours ahead")]
+    PublicLaunchScheduleTooSoon,
+    #[msg("public RLYA launch cannot be marked before the scheduled timestamp")]
+    PublicLaunchTooEarly,
     #[msg("this presale allocation is still inside its post-launch release lock")]
     PresaleReleaseStillLocked,
     #[msg("founder allocation is still locked")]

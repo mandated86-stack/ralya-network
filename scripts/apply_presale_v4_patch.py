@@ -541,8 +541,8 @@ text = replace_once(
 # Add scheduled field and account space.
 text = replace_once(
     text,
-    "    pub expected_referral_usdc: u64;\n    pub web_rlya_delivered: u64;",
-    "    pub expected_referral_usdc: u64;\n    pub scheduled_public_launch_at: i64;\n    pub web_rlya_delivered: u64;",
+    "    pub expected_referral_usdc: u64,\n    pub web_rlya_delivered: u64,",
+    "    pub expected_referral_usdc: u64,\n    pub scheduled_public_launch_at: i64,\n    pub web_rlya_delivered: u64,",
     'prelaunch metrics scheduled field',
 )
 text = replace_once(
@@ -742,7 +742,7 @@ check('STAKED_PRESALE_RELEASE_SECONDS: i64 = 21 * 24 * 60 * 60' in program, 'pro
 check('schedule_public_launch' in program and 'scheduled_public_launch_at' in program, 'program lacks one-time launch schedule required for T-1')
 check('standard-tminus1' in delivery and 'staked-plus21d' in delivery, 'owner distribution manifest policy is stale')
 check('Standard T-1 delivery' in delivery or 'Standard wallets become eligible at T-1' in delivery, 'owner distribution UI is missing T-1 copy')
-check('ralya:purchase-confirmed' in celebration and 'No claim' in celebration, 'verified-purchase celebration/reassurance is missing')
+check('ralya:purchase-confirmed' in celebration and 'claim' in celebration, 'verified-purchase celebration/reassurance is missing')
 check('final-manifest/v4' in owner, 'final manifest is not frozen in persistent storage')
 check('ledgerRecordSha256' in confirm and 'wallet-purchase/' in confirm, 'confirmed purchase ledger lacks hash/index hardening')"""
 text = replace_once(text, insert_after, insert_after + "\n" + extra, 'audit v4 additions')

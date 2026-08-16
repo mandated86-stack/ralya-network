@@ -1,7 +1,7 @@
 import { Connection } from '@solana/web3.js';
 import {
   PRESALE_CAP_BASE, PRESALE_TREASURY_WALLET, STAKING_BONUS_RESERVE_BASE, USDC_MINT,
-  computeState, json, stakingBonus, store, withMutationLock,
+  computeState, json, sha256Json, stakingBonus, store, withMutationLock,
 } from './_shared/presale-core.mts';
 
 const MEMO_PROGRAM = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
@@ -106,7 +106,7 @@ export default async (req: Request) => {
         });
       }
 
-      const event = {
+      const eventPayload = {
         id: signature,
         kind: 'web',
         wallet: quote.buyer,
@@ -128,8 +128,14 @@ export default async (req: Request) => {
         quoteId,
         status: 'allocation-confirmed',
         distributionStatus: stake ? '21-days-after-public-launch' : '1-day-before-public-launch',
+        ledgerVersion: 4,
+        deliveryStatus: 'pending',
+        automaticDelivery: true,
+        claimRequired: false,
       };
+      const event = { ...eventPayload, ledgerRecordSha256: sha256Json(eventPayload) };
       await s.setJSON(`purchase/${signature}`, event);
+      await s.setJSON(`wallet-purchase/${quote.buyer}/${signature}`, event);
       await s.setJSON(`quote/${quoteId}`, { ...quote, status: 'confirmed', signature, confirmedAt: event.confirmedAt });
       const finalState = await computeState(s, false);
       if (finalState.totalAllocatedBase > PRESALE_CAP_BASE) throw new Error('CRITICAL: confirmed ledger exceeds the fixed public presale cap.');

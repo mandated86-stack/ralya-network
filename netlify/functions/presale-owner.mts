@@ -99,6 +99,7 @@ async function makeManifest(s: ReturnType<typeof store>) {
         referralUsdcBase: 0n,
         referrer: null,
         sourceIds: [],
+        sourceLedgerHashes: [],
       };
       grouped.set(event.wallet, row);
     }
@@ -117,6 +118,7 @@ async function makeManifest(s: ReturnType<typeof store>) {
     row.referralUsdcBase += BigInt(event.referralUsdcBase || 0);
     if (event.referrer) row.referrer = event.referrer;
     row.sourceIds.push(event.id);
+    if (event.ledgerRecordSha256) row.sourceLedgerHashes.push(event.ledgerRecordSha256);
   }
 
   const allocations = [...grouped.values()]
@@ -137,6 +139,9 @@ async function makeManifest(s: ReturnType<typeof store>) {
       referralUsdcBase: row.referralUsdcBase.toString(),
       referrer: row.referrer,
       sourceIds: row.sourceIds,
+      sourceLedgerHashes: row.sourceLedgerHashes,
+      automaticDelivery: true,
+      claimRequired: false,
     }));
 
   const totals = allocations.reduce((acc, row) => {
@@ -157,7 +162,7 @@ async function makeManifest(s: ReturnType<typeof store>) {
     project: 'RALYA',
     symbol: 'RLYA',
     purpose: 'prelaunch-allocation-delivery',
-    version: 3,
+    version: 4,
     generatedAt: new Date().toISOString(),
     deliveryPolicy: {
       standard: STANDARD_DISTRIBUTION,
@@ -165,6 +170,9 @@ async function makeManifest(s: ReturnType<typeof store>) {
       standardPolicyId: STANDARD_POLICY,
       stakedPolicyId: STAKED_POLICY,
       stakingBonusBps: 500,
+      automaticDelivery: true,
+      claimRequired: false,
+      recipientWallet: 'same-wallet-used-for-presale-purchase',
     },
     allocations,
     totals: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, (v as bigint).toString()])),
@@ -266,10 +274,18 @@ export default async (req: Request) => {
       const state = await computeState(s, true);
       if (state.control.access !== 'closed') throw new Error('Close pre-launch allocation access before exporting the final delivery manifest.');
       if (state.reservedBase > 0n) throw new Error('Active buyer quote windows are still clearing. Export the final manifest after all reservations expire or confirm.');
+      const frozen: any = await s.get('final-manifest/v4', { type: 'json' });
+      if (frozen) return json({ ok: true, frozen: true, manifest: frozen });
       const manifest = await makeManifest(s);
       if (BigInt(manifest.totals.totalPurchasedRlyaBase) > PRESALE_CAP_BASE) throw new Error('Manifest exceeds the 288M public allocation cap.');
       if (BigInt(manifest.totals.stakingBonusRlyaBase) > STAKING_BONUS_RESERVE_BASE) throw new Error('Manifest exceeds the 14.4M staking bonus reserve.');
-      return json({ ok: true, manifest });
+      const stored: any = await s.setJSON('final-manifest/v4', manifest, { onlyIfNew: true });
+      if (!stored.modified) {
+        const existing: any = await s.get('final-manifest/v4', { type: 'json' });
+        if (!existing || existing.sha256 !== manifest.sha256) throw new Error('A different final manifest is already frozen. STOP and reconcile before distribution.');
+        return json({ ok: true, frozen: true, manifest: existing });
+      }
+      return json({ ok: true, frozen: true, manifest });
     }
 
     throw new Error('Unknown owner presale operation.');

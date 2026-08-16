@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.3-wallet-browser-buy-copy',
+  build: '1.0.4-presale-celebration-wallet-delivery',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -129,9 +129,11 @@ window.RALYA_CONFIG = Object.freeze({
     if (!isOwnerPath) {
       loadStyle('/site-v2.css', 'data-rlya-site-v2-style');
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
-      loadStyle('/presale-next.css', 'data-rlya-presale-next-style');
-      loadScript('/presale-next.js', 'data-rlya-presale-next');
-      loadScript('/wallet-mobile-fix.js?v=1.0.3', 'data-rlya-wallet-mobile-fix');
+      loadStyle('/presale-next.css?v=1.0.4', 'data-rlya-presale-next-style');
+      loadStyle('/purchase-celebration.css?v=1.0.4', 'data-rlya-purchase-celebration-style');
+      loadScript('/presale-next.js?v=1.0.4', 'data-rlya-presale-next');
+      loadScript('/wallet-mobile-fix.js?v=1.0.4', 'data-rlya-wallet-mobile-fix');
+      loadScript('/purchase-celebration.js?v=1.0.4', 'data-rlya-purchase-celebration');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
     }

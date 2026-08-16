@@ -133,6 +133,11 @@ export default async (req: Request, context: any) => {
       totalReferralUsdcBase: totalReferral.toString(),
       averagePriceMicroUsdc: averagePriceMicroUsdc.toString(),
       lockedReferrer: (referral as any)?.referrer || null,
+      automaticDelivery: true,
+      claimRequired: false,
+      deliveryMessage: hasStaked && !hasStandard
+        ? 'Base RLYA + fixed 5% bonus will be sent automatically to this same wallet 21 days after public launch.'
+        : 'Standard RLYA will be sent automatically to this same wallet 1 day before public launch.',
       allocations: mine.map((event: any) => {
         const base = BigInt(event.rlyaBase || 0);
         const bonus = BigInt(event.stakingBonusBase || 0);
@@ -152,6 +157,11 @@ export default async (req: Request, context: any) => {
           createdAt: event.createdAt,
           confirmedAt: event.confirmedAt || null,
           signature: event.kind === 'web' ? event.signature || null : null,
+          ledgerVersion: event.ledgerVersion || null,
+          ledgerRecordSha256: event.ledgerRecordSha256 || null,
+          deliveryStatus: event.deliveryStatus || 'pending',
+          automaticDelivery: event.automaticDelivery !== false,
+          claimRequired: event.claimRequired === true,
         };
       }),
     });
