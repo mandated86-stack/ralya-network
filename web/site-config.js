@@ -1,7 +1,7 @@
 window.RALYA_CONFIG = Object.freeze({
   project: 'RALYA',
   symbol: 'RLYA',
-  build: '1.0.6-wallet-summary-card',
+  build: '1.0.7-launch-countdown-roadmap',
   launchPhase: 'pre-launch',
   presaleMode: 'prelaunch-allocation',
   presaleEnabled: false,
@@ -159,12 +159,14 @@ window.RALYA_CONFIG = Object.freeze({
       loadStyle('/mobile-stability.css', 'data-rlya-mobile-stability');
       loadStyle('/presale-next.css?v=1.0.4', 'data-rlya-presale-next-style');
       loadStyle('/purchase-celebration.css?v=1.0.4', 'data-rlya-purchase-celebration-style');
+      loadStyle('/launch-countdown.css?v=1.0.0', 'data-rlya-launch-countdown-style');
       loadScript('/presale-next.js?v=1.0.4', 'data-rlya-presale-next');
       loadScript('/wallet-mobile-fix.js?v=1.0.4', 'data-rlya-wallet-mobile-fix');
       loadScript('/purchase-celebration.js?v=1.0.4', 'data-rlya-purchase-celebration');
       loadScript('/site-ui-hotfix.js', 'data-rlya-site-v2');
       loadScript('/site-content.js', 'data-rlya-site-content');
       loadScript('/live-presale-ui.js?v=1.0.6', 'data-rlya-live-presale-ui');
+      loadScript('/launch-countdown.js?v=1.0.0', 'data-rlya-launch-countdown');
     }
     if (cfg.presaleMode === 'atomic' && document.getElementById('marketPanel')) loadScript('/distribution-transparency.js', 'data-rlya-transparency');
     if (document.getElementById('networkStatus') || document.getElementById('programTag')) loadScript('/launch-status.js', 'data-rlya-launch-status');
@@ -173,6 +175,7 @@ window.RALYA_CONFIG = Object.freeze({
       loadScript('/owner/presale-control.js', 'data-rlya-owner-presale');
       loadScript('/owner/treasury-prep.js', 'data-rlya-owner-treasury');
       loadScript('/owner/site-copy-control.js', 'data-rlya-owner-site-copy');
+      loadScript('/owner/launch-countdown-control.js?v=1.0.0', 'data-rlya-owner-launch-countdown');
       if (cfg.saleProgramId && cfg.rlyaMint && cfg.salePda) loadScript('/owner/prelaunch-delivery.js', 'data-rlya-owner-delivery');
     }
   };
