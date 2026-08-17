@@ -442,5 +442,5 @@ export default async (req: Request, context: any) => {
 };
 
 export const config = {
-  path: [ACTION_PATH, CONFIRM_PATH],
+  path: ['/api/actions/rlya', '/api/actions/rlya/confirm'],
 };
